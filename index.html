@@ -117,6 +117,99 @@ button:disabled{opacity:.35; cursor:default}
 .relGood{color:#8fbf8f}.relBad{color:#d08a82}.relMid{color:var(--parch-dim)}
 ::-webkit-scrollbar{width:9px}::-webkit-scrollbar-track{background:#100b07}
 ::-webkit-scrollbar-thumb{background:#3a2e1d}
+
+/* ===== 모바일 전용 ===== */
+#logTab  { display:none }
+#logClose{ display:none }
+#charTop { display:contents }
+#charBot { display:contents }
+
+@media (max-width:768px){
+  /* 헤더 폰트 40% 축소 */
+  #hdr{ padding:6px 10px }
+  #hdr .date{ font-size:.69rem }
+  #hdr .date small{ font-size:.47rem }
+  #hdr .res{ font-size:.57rem; gap:10px }
+  #hdr .res span b{ margin-right:2px }
+
+  /* 메인: 지도 전체 폭, 로그 제거 */
+  #main{ position:relative }
+  #mapWrap{ flex:1; border-right:none }
+  #map{ height:calc(100% - 33px) }
+
+  /* 연대기 — 슬라이드 드로어 */
+  #logWrap{
+    position:absolute; top:0; right:0; bottom:0;
+    width:82%; max-width:340px; flex:none; min-width:0;
+    transform:translateX(100%);
+    transition:transform .26s cubic-bezier(.4,0,.2,1);
+    background:var(--panel);
+    border-left:2px solid var(--gold-dim);
+    z-index:30;
+  }
+  #logWrap.open{ transform:translateX(0) }
+  #logWrap h3{
+    display:flex; align-items:center; justify-content:space-between;
+  }
+
+  /* 책갈피 탭 버튼 */
+  #logTab{
+    display:block;
+    position:absolute; right:0; top:44%;
+    transform:translateY(-50%);
+    padding:14px 6px;
+    background:linear-gradient(#2e2214,#1c1408);
+    border:1px solid var(--gold-dim); border-right:none;
+    border-radius:6px 0 0 6px;
+    color:var(--gold); font-size:.66rem; letter-spacing:.3em;
+    writing-mode:vertical-rl; cursor:pointer;
+    z-index:15; box-shadow:-4px 0 14px rgba(0,0,0,.65);
+    font-family:inherit;
+  }
+
+  /* 연대기 닫기 버튼 */
+  #logClose{
+    display:block; background:none; border:none;
+    color:var(--parch-dim); font-size:1rem;
+    padding:0 2px; min-width:auto; letter-spacing:0;
+    cursor:pointer;
+  }
+  #logClose:hover{ color:var(--gold) }
+
+  /* 캐릭터 바 — 2층 구조 */
+  #charBar{ flex-direction:column }
+
+  /* 1층: 초상화 + 캐릭터 정보 */
+  #charTop{
+    display:flex; flex-direction:row;
+    border-bottom:1px solid var(--line);
+  }
+  #portrait{ width:58px; min-height:68px; font-size:1.5rem }
+  #charInfo{ padding:6px 10px }
+  #charInfo .nm{ font-size:.88rem }
+  #charInfo .ttl{ font-size:.68rem }
+  #stats{ gap:8px; font-size:.74rem }
+  .chips{ gap:3px }
+  .chip{ font-size:.63rem; padding:1px 5px }
+
+  /* 2층: 스트레스 + 버튼 */
+  #charBot{
+    display:flex; flex-direction:row;
+    align-items:center; gap:0;
+  }
+  #stressBox{
+    flex:1; border-left:none;
+    padding:7px 10px;
+  }
+  #btnCol{
+    flex:0 0 auto; flex-direction:row;
+    border-left:1px solid var(--line);
+  }
+  #btnCol button{
+    flex:0 0 auto; min-width:54px;
+    padding:6px 10px; font-size:.78rem;
+  }
+}
 </style>
 </head>
 <body>
@@ -133,34 +226,39 @@ button:disabled{opacity:.35; cursor:default}
 <div id="main">
   <div id="mapWrap">
     <h3>에이레 — 일곱 왕국</h3>
+    <button id="logTab" onclick="toggleLog()">연대기</button>
     <svg id="map" viewBox="0 0 420 470" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
   <div id="logWrap">
-    <h3>연대기</h3>
+    <h3>연대기<button id="logClose" onclick="toggleLog()">✕</button></h3>
     <div id="log"></div>
   </div>
 </div>
 
 <div id="charBar">
-  <div id="portrait">M</div>
-  <div id="charInfo">
-    <div class="nm" id="cNm">무르하드 막 돈하드</div>
-    <div class="ttl" id="cTtl">먼스터 소왕 · 39세 · 우어 브리언 가문</div>
-    <div class="chips" id="cChips"></div>
-    <div id="stats"></div>
-  </div>
-  <div id="stressBox">
-    <div class="lbl"><span>스트레스</span><span id="stressNum">0 / 300</span></div>
-    <div id="stressTrack">
-      <div id="stressFill"></div>
-      <div class="smark" style="left:33.3%"></div>
-      <div class="smark" style="left:66.6%"></div>
+  <div id="charTop">
+    <div id="portrait">M</div>
+    <div id="charInfo">
+      <div class="nm" id="cNm">무르하드 막 돈하드</div>
+      <div class="ttl" id="cTtl">먼스터 소왕 · 39세 · 우어 브리언 가문</div>
+      <div class="chips" id="cChips"></div>
+      <div id="stats"></div>
     </div>
-    <div id="stressLvl">0단계 — 평온함</div>
   </div>
-  <div id="btnCol">
-    <button onclick="openCourt()">궁정</button>
-    <button onclick="openDecisions()">결단</button>
+  <div id="charBot">
+    <div id="stressBox">
+      <div class="lbl"><span>스트레스</span><span id="stressNum">0 / 300</span></div>
+      <div id="stressTrack">
+        <div id="stressFill"></div>
+        <div class="smark" style="left:33.3%"></div>
+        <div class="smark" style="left:66.6%"></div>
+      </div>
+      <div id="stressLvl">0단계 — 평온함</div>
+    </div>
+    <div id="btnCol">
+      <button onclick="openCourt()">궁정</button>
+      <button onclick="openDecisions()">결단</button>
+    </div>
   </div>
 </div>
 
@@ -538,6 +636,12 @@ function gameOver(msg){
 
 /* ---------- 시간 진행 ---------- */
 function togglePause(){ state.paused?resume():pause(); }
+function toggleLog(){
+  const lw=document.getElementById('logWrap');
+  const tab=document.getElementById('logTab');
+  const open=lw.classList.toggle('open');
+  if(tab) tab.textContent = open ? '닫기' : '연대기';
+}
 function pause(){ state.paused=true; clearInterval(state.timer); state.timer=null; updPauseBtn(); }
 function resume(){
   if(state.over||state.modalOpen) return;
