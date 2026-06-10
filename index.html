@@ -301,7 +301,7 @@ function playSynthSFX(type) {
       clickOsc.stop(now + 0.1);
       break;
 
-    case 'gold': // 국고/금전 변동: 주화 짤랑이는 금속성 소리
+    case 'gold': // 국고/금전 변동: 주화 짤랑이는 소리
       [880, 1320].forEach((freq, i) => {
         const coinOsc = audioCtx.createOscillator();
         const coinGain = audioCtx.createGain();
@@ -320,7 +320,7 @@ function playSynthSFX(type) {
       });
       break;
 
-    case 'war': // 전쟁 선포: 묵직하게 울리는 중세식 전장의 나팔 소리
+    case 'war': // 전쟁 선포: 묵직하게 울리는 뿔나팔 소리
       [-8, 8].forEach(detune => {
         const hornOsc = audioCtx.createOscillator();
         const hornGain = audioCtx.createGain();
@@ -347,7 +347,7 @@ function playSynthSFX(type) {
       });
       break;
 
-    case 'death': // 군주 사망: 엄숙하고 긴 여운을 남기는 성당 종소리
+    case 'death': // 군주 사망: 엄숙한 성당 종소리
       [110, 165, 220, 275].forEach((freq, idx) => {
         const bellOsc = audioCtx.createOscillator();
         const bellGain = audioCtx.createGain();
@@ -581,7 +581,7 @@ function flushPopups(){
 }
 function showModal(p){
   state.modalOpen=true;
-  playSynthSFX('event'); // 모달창 팝업 시 효과음 재생
+  playSynthSFX('event');
   const box=document.getElementById('modalBox');
   let h=`<h2>${p.title}</h2><div class="sub">${p.sub||'이벤트'}</div><div class="body">${p.body||''}</div>`;
   if(p.html) h+=p.html;
@@ -650,7 +650,7 @@ function kill(c, cause){
   c.dead=true;
   
   if(c.id===state.player || c.ruler) {
-    playSynthSFX('death'); // 중요 지배자 사망 시 장송 종소리
+    playSynthSFX('death');
   }
 
   if(c.spouse&&chars[c.spouse]){ chars[c.spouse].spouse=null; addStress(chars[c.spouse],40,'배우자의 죽음'); }
@@ -671,7 +671,7 @@ function kill(c, cause){
       gameOver(`${c.name}이(가) 후계자 없이 사망했습니다. 우어 브리언 가문의 직계가 끊겼습니다.`);
     }
   } else {
-    log(`<b>${c.name}</b> 사망 (${cause}).`結構,'war');
+    log(`<b>${c.name}</b> 사망 (${cause}).`,'war');
   }
 }
 function findHeir(c){
@@ -1010,7 +1010,7 @@ function declareWar(atk,def){
   state.wars.push({atk:atk.id,def:def.id,score:0,months:0});
   chOp(def,atk,-40);
   
-  playSynthSFX('war'); // 개전 효과음 출력
+  playSynthSFX('war');
   
   log(`<b>${atk.name}</b>이(가) <b>${REGIONS[def.region].n}</b>에 전쟁을 선포했습니다!`,'war');
   if(atk.id===state.player){
@@ -1346,15 +1346,12 @@ const EVENTS=[
         {t:'웃어 넘긴다', d:'아이 관계 +10, 스트레스 -10', f:()=>{addStress(c,-10,'아이의 웃음이 주는 위안');}},
       ]});
   }},
-  {cond:c=>chars[c.spouse]&&!chars[c.spouse].dead, w:2, run:c=>{
-    const sp=chars[c.spouse]; if(!sp||sp.dead) return;
-    popup({title:'배우자의 말', sub:'가문',
-      body:`${sp.name}이(가) 오늘 밤 조용히 말했습니다.\n"당신이 너무 지쳐 보여요. 잠시라도 쉬어요."`,
-      opts:[
-        {t:'고맙다고 한다', d:'스트레스 -15, 관계 +5', f:()=>{addStress(c,-15,'배우자의 위로'); chOp(sp,c,5);}},
-        {t:'괜찮다고 한다', d:'스트레스 +8', f:()=>addStress(c,8,'혼자 버티는 무게')},
-      ]});
-  }},
+  {cond:c=>chars[c.spouse]&&!chars[c.spouse].dead, w:2, run:c=>popup({title:'배우자의 말', sub:'가문',
+    body:`${chars[c.spouse].name}이(가) 오늘 밤 조용히 말했습니다.\n"당신이 너무 지쳐 보여요. 잠시라도 쉬어요."`,
+    opts:[
+      {t:'고맙다고 한다', d:'스트레스 -15, 관계 +5', f:()=>{addStress(c,-15,'배우자의 위로'); chOp(chars[c.spouse],c,5);}},
+      {t:'괜찮다고 한다', d:'스트레스 +8', f:()=>addStress(c,8,'혼자 버티는 무게')}
+    ]})},
   {cond:c=>stat(c,'intr')>=6, w:2, run:c=>popup({title:'밀정의 보고', sub:'계책',
     body:'당신의 밀정이 인근 궁정에서 흥미로운 소문을 가져왔습니다.\n한 영주가 비밀스러운 약점을 숨기고 있다는 것입니다.',
     opts:[
@@ -1403,7 +1400,7 @@ const EVENTS=[
       {t:'거절한다', d:'민심 +5', f:()=>{REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+5);}},
     ]})},
   {cond:c=>REGIONS[c.region].gold>150, w:2, run:c=>popup({title:'다리 건설', sub:'내정',
-    body:'섀넌 강을 가로지르는 다리를 놓자는 제안이 올라왔습니다.\n비용은 크지만 교역과 이동이 크게 편해질 것입니다.',
+    body:'섀넌 강을 가로지르는 다리를놓자는 제안이 올라왔습니다.\n비용은 크지만 교역과 이동이 크게 편해질 것입니다.',
     opts:[
       {t:'건설을 명한다', d:'금 -100, 민심 +15, 위신 +10', f:()=>{REGIONS[c.region].gold-=100; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+15); state.prestige+=10; if(c.traits.includes('diligent'))addStress(c,-5,'근면한 자의 성취'); playSynthSFX('gold'); log('다리가 완성되었습니다. 백성들이 기뻐합니다.','good');}},
       {t:'시기상조다', d:'—', f:()=>{}},
@@ -1571,7 +1568,7 @@ function randomEventPulse(){
 
 /* ---------- 플레이어 외교 ---------- */
 function openRegion(rid){
-  initAudio(); // 사용자 인풋 발생 시 예외 대비용 컨텍스트 트리거
+  initAudio();
   const c=ownerOf(rid);
   if(!c) return;
   const p=playerChar();
@@ -1599,7 +1596,7 @@ function openRegion(rid){
     opts.push({t:'선물 보내기', d:'금 50 — 관계 +15', f:()=>{
       if(REGIONS[p.region].gold<50){log('금이 부족합니다.');return;}
       REGIONS[p.region].gold-=50; chOp(c,p,15);
-      playSynthSFX('gold'); // 돈 소리 재생
+      playSynthSFX('gold');
       log(`<b>${c.name}</b>에게 선물을 보냈습니다. (+15)`,'dip');
       if(p.traits.includes('greedy'))addStress(p,10,'탐욕스러운 자의 선물');
     }});
@@ -1819,7 +1816,7 @@ function intro(){
   popup({title:'에이레, 1066년', sub:'먼스터의 소왕',
     body:`잉글랜드에서는 세 명의 왕이 하나의 왕관을 두고 칼을 뽑았습니다.\n그러나 바다 건너 이 섬은, 그들의 전쟁과 무관하게 자신의 운명을 기다리고 있습니다.\n\n당신은 <b>무르하드 막 돈하드</b> — 먼스터의 소왕.\n할아버지 브리언 보루는 한때 에이레 전토의 하이킹이었습니다.\n\n일곱 왕국을 하나로. 그것이 당신의 길입니다.`,
     opts:[{t:'연대기를 시작한다', f:()=>{
-      initAudio(); // 최초 버튼 클릭 시 브라우저 오디오 보안 해제
+      initAudio();
       askLifestyle(playerChar());
     }}]});
 }
@@ -1831,5 +1828,3 @@ intro();
 </script>
 </body>
 </html>
-
-```
