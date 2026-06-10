@@ -2,1256 +2,1282 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>에르덴 왕국 — 오웬 백작의 연대기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>에이레 1066 — 먼스터의 소왕</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600;700&family=MedievalSharp&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
-
-:root {
-  --stone: #2a2218;
-  --stone-mid: #3d3222;
-  --stone-light: #574838;
-  --parchment: #f2e8d0;
-  --parchment-dim: #c8b48a;
-  --parchment-dark: #a08c60;
-  --gold: #c9973a;
-  --gold-light: #e8bc6a;
-  --gold-dark: #7a5518;
-  --blood: #8b1a1a;
-  --blood-light: #b83232;
-  --iron: #4a5568;
-  --iron-light: #718096;
-  --forest: #2d5a27;
-  --forest-light: #4a8c42;
-  --shadow: rgba(0,0,0,0.7);
-  --glow: rgba(201,151,58,0.2);
+:root{
+  --bg:#14100c; --panel:#1e1710; --panel2:#241b12; --line:#3a2e1d;
+  --gold:#c8a24a; --gold-dim:#8a7034; --parch:#e6d9be; --parch-dim:#a89878;
+  --blood:#a03c34; --emerald:#3d6b4a; --steel:#5a6e85; --violet:#6d5380;
+  --rust:#9c6b3c; --moss:#6e7a3c; --slate:#4f5d68;
 }
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; }
-body {
-  background: var(--stone);
-  color: var(--parchment);
-  font-family: 'Crimson Text', serif;
-  min-height: 100vh;
-  background-image:
-    radial-gradient(ellipse 100% 50% at 50% 0%, rgba(201,151,58,0.08) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 60% at 0% 100%, rgba(139,26,26,0.1) 0%, transparent 50%),
-    url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c9973a' fill-opacity='0.018'%3E%3Crect x='0' y='0' width='1' height='100'/%3E%3Crect x='50' y='0' width='1' height='100'/%3E%3Crect x='0' y='0' width='100' height='1'/%3E%3Crect x='0' y='50' width='100' height='1'/%3E%3C/g%3E%3C/svg%3E");
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-bottom: 40px;
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--parch);
+  font-family:Georgia,'Nanum Myeongjo','Noto Serif KR',serif;
+  display:flex; flex-direction:column; overflow:hidden;
 }
-
-/* ── HEADER ── */
-.hdr {
-  width: 100%; max-width: 720px;
-  padding: 18px 18px 10px;
-  text-align: center;
+/* ===== 헤더 ===== */
+#hdr{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 18px; background:linear-gradient(#241b12,#1a130c);
+  border-bottom:2px solid var(--gold-dim); flex:0 0 auto;
 }
-.hdr-crest { font-size: 1.4rem; color: var(--gold); opacity: 0.6; letter-spacing: 0.3em; display: block; margin-bottom: 4px; }
-.hdr-title {
-  font-family: 'Cinzel', serif;
-  font-size: clamp(1.2rem, 5vw, 1.9rem);
-  font-weight: 700;
-  color: var(--gold-light);
-  letter-spacing: 0.06em;
-  text-shadow: 0 0 30px var(--glow), 0 2px 4px var(--shadow);
+#hdr .date{font-size:1.15rem; letter-spacing:.08em; color:var(--gold)}
+#hdr .date small{color:var(--parch-dim); font-size:.78rem; margin-left:10px; letter-spacing:.15em}
+#hdr .res{display:flex; gap:22px; font-size:.95rem}
+#hdr .res span b{color:var(--gold); font-weight:normal; margin-right:5px}
+/* ===== 본문 ===== */
+#main{flex:1 1 auto; display:flex; min-height:0}
+#mapWrap{flex:1.1; border-right:1px solid var(--line); position:relative; background:
+  radial-gradient(ellipse at 50% 40%, #1c1812 0%, #14100c 75%)}
+#mapWrap h3, #logWrap h3{
+  font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
+  padding:8px 14px; border-bottom:1px solid var(--line); font-weight:normal;
 }
-.hdr-sub {
-  font-family: 'Cinzel', serif;
-  font-size: 0.65rem;
-  color: var(--gold-dark);
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  margin-top: 3px;
+#map{width:100%; height:calc(100% - 33px); display:block}
+.node{cursor:pointer}
+.node circle.body{stroke-width:2.5}
+.node:hover circle.body{filter:brightness(1.3)}
+.node text{fill:var(--parch); font-size:13px; text-anchor:middle; pointer-events:none; font-family:inherit}
+.node text.owner{fill:var(--parch-dim); font-size:10px}
+.edge{stroke:#3a2e1d; stroke-width:1.5; stroke-dasharray:3 4}
+.warEdge{stroke:var(--blood); stroke-dasharray:none; stroke-width:2}
+/* ===== 로그 ===== */
+#logWrap{flex:1; display:flex; flex-direction:column; min-width:300px}
+#log{flex:1; overflow-y:auto; padding:10px 14px; font-size:.88rem; line-height:1.55}
+#log p{margin-bottom:7px; border-left:2px solid var(--line); padding-left:9px}
+#log p .d{color:var(--gold-dim); font-size:.74rem; display:block; letter-spacing:.05em}
+#log p.war{border-color:var(--blood)} #log p.good{border-color:var(--emerald)}
+#log p.dip{border-color:var(--steel)} #log p.fam{border-color:var(--violet)}
+/* ===== 캐릭터 패널 ===== */
+#charBar{
+  flex:0 0 auto; display:flex; gap:0; background:linear-gradient(#1f1812,#161009);
+  border-top:2px solid var(--gold-dim);
 }
-.hdr-line { width: 160px; height: 1px; background: linear-gradient(90deg,transparent,var(--gold),transparent); margin: 10px auto 0; }
-
-/* ── DATE BAR ── */
-.date-bar {
-  width: 100%; max-width: 720px;
-  padding: 6px 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+#portrait{
+  width:86px; min-height:108px; display:flex; align-items:center; justify-content:center;
+  font-size:2.2rem; color:var(--gold); border-right:1px solid var(--line);
+  background:radial-gradient(circle at 50% 35%, #2c2113, #181009);
+  text-shadow:0 0 18px rgba(200,162,74,.4);
 }
-.date-txt { font-family: 'Cinzel', serif; font-size: 0.72rem; color: var(--gold); }
-.week-txt { font-size: 0.68rem; color: var(--parchment-dark); font-style: italic; }
-
-/* ── TOP GRID ── */
-.top-grid {
-  width: 100%; max-width: 720px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 0 18px 8px;
+#charInfo{flex:1; padding:9px 16px}
+#charInfo .nm{font-size:1.05rem; color:var(--gold)}
+#charInfo .ttl{font-size:.78rem; color:var(--parch-dim); letter-spacing:.1em; margin-bottom:5px}
+.chips{display:flex; flex-wrap:wrap; gap:5px; margin:4px 0}
+.chip{font-size:.7rem; border:1px solid var(--gold-dim); border-radius:2px;
+  padding:1px 7px; color:var(--parch); background:#241b10}
+.chip.edu{border-color:var(--steel)} .chip.life{border-color:var(--violet)}
+#stats{display:flex; gap:14px; font-size:.8rem; margin-top:4px; color:var(--parch-dim)}
+#stats b{color:var(--parch); font-weight:normal}
+#stressBox{flex:0 0 240px; padding:10px 16px; border-left:1px solid var(--line)}
+#stressBox .lbl{font-size:.7rem; letter-spacing:.2em; color:var(--parch-dim); display:flex; justify-content:space-between}
+#stressTrack{height:13px; background:#0c0906; border:1px solid var(--line); margin-top:6px; position:relative}
+#stressFill{height:100%; background:linear-gradient(90deg,#6e5a2c,#a03c34); width:0%}
+.smark{position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--gold-dim)}
+#stressLvl{font-size:.72rem; margin-top:5px; color:var(--parch-dim)}
+#btnCol{flex:0 0 auto; display:flex; flex-direction:column; border-left:1px solid var(--line)}
+#btnCol button{flex:1; min-width:96px}
+/* ===== 푸터 ===== */
+#ftr{
+  flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:14px;
+  padding:8px; background:#100b07; border-top:1px solid var(--line);
 }
-
-/* ── PANEL ── */
-.panel {
-  background: linear-gradient(160deg, rgba(42,34,24,0.97), rgba(30,24,14,0.98));
-  border: 1px solid rgba(201,151,58,0.18);
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(201,151,58,0.08);
+button{
+  background:#241b10; border:1px solid var(--gold-dim); color:var(--parch);
+  font-family:inherit; font-size:.85rem; padding:7px 16px; cursor:pointer; letter-spacing:.06em;
 }
-.panel-hdr {
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(201,151,58,0.1);
-  font-family: 'Cinzel', serif;
-  font-size: 0.58rem;
-  color: var(--gold-dark);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+button:hover{background:#332512; color:var(--gold)}
+button.on{background:var(--gold-dim); color:#14100c}
+button:disabled{opacity:.35; cursor:default}
+#pauseBtn{font-size:1rem; min-width:110px}
+#pauseBtn.paused{border-color:var(--blood); color:#e0a09a}
+/* ===== 모달 ===== */
+#shade{position:fixed; inset:0; background:rgba(5,3,1,.72); display:none;
+  align-items:center; justify-content:center; z-index:50}
+#shade.show{display:flex}
+.modal{
+  width:min(560px, 92vw); max-height:84vh; overflow-y:auto;
+  background:linear-gradient(#251c12,#1a130b); border:1px solid var(--gold);
+  box-shadow:0 0 60px rgba(0,0,0,.8), inset 0 0 40px rgba(200,162,74,.05);
+  padding:26px 30px;
 }
-.panel-body { padding: 10px 12px; }
-
-/* ── STATS ── */
-.stat-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-.stat-row:last-child { margin-bottom: 0; }
-.stat-icon { font-size: 0.85rem; width: 18px; text-align: center; flex-shrink: 0; }
-.stat-name { font-family: 'Cinzel', serif; font-size: 0.6rem; color: var(--parchment-dark); width: 36px; flex-shrink: 0; }
-.stat-bar-bg { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
-.stat-bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--gold-dark), var(--gold-light)); transition: width 0.5s ease; }
-.stat-num { font-family: 'Cinzel', serif; font-size: 0.72rem; color: var(--gold-light); width: 24px; text-align: right; flex-shrink: 0; }
-
-/* ── OUTLOOK (인생관) ── */
-.outlook-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(201,151,58,0.06);
-}
-.outlook-row:last-child { border-bottom: none; }
-.outlook-icon { font-size: 1rem; width: 20px; text-align: center; }
-.outlook-info { flex: 1; }
-.outlook-name { font-family: 'Cinzel', serif; font-size: 0.65rem; color: var(--parchment); display: block; }
-.outlook-stars { display: flex; gap: 2px; margin-top: 2px; }
-.star { font-size: 0.6rem; color: var(--gold); }
-.star.empty { color: rgba(201,151,58,0.2); }
-
-/* ── DOMAIN ── */
-.domain-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.domain-item { text-align: center; }
-.domain-label { font-family: 'Cinzel', serif; font-size: 0.52rem; color: var(--gold-dark); text-transform: uppercase; letter-spacing: 0.1em; display: block; margin-bottom: 2px; }
-.domain-val { font-size: 1rem; font-family: 'Cinzel', serif; color: var(--gold-light); font-weight: 700; display: block; }
-.domain-bar-bg { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-top: 3px; overflow: hidden; }
-.domain-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
-.bar-dev { background: linear-gradient(90deg, var(--forest), var(--forest-light)); }
-.bar-loy { background: linear-gradient(90deg, var(--blood), var(--blood-light)); }
-
-/* ── RESOURCES ── */
-.res-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-.res-row:last-child { margin-bottom: 0; }
-.res-label { font-size: 0.65rem; color: var(--parchment-dark); }
-.res-val { font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--parchment); }
-.res-val.danger { color: var(--blood-light); }
-.res-val.good { color: var(--forest-light); }
-
-/* ── NPC ROW ── */
-.npc-strip {
-  width: 100%; max-width: 720px;
-  padding: 0 18px 8px;
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.npc-strip::-webkit-scrollbar { display: none; }
-.npc-card {
-  flex-shrink: 0;
-  background: rgba(42,34,24,0.9);
-  border: 1px solid rgba(201,151,58,0.12);
-  border-radius: 8px;
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  -webkit-tap-highlight-color: transparent;
-  min-width: 130px;
-}
-.npc-card:hover { border-color: rgba(201,151,58,0.35); background: rgba(60,48,32,0.9); }
-.npc-card.allied { border-color: rgba(74,140,66,0.4); }
-.npc-card.hostile { border-color: rgba(184,50,50,0.4); }
-.npc-avatar { font-size: 1.3rem; width: 30px; text-align: center; }
-.npc-info { flex: 1; min-width: 0; }
-.npc-name { font-family: 'Cinzel', serif; font-size: 0.65rem; color: var(--parchment); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.npc-rel-label { font-size: 0.58rem; color: var(--parchment-dark); display: block; margin-top: 1px; }
-.npc-rel-bar { height: 2px; background: rgba(255,255,255,0.06); border-radius: 1px; margin-top: 3px; overflow: hidden; }
-.npc-rel-fill { height: 100%; border-radius: 1px; transition: width 0.4s; background: linear-gradient(90deg, var(--gold-dark), var(--gold-light)); }
-.npc-rel-fill.hostile-fill { background: linear-gradient(90deg, #6b1010, var(--blood-light)); }
-
-/* ── MAIN PANEL ── */
-.main-wrap {
-  width: 100%; max-width: 720px;
-  padding: 0 18px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* ── SCHEDULE ── */
-.schedule-panel { }
-.schedule-days {
-  display: flex;
-  gap: 4px;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(201,151,58,0.08);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.schedule-days::-webkit-scrollbar { display: none; }
-.day-slot {
-  flex-shrink: 0;
-  width: 34px; height: 34px;
-  border-radius: 5px;
-  border: 1px solid rgba(201,151,58,0.15);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  background: rgba(255,255,255,0.02);
-  position: relative;
-  cursor: pointer;
-  transition: all 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-.day-slot.filled { border-color: rgba(201,151,58,0.35); background: rgba(201,151,58,0.06); }
-.day-slot.empty { border-style: dashed; }
-.day-slot:hover { border-color: rgba(201,151,58,0.5); }
-.day-num { font-family: 'Cinzel', serif; font-size: 0.42rem; color: var(--gold-dark); position: absolute; top: 2px; left: 3px; }
-.day-icon { font-size: 1rem; }
-
-.days-remaining {
-  font-family: 'Cinzel', serif;
-  font-size: 0.58rem;
-  color: var(--gold-dark);
-  padding: 0 12px 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.confirm-btn {
-  background: linear-gradient(135deg, var(--gold-dark), var(--gold));
-  border: none;
-  border-radius: 6px;
-  padding: 5px 12px;
-  color: var(--stone);
-  font-family: 'Cinzel', serif;
-  font-size: 0.62rem;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: 0.05em;
-  transition: all 0.2s;
-  -webkit-tap-highlight-color: transparent;
-}
-.confirm-btn:hover { transform: scale(1.03); box-shadow: 0 3px 12px rgba(201,151,58,0.3); }
-.confirm-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
-
-/* ── ACTION LIST ── */
-.action-cats { display: flex; gap: 4px; padding: 8px 12px; border-bottom: 1px solid rgba(201,151,58,0.08); overflow-x: auto; scrollbar-width: none; }
-.action-cats::-webkit-scrollbar { display: none; }
-.cat-btn {
-  flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(201,151,58,0.15);
-  background: transparent;
-  color: var(--parchment-dark);
-  font-family: 'Cinzel', serif;
-  font-size: 0.58rem;
-  cursor: pointer;
-  transition: all 0.15s;
-  -webkit-tap-highlight-color: transparent;
-}
-.cat-btn.active { background: rgba(201,151,58,0.15); border-color: rgba(201,151,58,0.4); color: var(--gold-light); }
-
-.action-list { display: flex; flex-direction: column; }
-.action-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(201,151,58,0.05);
-  cursor: pointer;
-  transition: all 0.15s;
-  -webkit-tap-highlight-color: transparent;
-  position: relative;
-}
-.action-item:last-child { border-bottom: none; }
-.action-item:hover { background: rgba(201,151,58,0.05); }
-.action-item:active { background: rgba(201,151,58,0.1); }
-.action-item.unavailable { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
-.action-emoji { font-size: 1.1rem; flex-shrink: 0; }
-.action-content { flex: 1; }
-.action-name { font-family: 'Cinzel', serif; font-size: 0.7rem; color: var(--parchment); display: block; margin-bottom: 1px; }
-.action-desc { font-size: 0.62rem; color: var(--parchment-dark); font-style: italic; }
-.action-days {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
-}
-.day-pip { width: 6px; height: 6px; border-radius: 1px; background: var(--gold-dark); }
-
-/* ── EVENT PANEL ── */
-.event-panel { }
-.event-location { font-family: 'Cinzel', serif; font-size: 0.58rem; color: var(--gold-dark); letter-spacing: 0.15em; text-transform: uppercase; }
-.event-speaker-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 6px; }
-.event-avatar { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--gold-dark); background: var(--stone-mid); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
-.event-meta { flex: 1; }
-.event-speaker-name { font-family: 'Cinzel', serif; font-size: 0.78rem; color: var(--gold-light); font-weight: 600; display: block; }
-.event-speaker-role { font-size: 0.62rem; color: var(--gold-dark); font-style: italic; }
-.event-body { padding: 4px 12px 12px; font-size: clamp(0.82rem,3vw,0.92rem); line-height: 1.85; color: var(--parchment); min-height: 60px; }
-.event-body em { color: var(--gold-light); font-style: italic; }
-.event-body .danger { color: var(--blood-light); font-style: italic; }
-
-/* ── CHOICES ── */
-.choices-wrap { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 6px; }
-.choice-btn {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 9px 12px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(201,151,58,0.18);
-  border-radius: 7px;
-  color: var(--parchment);
-  font-family: 'Crimson Text', serif;
-  font-size: clamp(0.78rem,3vw,0.86rem);
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.18s;
-  -webkit-tap-highlight-color: transparent;
-  position: relative;
-  overflow: hidden;
-}
-.choice-btn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg,rgba(201,151,58,0.07),transparent); opacity: 0; transition: opacity 0.18s; }
-.choice-btn:hover::before { opacity: 1; }
-.choice-btn:hover { border-color: rgba(201,151,58,0.4); transform: translateX(2px); }
-.choice-btn:active { transform: scale(0.99); }
-.choice-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
-.choice-text { flex: 1; line-height: 1.5; }
-.choice-hint { display: block; font-size: 0.62rem; color: var(--gold-dark); margin-top: 2px; font-style: italic; }
-
-/* ── LOG ── */
-.log-wrap { width: 100%; max-width: 720px; padding: 4px 18px 20px; }
-.log-title { font-family: 'Cinzel', serif; font-size: 0.55rem; color: var(--gold-dark); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 6px; }
-.log-entry { font-size: 0.68rem; color: rgba(194,180,138,0.45); padding: 3px 8px; border-left: 1px solid rgba(201,151,58,0.1); font-style: italic; margin-bottom: 3px; line-height: 1.5; animation: logIn 0.3s ease; }
-.log-entry.imp { color: rgba(201,151,58,0.6); border-left-color: rgba(201,151,58,0.3); }
-@keyframes logIn { from{opacity:0;transform:translateX(-4px)} to{opacity:1;transform:none} }
-
-/* ── NPC POPUP ── */
-.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; padding: 20px; }
-.overlay.show { opacity: 1; pointer-events: all; }
-.popup { background: linear-gradient(160deg,#2a2218,#1e1810); border: 1px solid rgba(201,151,58,0.3); border-radius: 14px; padding: 22px 18px; max-width: 360px; width: 100%; transform: scale(0.92); transition: transform 0.3s; box-shadow: 0 0 40px rgba(0,0,0,0.7); }
-.overlay.show .popup { transform: scale(1); }
-.popup-avatar { font-size: 2.5rem; text-align: center; margin-bottom: 8px; }
-.popup-name { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--gold-light); font-weight: 700; text-align: center; display: block; margin-bottom: 2px; }
-.popup-role { font-size: 0.7rem; color: var(--gold-dark); text-align: center; font-style: italic; display: block; margin-bottom: 10px; }
-.popup-rel-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-bottom: 4px; overflow: hidden; }
-.popup-rel-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
-.popup-rel-label { font-size: 0.62rem; color: var(--parchment-dark); text-align: center; margin-bottom: 10px; }
-.popup-bio { font-size: 0.78rem; line-height: 1.7; color: var(--parchment-dim); margin-bottom: 12px; }
-.popup-schedule { font-size: 0.68rem; color: var(--gold-dark); font-style: italic; margin-bottom: 14px; }
-.popup-close { width: 100%; padding: 9px; background: rgba(201,151,58,0.08); border: 1px solid rgba(201,151,58,0.2); border-radius: 7px; color: var(--gold-light); font-family: 'Cinzel', serif; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; }
-.popup-close:hover { background: rgba(201,151,58,0.16); }
-
-/* ── HEIR POPUP ── */
-.heir-section { padding: 8px 12px; border-top: 1px solid rgba(201,151,58,0.08); }
-.heir-row { display: flex; align-items: center; gap: 8px; }
-.heir-avatar { font-size: 1.2rem; }
-.heir-info { flex: 1; }
-.heir-name { font-family: 'Cinzel', serif; font-size: 0.68rem; color: var(--parchment); display: block; }
-.heir-detail { font-size: 0.58rem; color: var(--parchment-dark); font-style: italic; }
-.no-heir { font-size: 0.68rem; color: var(--blood-light); font-style: italic; }
-
-/* ── OUTCOME ── */
-.outcome-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.5s; padding: 24px; }
-.outcome-overlay.show { opacity: 1; pointer-events: all; }
-.outcome-card { background: linear-gradient(160deg,#2a2218,#1a1208); border: 1px solid var(--gold); border-radius: 16px; padding: 28px 22px; max-width: 380px; width: 100%; text-align: center; box-shadow: 0 0 60px rgba(201,151,58,0.15); transform: scale(0.9); transition: transform 0.4s; }
-.outcome-overlay.show .outcome-card { transform: scale(1); }
-.out-icon { font-size: 3rem; margin-bottom: 10px; display: block; }
-.out-title { font-family: 'Cinzel', serif; font-size: 1.2rem; color: var(--gold-light); font-weight: 700; margin-bottom: 10px; }
-.out-body { font-size: 0.84rem; line-height: 1.75; color: var(--parchment-dim); margin-bottom: 18px; }
-.restart-btn { background: linear-gradient(135deg,var(--gold-dark),var(--gold)); border: none; border-radius: 8px; padding: 11px 26px; color: var(--stone); font-family: 'Cinzel', serif; font-size: 0.85rem; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; transition: all 0.2s; }
-.restart-btn:hover { transform: scale(1.04); }
-
-.flash-border { animation: flashBorder 0.5s ease; }
-@keyframes flashBorder { 0%,100%{box-shadow:0 4px 20px rgba(0,0,0,0.5)} 50%{box-shadow:0 4px 20px rgba(0,0,0,0.5),0 0 20px rgba(201,151,58,0.2)} }
-
-.tag-good { color: #4a8c42; font-size: 0.62rem; font-family: 'Cinzel', serif; }
-.tag-bad { color: var(--blood-light); font-size: 0.62rem; font-family: 'Cinzel', serif; }
+.modal h2{font-size:1.2rem; color:var(--gold); letter-spacing:.05em; margin-bottom:4px; font-weight:normal}
+.modal .sub{font-size:.76rem; color:var(--parch-dim); letter-spacing:.18em; margin-bottom:14px;
+  border-bottom:1px solid var(--line); padding-bottom:10px}
+.modal .body{font-size:.92rem; line-height:1.65; margin-bottom:18px; white-space:pre-line}
+.opts{display:flex; flex-direction:column; gap:8px}
+.opts button{text-align:left; padding:10px 14px; line-height:1.4}
+.opts button small{display:block; color:var(--parch-dim); font-size:.74rem; margin-top:2px}
+.kv{display:flex; justify-content:space-between; font-size:.85rem; padding:3px 0; border-bottom:1px dotted #2c2316}
+.kv span:first-child{color:var(--parch-dim)}
+.modal table{width:100%; border-collapse:collapse; font-size:.84rem; margin:8px 0}
+.modal td{padding:5px 4px; border-bottom:1px solid #2a2114}
+.relGood{color:#8fbf8f}.relBad{color:#d08a82}.relMid{color:var(--parch-dim)}
+::-webkit-scrollbar{width:9px}::-webkit-scrollbar-track{background:#100b07}
+::-webkit-scrollbar-thumb{background:#3a2e1d}
 </style>
 </head>
 <body>
 
-<header class="hdr">
-  <span class="hdr-crest">✦ ✦ ✦</span>
-  <div class="hdr-title">에르덴 왕국</div>
-  <div class="hdr-sub">오웬 백작의 연대기</div>
-  <div class="hdr-line"></div>
-</header>
-
-<div class="date-bar">
-  <span class="date-txt" id="dateTxt">—</span>
-  <span class="week-txt" id="weekTxt">—</span>
+<div id="hdr">
+  <div class="date"><span id="dateTxt">1066년 9월 15일</span><small id="seasonTxt">가을 · 먼스터</small></div>
+  <div class="res">
+    <span><b>금</b><span id="goldTxt">340</span></span>
+    <span><b>위신</b><span id="prestigeTxt">120</span></span>
+    <span><b>병력</b><span id="troopTxt">1,200</span></span>
+  </div>
 </div>
 
-<!-- TOP GRID -->
-<div class="top-grid">
-  <!-- 능력치 -->
-  <div class="panel">
-    <div class="panel-hdr"><span>백작 오웬</span><span id="ageDisplay" style="color:var(--parchment-dark);font-size:0.6rem;"></span></div>
-    <div class="panel-body" id="statsBody"></div>
+<div id="main">
+  <div id="mapWrap">
+    <h3>에이레 — 일곱 왕국</h3>
+    <svg id="map" viewBox="0 0 420 470" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
-  <!-- 영지 -->
-  <div class="panel">
-    <div class="panel-hdr"><span>카스텔 영지</span></div>
-    <div class="panel-body">
-      <div class="domain-grid">
-        <div class="domain-item">
-          <span class="domain-label">개발도</span>
-          <span class="domain-val" id="devVal">—</span>
-          <div class="domain-bar-bg"><div class="domain-bar-fill bar-dev" id="devBar" style="width:0%"></div></div>
-        </div>
-        <div class="domain-item">
-          <span class="domain-label">충성도</span>
-          <span class="domain-val" id="loyVal">—</span>
-          <div class="domain-bar-bg"><div class="domain-bar-fill bar-loy" id="loyBar" style="width:0%"></div></div>
-        </div>
-      </div>
-      <div style="margin-top:10px;">
-        <div class="res-row"><span class="res-label">⚜️ 세수</span><span class="res-val" id="resGold">—</span></div>
-        <div class="res-row"><span class="res-label">🌾 식량</span><span class="res-val" id="resFood">—</span></div>
-        <div class="res-row"><span class="res-label">⚔️ 병력</span><span class="res-val" id="resTroop">—</span></div>
-        <div class="res-row"><span class="res-label">🛡 방어력</span><span class="res-val" id="resDef">—</span></div>
-      </div>
+  <div id="logWrap">
+    <h3>연대기</h3>
+    <div id="log"></div>
+  </div>
+</div>
+
+<div id="charBar">
+  <div id="portrait">M</div>
+  <div id="charInfo">
+    <div class="nm" id="cNm">무르하드 막 돈하드</div>
+    <div class="ttl" id="cTtl">먼스터 소왕 · 39세 · 우어 브리언 가문</div>
+    <div class="chips" id="cChips"></div>
+    <div id="stats"></div>
+  </div>
+  <div id="stressBox">
+    <div class="lbl"><span>스트레스</span><span id="stressNum">0 / 300</span></div>
+    <div id="stressTrack">
+      <div id="stressFill"></div>
+      <div class="smark" style="left:33.3%"></div>
+      <div class="smark" style="left:66.6%"></div>
     </div>
-    <!-- 후계자 -->
-    <div class="heir-section" id="heirSection"></div>
+    <div id="stressLvl">0단계 — 평온함</div>
+  </div>
+  <div id="btnCol">
+    <button onclick="openCourt()">궁정</button>
+    <button onclick="openDecisions()">결단</button>
   </div>
 </div>
 
-<!-- NPC STRIP -->
-<div class="npc-strip" id="npcStrip"></div>
-
-<!-- MAIN -->
-<div class="main-wrap">
-
-  <!-- 이벤트 패널 -->
-  <div class="panel event-panel" id="eventPanel" style="display:none;">
-    <div class="panel-hdr">
-      <span id="eventLabel">사건</span>
-      <span class="event-location" id="eventLoc">—</span>
-    </div>
-    <div class="event-speaker-row">
-      <div class="event-avatar" id="eventAvatar">📜</div>
-      <div class="event-meta">
-        <span class="event-speaker-name" id="eventSpeaker">—</span>
-        <span class="event-speaker-role" id="eventRole">—</span>
-      </div>
-    </div>
-    <div class="event-body" id="eventBody"></div>
-    <div class="choices-wrap" id="choicesWrap"></div>
-  </div>
-
-  <!-- 스케줄 패널 -->
-  <div class="panel schedule-panel" id="schedulePanel">
-    <div class="panel-hdr">
-      <span>이번 주 스케줄</span>
-      <span style="color:var(--parchment-dark);font-size:0.6rem;" id="schedInfo">7일을 채우세요</span>
-    </div>
-    <div class="schedule-days" id="scheduleDays"></div>
-    <div class="days-remaining">
-      <span id="daysRemain">남은 일수: <strong style="color:var(--gold-light);">7</strong>일</span>
-      <button class="confirm-btn" id="confirmBtn" onclick="confirmSchedule()" disabled>확정 →</button>
-    </div>
-    <!-- 카테고리 탭 -->
-    <div class="action-cats" id="actionCats"></div>
-    <div class="action-list" id="actionList"></div>
-  </div>
-
+<div id="ftr">
+  <button id="pauseBtn" onclick="togglePause()">▶ 진행</button>
+  <button class="spd" data-s="1" onclick="setSpeed(1)">1배속</button>
+  <button class="spd" data-s="2" onclick="setSpeed(2)">2배속</button>
+  <button class="spd" data-s="3" onclick="setSpeed(3)">3배속</button>
 </div>
 
-<!-- LOG -->
-<div class="log-wrap">
-  <div class="log-title">◈ 연대기 기록</div>
-  <div id="logList"></div>
-</div>
-
-<!-- NPC POPUP -->
-<div class="overlay" id="npcOverlay" onclick="closePopup(event,'npcOverlay')">
-  <div class="popup">
-    <div class="popup-avatar" id="popAvatar"></div>
-    <span class="popup-name" id="popName"></span>
-    <span class="popup-role" id="popRole"></span>
-    <div class="popup-rel-bar"><div class="popup-rel-fill" id="popRelFill" style="width:50%"></div></div>
-    <div class="popup-rel-label" id="popRelLabel"></div>
-    <div class="popup-bio" id="popBio"></div>
-    <div class="popup-schedule" id="popSchedule"></div>
-    <button class="popup-close" onclick="closePopupById('npcOverlay')">닫기</button>
-  </div>
-</div>
-
-<!-- OUTCOME -->
-<div class="outcome-overlay" id="outcomeOverlay">
-  <div class="outcome-card">
-    <span class="out-icon" id="outIcon"></span>
-    <div class="out-title" id="outTitle"></div>
-    <div class="out-body" id="outBody"></div>
-    <button class="restart-btn" onclick="restart()">새 연대기를 시작하다</button>
-  </div>
-</div>
+<div id="shade"><div class="modal" id="modalBox"></div></div>
 
 <script>
-// ═══════════════════════════════════
-// GAME STATE
-// ═══════════════════════════════════
-let G = {};
+'use strict';
+/* =====================================================================
+   에이레 1066 — CK3 스타일 텍스트 시뮬레이션 MVP
+   수치 출처: CK3 위키 (수태력 ×4.75, 교육 공식, 스트레스 단계 등)
+===================================================================== */
 
-function initGame() {
-  G = {
-    // 시간
-    year: 1200, month: 3, week: 1,
-    totalWeeks: 0,
+/* ---------- 성격 특성 ---------- */
+const TRAITS = {
+  brave:     {n:'용감',   opp:'craven',    mod:{mar:2,prow:3}, ai:{bold:2}},
+  craven:    {n:'비겁',   opp:'brave',     mod:{mar:-2,intr:2}, ai:{bold:-2}},
+  calm:      {n:'침착',   opp:'wrathful',  mod:{dip:1,intr:1}, ai:{rat:2}, stressLossMul:1.1},
+  wrathful:  {n:'분노',   opp:'calm',      mod:{dip:-1,mar:3,intr:-1}, ai:{venge:2,bold:1}},
+  chaste:    {n:'순결',   opp:'lustful',   mod:{learn:2}, fert:-0.25},
+  lustful:   {n:'호색',   opp:'chaste',    mod:{intr:2}, fert:0.25},
+  content:   {n:'만족',   opp:'ambitious', mod:{learn:2,intr:-1}, ai:{greed:-2}, stressLossMul:1.1},
+  ambitious: {n:'야심',   opp:'content',   mod:{dip:1,mar:1,stew:1,intr:1,learn:1}, ai:{greed:2,bold:2}, stressGainMul:1.25},
+  diligent:  {n:'근면',   opp:'lazy',      mod:{dip:2,stew:3,learn:3}, ai:{energy:2}},
+  lazy:      {n:'나태',   opp:'diligent',  mod:{dip:-1,mar:-1,stew:-1,intr:-1,learn:-1}, ai:{energy:-2}, stressLossMul:1.5},
+  forgiving: {n:'관용',   opp:'vengeful',  mod:{dip:2,intr:-2,learn:1}, ai:{venge:-3}},
+  vengeful:  {n:'복수심', opp:'forgiving', mod:{dip:-2,mar:1,intr:1}, ai:{venge:3}},
+  greedy:    {n:'탐욕',   opp:'generous',  mod:{stew:2,dip:-1}, ai:{greed:3}},
+  generous:  {n:'관대',   opp:'greedy',    mod:{stew:-1,dip:3}, ai:{greed:-2}},
+  honest:    {n:'정직',   opp:'deceitful', mod:{dip:1,intr:-2}, ai:{honor:2}},
+  deceitful: {n:'기만',   opp:'honest',    mod:{dip:-1,intr:3}, ai:{honor:-3}},
+  just:      {n:'공정',   opp:'arbitrary', mod:{stew:2,learn:1}, ai:{honor:2}},
+  arbitrary: {n:'자의적', opp:'just',      mod:{stew:-2,intr:1}, ai:{honor:-1}},
+  kind:      {n:'친절',   opp:'cruel',     mod:{dip:2,intr:-1}, ai:{comp:2}},
+  cruel:     {n:'잔인',   opp:'kind',      mod:{dip:-1,intr:1,mar:1}, ai:{comp:-3}},
+  patient:   {n:'인내',   opp:'impatient', mod:{learn:2,intr:1}, ai:{rat:1}},
+  impatient: {n:'조급',   opp:'patient',   mod:{learn:-1}, ai:{energy:1,rat:-1}},
+  temperate: {n:'절제',   opp:'gluttonous',mod:{stew:2}, hp:0.25},
+  gluttonous:{n:'탐식',   opp:'temperate', mod:{stew:-2}, hp:-0.25},
+  gregarious:{n:'사교적', opp:'shy',       mod:{dip:2}, ai:{soc:2}},
+  shy:       {n:'내성적', opp:'gregarious',mod:{dip:-2,learn:1}, ai:{soc:-2}},
+};
+const PERSONALITY_KEYS = Object.keys(TRAITS);
 
-    // 플레이어 능력치 (최대 50)
-    stats: { combat: 12, diplomacy: 10, intrigue: 8, admin: 11, learning: 9 },
-    // 능력치 카운트 (30이 되면 +1)
-    statCount: { combat: 0, diplomacy: 0, intrigue: 0, admin: 0, learning: 0 },
-
-    // 인생관
-    outlook: { type: 'admin', stars: 2 }, // 관리 2성
-
-    // 영지
-    domain: { dev: 2, loyalty: 65 },
-
-    // 자원 (기본값, 건물로 %상승)
-    baseGold: 100, baseFood: 120, baseTroop: 80, baseDef: 60,
-    buildings: [], // 지어진 건물 목록
-
-    // 개인 나이 / 건강
-    age: 28, health: 80,
-
-    // 후계자
-    heir: { name: '아든', age: 6, outlook: null, eduFocus: { combat:0, diplomacy:0, intrigue:0, admin:0, learning:0 } },
-
-    // NPC
-    npcs: {
-      pirke: { name: '피르케', title: '동쪽 백작', avatar: '⚔️', rel: 20, bio: '대대로 전사 집안. 정예 기사단을 보유하고 있으며 오웬을 얕본다. 직선적이고 거칠다.', schedule: ['훈련','순찰','훈련','원정 준비','훈련'] },
-      corcus: { name: '코르쿠스', title: '북쪽 백작', avatar: '💰', rel: 45, bio: '왕국 최대 곡창지대를 보유한 부유한 영주. 겁이 많고 줄을 잘 탄다. 강한 쪽에 붙는 성향.', schedule: ['회계','연회','서신','사냥','회계'] },
-      falzes: { name: '팔제스 3세', title: '에르덴 왕', avatar: '👑', rel: 55, bio: '병상에 누운 늙은 왕. 실권이 없다. 세 백작이 사실상 왕국을 나눠 다스리고 있다. 후계자가 없다.', schedule: ['요양','요양','알현','요양','요양'] },
-    },
-
-    // 스케줄
-    schedule: [], // [{actionKey, days}]
-    scheduleDaysUsed: 0,
-
-    // 현재 이벤트
-    currentEvent: null,
-    pendingEvents: [],
-
-    // 기록
-    log: [],
-    gameOver: false,
-  };
-}
-
-// ═══════════════════════════════════
-// 건물 정의
-// ═══════════════════════════════════
-const BUILDINGS = {
-  farm:     { name: '농장',        icon: '🌾', cost: 150, devReq: 1, effect: { food: 20 } },
-  market:   { name: '시장',        icon: '🏪', cost: 200, devReq: 1, effect: { gold: 20 } },
-  militia:  { name: '민병대 막사', icon: '🛡', cost: 180, devReq: 1, effect: { troop: 20, troopSpeed: 10 } },
-  wall:     { name: '성벽 강화',   icon: '🏰', cost: 300, devReq: 3, effect: { def: 20 } },
-  barracks: { name: '병영',        icon: '⚔️', cost: 350, devReq: 3, effect: { troop: 20, combat: 10 } },
-  trade:    { name: '교역소',      icon: '⚓', cost: 280, devReq: 3, effect: { gold: 20 } },
-  library:  { name: '도서관',      icon: '📚', cost: 250, devReq: 3, effect: { heirEdu: 20 } },
+/* ---------- 어린시절 특성 ---------- */
+const CHILD_TRAITS = {
+  curious:   {n:'호기심',     foci:['dip','learn']},
+  energetic: {n:'활기참',     foci:['mar','stew']},
+  willful:   {n:'고집스러움', foci:['intr','mar']},
+  devout:    {n:'경건함',     foci:['learn','dip']},
+  precocious:{n:'조숙함',     foci:['stew','learn']},
+  rowdy:     {n:'거칠음',     foci:['mar','intr']},
 };
 
-function getResources() {
-  let gold = G.baseGold, food = G.baseFood, troop = G.baseTroop, def = G.baseDef;
-  for (const b of G.buildings) {
-    const bd = BUILDINGS[b];
-    if (!bd) continue;
-    if (bd.effect.gold)  gold  += Math.round(G.baseGold  * bd.effect.gold  / 100);
-    if (bd.effect.food)  food  += Math.round(G.baseFood  * bd.effect.food  / 100);
-    if (bd.effect.troop) troop += Math.round(G.baseTroop * bd.effect.troop / 100);
-    if (bd.effect.def)   def   += Math.round(G.baseDef   * bd.effect.def   / 100);
-  }
-  return { gold, food, troop, def };
-}
-
-// ═══════════════════════════════════
-// 행동 정의
-// ═══════════════════════════════════
-const ACTIONS = {
-  // 전투
-  train:    { cat:'combat',    icon:'⚔️', name:'무예 훈련',     days:2, desc:'전투 능력 단련. 전투 카운트 +1', statKey:'combat' },
-  patrol:   { cat:'combat',    icon:'🛡', name:'병력 순찰',     days:1, desc:'병력 상태 점검. 이벤트 발생 가능', statKey:null },
-  campaign: { cat:'combat',    icon:'🗡', name:'원정',          days:7, desc:'전쟁/약탈. 단독 사용 필수', statKey:null, solo:true },
-  // 외교
-  letter:   { cat:'diplomacy', icon:'✉️', name:'서신',          days:1, desc:'타 영주에게 서신 발송. 관계 이벤트', statKey:'diplomacy' },
-  feast:    { cat:'diplomacy', icon:'🍷', name:'연회 개최',     days:3, desc:'관계 이벤트. 세수 소비', statKey:'diplomacy' },
-  visit:    { cat:'diplomacy', icon:'🤝', name:'타 영주 방문',  days:4, desc:'직접 방문. 관계 이벤트 ++', statKey:'diplomacy' },
-  // 계책
-  spy:      { cat:'intrigue',  icon:'👁', name:'첩보 수집',     days:2, desc:'타 영주 정보 획득. 이벤트', statKey:'intrigue' },
-  scheme:   { cat:'intrigue',  icon:'🌑', name:'음모 꾸미기',   days:3, desc:'음모 트리거. 위험 수반', statKey:'intrigue' },
-  assassin: { cat:'intrigue',  icon:'🗡', name:'암살 시도',     days:7, desc:'단독 사용. 실패 시 큰 리스크', statKey:null, solo:true },
-  // 관리
-  admin:    { cat:'admin',     icon:'📋', name:'내정',          days:2, desc:'개발도 카운트 +1', statKey:'admin' },
-  build:    { cat:'admin',     icon:'🏗', name:'건설 감독',     days:3, desc:'건물 건설 속도 +. 이벤트', statKey:null },
-  trial:    { cat:'admin',     icon:'⚖️', name:'재판',          days:1, desc:'충성도 이벤트 트리거', statKey:null },
-  // 학습
-  read:     { cat:'learning',  icon:'📖', name:'독서',          days:1, desc:'학습 카운트 +1', statKey:'learning' },
-  tutor:    { cat:'learning',  icon:'🎓', name:'사사',          days:2, desc:'능력치 카운트 +1 (선택)', statKey:null },
-  heirEdu:  { cat:'learning',  icon:'👶', name:'후계자 교육',   days:3, desc:'후계자 인생관 형성에 기여', statKey:null },
-  // 휴식
-  rest:     { cat:'rest',      icon:'🌙', name:'휴식',          days:1, desc:'건강 회복. +5', statKey:null },
+/* ---------- 교육 특성 ---------- */
+const SKILLS = {dip:'외교', mar:'무예', stew:'내정', intr:'음모', learn:'학문'};
+const EDU_NAMES = {
+  dip:['서툰 협상가','수습 외교관','노련한 협상가','카리스마적 협상가'],
+  mar:['그릇된 전사','강인한 병사','숙련된 전술가','명석한 전략가'],
+  stew:['방탕한 낭비가','검약한 관리','재정 설계자','미다스의 손'],
+  intr:['아둔한 음모가','의심 많은 모사꾼','계략의 직조자','은밀한 그림자'],
+  learn:['미숙한 학생','순진한 호사가','박식한 사색가','명민한 지성인'],
 };
+const EDU_BONUS = [1,2,3,5]; // 등급별 스탯 보너스 (위키 기준)
 
-const CATS = [
-  { key:'all',      label:'전체' },
-  { key:'combat',   label:'⚔️ 전투' },
-  { key:'diplomacy',label:'🤝 외교' },
-  { key:'intrigue', label:'🌑 계책' },
-  { key:'admin',    label:'📋 관리' },
-  { key:'learning', label:'📖 학습' },
-  { key:'rest',     label:'🌙 휴식' },
-];
-let activeCat = 'all';
-
-// ═══════════════════════════════════
-// 이벤트 풀
-// ═══════════════════════════════════
-const EVENT_POOL = {
-  // 트리거 이벤트
-  trigger: {
-    patrol: [
-      {
-        id:'deserter', label:'사건', loc:'카스텔 영지 국경', avatar:'⚔️', speaker:'병사 전령', role:'국경 수비대',
-        text:`"백작님, <em>탈영병이 발생했습니다.</em> 국경 초소에서 세 명이 사라졌습니다. 피르케 백작 쪽으로 넘어간 것 같습니다."`,
-        choices: [
-          { icon:'⚔️', text:'즉시 추격대를 보낸다', hint:'전투 판정. 성공 시 탈영병 처벌, 병력 유지', statKey:'combat', threshold:15,
-            success: s => { addLog('탈영병을 잡아 처형했다. 기강이 잡혔다.', true); },
-            fail:    s => { addLog('추격에 실패했다. 탈영 소식이 퍼져 충성도가 떨어졌다.'); s.domain.loyalty = Math.max(0, s.domain.loyalty-8); }
-          },
-          { icon:'⚖️', text:'공개 재판을 열어 경고한다', hint:'관리 판정. 성공 시 충성도 +', statKey:'admin', threshold:12,
-            success: s => { s.domain.loyalty = Math.min(100, s.domain.loyalty+5); addLog('재판으로 기강을 바로잡았다. 충성도가 올랐다.', true); },
-            fail:    s => { addLog('재판이 흐지부지됐다. 효과가 없었다.'); }
-          },
-          { icon:'🌙', text:'눈감아 준다', hint:'판정 없음. 단기적 무사. 장기적 기강 해이',
-            fn: s => { s.domain.loyalty = Math.max(0, s.domain.loyalty-3); addLog('탈영을 묵인했다. 기강이 서서히 느슨해지고 있다.'); }
-          },
-        ]
-      },
-    ],
-    letter: [
-      {
-        id:'pirke_provoke', label:'도발', loc:'서신 접수실', avatar:'⚔️', speaker:'피르케의 사절', role:'동쪽 백작 사절',
-        text:`피르케의 사절이 오만한 표정으로 서신을 내밀었다.\n\n<em>"백작님, 우리 주군께서 국경 마을 두 곳의 세금 징수권을 요구하십니다."</em>\n\n<span class='danger'>이것은 명백한 도발이다.</span>`,
-        choices: [
-          { icon:'⚔️', text:'강경히 거절하고 병력을 국경에 보낸다', hint:'전투 판정. 성공 시 피르케 관계-, 위신+', statKey:'combat', threshold:18,
-            success: s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-8); addLog('강경 대응 성공. 피르케가 물러섰다.', true); },
-            fail:    s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-5); s.baseFood -= 10; addLog('병력 충돌에서 밀렸다. 식량이 줄었다.'); }
-          },
-          { icon:'🤝', text:'협상을 제안한다', hint:'외교 판정. 성공 시 현상 유지', statKey:'diplomacy', threshold:14,
-            success: s => { addLog('협상으로 도발을 무력화했다. 현상 유지.', true); },
-            fail:    s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-3); addLog('협상이 실패했다. 피르케가 유리한 조건을 강요했다.'); s.baseGold -= 15; }
-          },
-          { icon:'💰', text:'세금 징수권 하나를 양보한다', hint:'판정 없음. 세수 감소, 피르케 관계 소폭 +',
-            fn: s => { s.baseGold -= 20; s.npcs.pirke.rel = Math.min(100,s.npcs.pirke.rel+5); addLog('양보로 분쟁을 피했다. 세수가 줄었다.'); }
-          },
-        ]
-      },
-    ],
-    trial: [
-      {
-        id:'petition', label:'청원', loc:'카스텔 재판소', avatar:'👨', speaker:'농부 대표', role:'백성 대표단',
-        text:`농부들이 무릎을 꿇고 청원한다.\n\n<em>"백작님, 관리 하나가 세금을 두 배로 걷고 있습니다. 저희는 굶을 판입니다."</em>`,
-        choices: [
-          { icon:'⚖️', text:'관리를 즉시 처벌한다', hint:'관리 판정. 성공 시 충성도 대폭 +', statKey:'admin', threshold:12,
-            success: s => { s.domain.loyalty = Math.min(100,s.domain.loyalty+12); addLog('부패한 관리를 처벌했다. 충성도가 크게 올랐다.', true); },
-            fail:    s => { s.domain.loyalty = Math.min(100,s.domain.loyalty+5); addLog('처벌을 시도했으나 증거가 부족했다. 충성도 소폭 상승.'); }
-          },
-          { icon:'💰', text:'보상금을 지급하고 마무리한다', hint:'판정 없음. 세수 소비, 충성도 소폭 +',
-            fn: s => { s.baseGold -= 20; s.domain.loyalty = Math.min(100,s.domain.loyalty+6); addLog('보상금으로 무마했다. 근본 해결은 안 됐다.'); }
-          },
-          { icon:'🌑', text:'청원을 무시한다', hint:'판정 없음. 충성도 -',
-            fn: s => { s.domain.loyalty = Math.max(0,s.domain.loyalty-10); addLog('청원을 무시했다. 충성도가 떨어졌다.'); }
-          },
-        ]
-      },
-    ],
-    spy: [
-      {
-        id:'spy_caught', label:'첩자 발각', loc:'피르케 영지 인근', avatar:'🌑', speaker:'생존 첩자', role:'카스텔 첩보원',
-        text:`간신히 돌아온 첩자가 떨며 보고한다.\n\n<em>"백작님, 동료가 잡혔습니다. 피르케 백작이 고문 중입니다. 우리 이름이 나올 것 같습니다."</em>`,
-        choices: [
-          { icon:'🌑', text:'첩자를 구출할 팀을 보낸다', hint:'계책 판정. 성공 시 첩자 구출, 피르케 관계-', statKey:'intrigue', threshold:16,
-            success: s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-5); addLog('구출 성공. 피르케는 의심하지만 증거가 없다.', true); },
-            fail:    s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-15); addLog('구출 실패. 피르케가 배후를 알게 됐다.'); }
-          },
-          { icon:'✉️', text:'피르케에게 사절을 보내 잡아떼기한다', hint:'외교 판정. 성공 시 현상 유지', statKey:'diplomacy', threshold:15,
-            success: s => { addLog('능숙하게 부인했다. 피르케가 의심하지만 넘어갔다.', true); },
-            fail:    s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-10); addLog('잡아떼기에 실패했다. 피르케의 적개심이 커졌다.'); }
-          },
-          { icon:'🌙', text:'첩자를 포기하고 모른 척한다', hint:'판정 없음. 첩자 희생, 피르케 관계 소폭-',
-            fn: s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-5); addLog('첩자를 포기했다. 냉혹한 선택이었다.'); }
-          },
-        ]
-      },
-    ],
-    feast: [
-      {
-        id:'feast_accident', label:'연회 사고', loc:'카스텔 성 대연회장', avatar:'🍷', speaker:'집사장 에드먼드', role:'카스텔 성 집사',
-        text:`연회 도중 집사가 다급히 귓속말한다.\n\n<em>"백작님, 코르쿠스 백작이 술에 취해 실언을 했습니다. 피르케 백작의 아내를 모욕했습니다. 지금 분위기가 험악합니다."</em>`,
-        choices: [
-          { icon:'🤝', text:'중재에 나선다', hint:'외교 판정. 성공 시 양측 관계 +, 위신 +', statKey:'diplomacy', threshold:14,
-            success: s => { s.npcs.pirke.rel = Math.min(100,s.npcs.pirke.rel+5); s.npcs.corcus.rel = Math.min(100,s.npcs.corcus.rel+5); addLog('능숙하게 중재했다. 양측 모두 감사해했다.', true); },
-            fail:    s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-5); s.npcs.corcus.rel = Math.max(0,s.npcs.corcus.rel-5); addLog('중재가 실패했다. 두 영주 모두 기분이 상했다.'); }
-          },
-          { icon:'🍷', text:'연회를 강제로 끝낸다', hint:'관리 판정. 성공 시 사태 진정', statKey:'admin', threshold:10,
-            success: s => { addLog('연회를 신속히 끝냈다. 사태가 무사히 마무리됐다.', true); },
-            fail:    s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-3); addLog('연회 종료 과정이 어색했다. 피르케가 기분 나빠했다.'); }
-          },
-          { icon:'🌙', text:'못 본 척 한다', hint:'판정 없음. 두 영주 관계 모두 -',
-            fn: s => { s.npcs.pirke.rel = Math.max(0,s.npcs.pirke.rel-5); s.npcs.corcus.rel = Math.max(0,s.npcs.corcus.rel-5); addLog('방관했다. 양측 모두 오웬이 무능하다고 생각한다.'); }
-          },
-        ]
-      },
-    ],
-  },
-
-  // 월드 이벤트
-  world: [
-    {
-      id:'famine', minWeek:8, label:'흉작', loc:'카스텔 영지 농촌', avatar:'🌾', speaker:'농지 감독관', role:'영지 감독관',
-      text:`감독관이 어두운 얼굴로 보고한다.\n\n<em>"백작님, 올해 수확이 크게 줄었습니다. 식량 비축분이 한 달 버티기도 어렵습니다."</em>`,
-      choices: [
-        { icon:'💰', text:'코르쿠스에게 식량을 구입한다', hint:'외교 판정. 성공 시 세수 소비로 식량 확보', statKey:'diplomacy', threshold:12,
-          success: s => { s.baseGold -= 40; s.baseFood += 20; s.npcs.corcus.rel = Math.min(100,s.npcs.corcus.rel+5); addLog('코르쿠스에게 식량을 구입했다. 위기를 넘겼다.', true); },
-          fail:    s => { s.baseGold -= 60; s.baseFood += 10; addLog('비싼 값에 겨우 구입했다. 세수가 많이 줄었다.'); }
-        },
-        { icon:'📋', text:'배급제를 실시한다', hint:'관리 판정. 성공 시 충성도 유지', statKey:'admin', threshold:14,
-          success: s => { s.domain.loyalty = Math.max(0,s.domain.loyalty-5); addLog('배급제를 효율적으로 운영했다. 불만이 적었다.', true); },
-          fail:    s => { s.domain.loyalty = Math.max(0,s.domain.loyalty-15); s.baseFood -= 15; addLog('배급제가 혼란스러웠다. 백성들의 불만이 커졌다.'); }
-        },
-        { icon:'🌑', text:'약한 마을을 포기하고 핵심 영지만 지킨다', hint:'판정 없음. 식량 소폭 안정, 충성도 -',
-          fn: s => { s.domain.loyalty = Math.max(0,s.domain.loyalty-20); addLog('약한 마을을 버렸다. 잔인한 선택이 충성도를 갉아먹었다.'); }
-        },
-      ]
-    },
-    {
-      id:'king_ill', minWeek:16, label:'왕의 위독', loc:'에르덴 왕성', avatar:'👑', speaker:'왕실 전령', role:'팔제스 3세 전령',
-      text:`왕실 전령이 창백한 얼굴로 도착했다.\n\n<em>"세 백작님께 알립니다. 팔제스 3세 폐하의 병세가 위중합니다. 후계자를 정하지 못하셨습니다."</em>\n\n<span class='danger'>왕위 계승 전쟁의 냄새가 난다.</span>`,
-      choices: [
-        { icon:'👑', text:'왕위 계승을 공식 지지하며 연대를 구축한다', hint:'외교 판정. 성공 시 동맹 형성', statKey:'diplomacy', threshold:16,
-          success: s => { s.npcs.corcus.rel = Math.min(100,s.npcs.corcus.rel+15); addLog('코르쿠스와 연대했다. 계승 전쟁 준비를 시작했다.', true); },
-          fail:    s => { addLog('연대 시도가 실패했다. 코르쿠스는 눈치를 보고 있다.'); }
-        },
-        { icon:'⚔️', text:'병력을 증강하고 때를 기다린다', hint:'전투 판정. 성공 시 병력 +', statKey:'combat', threshold:13,
-          success: s => { s.baseTroop += 15; addLog('병력을 늘렸다. 무력으로 기회를 잡을 준비가 됐다.', true); },
-          fail:    s => { s.baseGold -= 20; addLog('병력 증강에 예산이 많이 들었다.'); }
-        },
-        { icon:'🌙', text:'중립을 지키며 상황을 관망한다', hint:'판정 없음. 안전하지만 기회를 놓칠 수 있다',
-          fn: s => { addLog('중립을 선택했다. 당분간 안전하다.'); }
-        },
-      ]
-    },
-    {
-      id:'plague', minWeek:24, label:'역병', loc:'카스텔 영지', avatar:'💀', speaker:'영지 의사', role:'성 의사',
-      text:`의사가 떨리는 목소리로 보고한다.\n\n<em>"백작님, 동쪽 마을에서 역병이 퍼지고 있습니다. 빠르게 조치하지 않으면 영지 전체로 번질 것입니다."</em>`,
-      choices: [
-        { icon:'📖', text:'학자를 불러 치료법을 구한다', hint:'학습 판정. 성공 시 피해 최소화', statKey:'learning', threshold:14,
-          success: s => { s.baseFood -= 10; addLog('학자의 도움으로 역병을 최소화했다.', true); },
-          fail:    s => { s.baseTroop -= 15; s.domain.loyalty = Math.max(0,s.domain.loyalty-10); addLog('역병이 퍼졌다. 병력과 충성도가 떨어졌다.'); }
-        },
-        { icon:'🛡', text:'감염 마을을 격리한다', hint:'관리 판정. 성공 시 확산 방지', statKey:'admin', threshold:15,
-          success: s => { s.domain.loyalty = Math.max(0,s.domain.loyalty-5); addLog('신속한 격리로 역병 확산을 막았다. 충성도 소폭 감소.', true); },
-          fail:    s => { s.baseTroop -= 20; s.baseFood -= 15; s.domain.loyalty = Math.max(0,s.domain.loyalty-15); addLog('격리가 늦었다. 역병이 영지 전체로 퍼졌다.'); }
-        },
-        { icon:'🙏', text:'교회에 도움을 청한다', hint:'판정 없음. 세수 소비, 충성도 유지',
-          fn: s => { s.baseGold -= 30; addLog('교회의 도움으로 민심을 달랬다. 세수가 줄었다.'); }
-        },
-      ]
-    },
-  ]
+/* ---------- 지역 ---------- */
+const REGIONS = {
+  munster:  {n:'먼스터',   x:140, y:355, troops:1200, gold:340},
+  leinster: {n:'레인스터', x:258, y:330, troops:1050, gold:280},
+  dublin:   {n:'더블린',   x:300, y:252, troops:700,  gold:380},
+  meath:    {n:'미드',     x:228, y:205, troops:850,  gold:240},
+  connacht: {n:'코노트',   x:108, y:215, troops:1100, gold:260},
+  breifne:  {n:'브레프네', x:172, y:152, troops:600,  gold:160},
+  ulster:   {n:'얼스터',   x:218, y:78,  troops:900,  gold:220},
 };
-
-let firedWorldEvents = new Set();
-
-// ═══════════════════════════════════
-// RENDER
-// ═══════════════════════════════════
-const STAT_META = {
-  combat:    { icon:'⚔️', label:'전투' },
-  diplomacy: { icon:'🤝', label:'외교' },
-  intrigue:  { icon:'🌑', label:'계책' },
-  admin:     { icon:'📋', label:'관리' },
-  learning:  { icon:'📖', label:'학습' },
+const ADJ = {
+  munster:['connacht','meath','leinster'],
+  leinster:['munster','meath','dublin'],
+  dublin:['leinster','meath'],
+  meath:['munster','leinster','dublin','connacht','breifne','ulster'],
+  connacht:['munster','meath','breifne'],
+  breifne:['connacht','meath','ulster'],
+  ulster:['breifne','meath'],
 };
-const OUTLOOK_META = {
-  combat:    { icon:'⚔️', label:'전투' },
-  diplomacy: { icon:'🤝', label:'외교' },
-  intrigue:  { icon:'🌑', label:'계책' },
-  admin:     { icon:'📋', label:'관리' },
-  learning:  { icon:'📖', label:'학습' },
+const REGION_COLORS = {munster:'#3d6b4a', leinster:'#9c6b3c', dublin:'#5a6e85', meath:'#6e7a3c', connacht:'#6d5380', breifne:'#4f5d68', ulster:'#8a4a3c'};
+
+/* ---------- 캐릭터 ---------- */
+let CID = 0;
+const chars = {};
+function mk(o){
+  const c = Object.assign({
+    id:'c'+(++CID), name:'?', dyn:'', sex:'m', byear:1030, bmonth:1, bday:1,
+    traits:[], childTrait:null, edu:null, eduFocus:null, eduScore:0,
+    lifestyle:null, lifeXP:0,
+    base:{dip:5,mar:5,stew:5,intr:5,learn:5,prow:5},
+    stress:0, copings:0, lastBreakY:0,
+    region:null, ruler:false, spouse:null, mother:null, father:null,
+    pregnant:0, births:0, dead:false, courtOf:null,
+    op:{}, // 관계도
+  }, o);
+  chars[c.id] = c;
+  return c;
+}
+function age(c){ const m = state.month, y = state.year;
+  let a = y - c.byear; if (m < c.bmonth || (m===c.bmonth && state.day < c.bday)) a--; return a; }
+function stat(c,k){
+  let v = c.base[k]||0;
+  for(const t of c.traits){ const m=TRAITS[t]&&TRAITS[t].mod; if(m&&m[k]) v+=m[k]; }
+  if(c.edu && c.eduFocus===k) v += EDU_BONUS[c.edu];
+  return Math.max(0,v);
+}
+function fert(c){
+  let f = 0.5;
+  for(const t of c.traits){ if(TRAITS[t]&&TRAITS[t].fert) f+=TRAITS[t].fert; }
+  f -= 0.05*c.births;
+  const a = age(c);
+  let mul;
+  if(c.sex==='f'){ mul = a<=25?1 : a<=30?0.9 : a<=35?0.7 : a<=40?0.5 : a<=45?0.33 : 0; }
+  else { mul = a<=35?1 : a<=40?0.9 : a<=50?0.8 : a<=60?0.7 : a<=70?0.6 : 0.5; }
+  return Math.max(0, f*mul);
+}
+function aiW(c,k){ let v=0; for(const t of c.traits){const a=TRAITS[t]&&TRAITS[t].ai; if(a&&a[k]) v+=a[k];} return v; }
+function opinion(a,b){ // a가 b를 보는 시각
+  let v = a.op[b.id]||0;
+  for(const t of a.traits){
+    if(b.traits.includes(t)) v += 10;
+    if(TRAITS[t] && b.traits.includes(TRAITS[t].opp)) v -= 10;
+  }
+  if(a.spouse===b.id) v += 30;
+  if(a.father===b.id||a.mother===b.id||b.father===a.id||b.mother===a.id) v += 25;
+  return Math.max(-100, Math.min(100, v));
+}
+function chOp(a,b,d){ a.op[b.id]=(a.op[b.id]||0)+d; }
+
+/* ---------- 초기 세계 (1066년 9월) ----------
+   무르하드 수치: CK3 위키 북마크 페이지 확인값 (외6 무8 내6 음8 학6 / 숙련된 전술가)
+   성격은 패치 이후 기준(절제·사교적·조급) — 사용자 결정 사항
+   주변 소왕 이름은 역사 기록 기반이나 일부 추정 포함            ---------- */
+const murchad = mk({name:'무르하드 막 돈하드', dyn:'우어 브리언', byear:1027, bmonth:3, bday:10,
+  traits:['temperate','gregarious','impatient'],
+  base:{dip:6,mar:8,stew:6,intr:8,learn:6,prow:8},
+  edu:2, eduFocus:'mar', region:'munster', ruler:true});
+const wife = mk({name:'두브 에사', dyn:'우어 켈러허', sex:'f', byear:1033, bmonth:6, bday:2,
+  traits:['kind','patient','chaste'], base:{dip:7,mar:2,stew:6,intr:4,learn:5,prow:1},
+  edu:1, eduFocus:'dip', spouse:murchad.id, courtOf:'munster'});
+murchad.spouse = wife.id;
+const sonBrian = mk({name:'브리언', dyn:'우어 브리언', byear:1053, bmonth:4, bday:20,
+  traits:[], childTrait:'rowdy', eduFocus:'mar', eduScore:7,
+  base:{dip:3,mar:5,stew:3,intr:3,learn:2,prow:5},
+  father:murchad.id, mother:wife.id, courtOf:'munster'});
+const dauMor = mk({name:'모르', dyn:'우어 브리언', sex:'f', byear:1056, bmonth:9, bday:1,
+  traits:[], childTrait:'curious', eduFocus:'dip', eduScore:5,
+  base:{dip:4,mar:1,stew:3,intr:3,learn:4,prow:1},
+  father:murchad.id, mother:wife.id, courtOf:'munster'});
+const bishop = mk({name:'주교 켈라흐', dyn:'', byear:1018, bmonth:2, bday:14,
+  traits:['diligent','calm','chaste'], base:{dip:6,mar:1,stew:5,intr:3,learn:11,prow:1},
+  edu:3, eduFocus:'learn', courtOf:'munster'});
+const marshal = mk({name:'돔날 우어 도너번', dyn:'', byear:1031, bmonth:11, bday:7,
+  traits:['brave','honest','wrathful'], base:{dip:3,mar:10,stew:4,intr:4,learn:3,prow:11},
+  edu:2, eduFocus:'mar', courtOf:'munster'});
+
+const kLein = mk({name:'디어르마트 막 말 너 모', dyn:'우어 헨셀러그', byear:1010, bmonth:5, bday:3,
+  traits:['ambitious','brave','deceitful'], base:{dip:8,mar:9,stew:6,intr:7,learn:4,prow:7},
+  edu:3, eduFocus:'mar', region:'leinster', ruler:true});
+const kDub = mk({name:'무르하드 막 디어르마터', dyn:'우어 헨셀러그', byear:1032, bmonth:8, bday:9,
+  traits:['brave','greedy','impatient'], base:{dip:5,mar:7,stew:7,intr:5,learn:3,prow:8},
+  edu:2, eduFocus:'stew', region:'dublin', ruler:true, father:kLein.id});
+const kConn = mk({name:'아드 우어 콘호버르', dyn:'우어 콘호버르', byear:1021, bmonth:1, bday:25,
+  traits:['brave','wrathful','ambitious'], base:{dip:4,mar:10,stew:5,intr:5,learn:3,prow:10},
+  edu:3, eduFocus:'mar', region:'connacht', ruler:true});
+const kMeath = mk({name:'콘호바르 우어 말 셰클런', dyn:'클란 콜만', byear:1015, bmonth:7, bday:18,
+  traits:['content','just','patient'], base:{dip:6,mar:5,stew:7,intr:4,learn:6,prow:4},
+  edu:2, eduFocus:'stew', region:'meath', ruler:true});
+const kBrei = mk({name:'아드 우어 루어르크', dyn:'우어 루어르크', byear:1034, bmonth:3, bday:30,
+  traits:['ambitious','cruel','impatient'], base:{dip:3,mar:8,stew:4,intr:7,learn:2,prow:8},
+  edu:2, eduFocus:'intr', region:'breifne', ruler:true});
+const kUls = mk({name:'돈하드 우어 어하다', dyn:'우어 어하다', byear:1024, bmonth:10, bday:11,
+  traits:['calm','greedy','shy'], base:{dip:5,mar:6,stew:8,intr:5,learn:5,prow:5},
+  edu:3, eduFocus:'stew', region:'ulster', ruler:true});
+
+// 초기 관계도
+chOp(kLein,murchad,-25); chOp(murchad,kLein,-25);   // 패권 라이벌
+chOp(kConn,murchad,-15); chOp(murchad,kConn,-15);
+chOp(kDub,murchad,-10);
+chOp(kMeath,murchad,10); chOp(murchad,kMeath,10);
+chOp(kBrei,kConn,-30); chOp(kConn,kBrei,-30);
+chOp(kDub,kLein,40); chOp(kLein,kDub,40);
+
+/* 단일 소유 체계: REGIONS[rid].owner = charId */
+for(const rid in REGIONS){ REGIONS[rid].cap = REGIONS[rid].troops; }
+REGIONS.munster.owner=murchad.id; REGIONS.leinster.owner=kLein.id; REGIONS.dublin.owner=kDub.id;
+REGIONS.meath.owner=kMeath.id; REGIONS.connacht.owner=kConn.id; REGIONS.breifne.owner=kBrei.id; REGIONS.ulster.owner=kUls.id;
+function rulerOf(rid){ const c=chars[REGIONS[rid].owner]; return (c&&!c.dead)?c:null; }
+function regionsOf(cid){ const out=[]; for(const rid in REGIONS) if(REGIONS[rid].owner===cid) out.push(rid); return out; }
+function playerChar(){ return chars[state.player]; }
+
+/* ---------- 게임 상태 ---------- */
+const state = {
+  year:1066, month:9, day:15,
+  paused:true, speed:1, timer:null,
+  player:murchad.id,
+  schemes:[], wars:[], truces:{},
+  popupQ:[], modalOpen:false,
+  over:false, victory:false,
+  introDone:false,
 };
+const MDAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
+const SEASONS=['겨울','겨울','봄','봄','봄','여름','여름','여름','가을','가을','가을','겨울'];
 
-function renderDate() {
-  const seasons = ['겨울','겨울','봄','봄','봄','여름','여름','여름','가을','가을','가을','겨울'];
-  const season = seasons[G.month-1];
-  document.getElementById('dateTxt').textContent = `${G.year}년 ${G.month}월 · ${season}`;
-  document.getElementById('weekTxt').textContent = `${G.week}주차 · 총 ${G.totalWeeks}주 경과`;
+/* ---------- 로그 ---------- */
+function log(msg, cls){
+  const p=document.createElement('p'); if(cls)p.className=cls;
+  p.innerHTML=`<span class="d">${state.year}년 ${state.month}월 ${state.day}일</span>${msg}`;
+  const el=document.getElementById('log'); el.appendChild(p); el.scrollTop=el.scrollHeight;
+  while(el.children.length>140) el.removeChild(el.firstChild);
 }
 
-function renderStats() {
-  const body = document.getElementById('statsBody');
-  let html = '';
-  for (const [key, meta] of Object.entries(STAT_META)) {
-    const val = G.stats[key];
-    const pct = (val / 50) * 100;
-    const isOutlook = G.outlook.type === key;
-    html += `<div class="stat-row">
-      <span class="stat-icon">${meta.icon}</span>
-      <span class="stat-name" style="${isOutlook?'color:var(--gold-light);':''}">${meta.label}</span>
-      <div class="stat-bar-bg"><div class="stat-bar-fill" style="width:${pct}%"></div></div>
-      <span class="stat-num">${val}</span>
-    </div>`;
-  }
-  // 인생관
-  const om = OUTLOOK_META[G.outlook.type];
-  const stars = '★'.repeat(G.outlook.stars) + '☆'.repeat(4-G.outlook.stars);
-  html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(201,151,58,0.1);font-size:0.62rem;color:var(--gold-dark);font-family:'Cinzel',serif;">
-    인생관: ${om.icon} ${om.label} ${stars}
-  </div>`;
-  // 건강/나이
-  document.getElementById('ageDisplay').textContent = `${G.age}세 · 건강 ${G.health}`;
-  body.innerHTML = html;
+/* ---------- 팝업 시스템 (자동 일시정지) ---------- */
+function popup(p){ state.popupQ.push(p); flushPopups(); }
+function flushPopups(){
+  if(state.modalOpen || !state.popupQ.length) return;
+  if(!state.paused) state.autoResume=true;   // 팝업이 직접 정지시킨 경우만 자동 재개
+  pause();
+  const p = state.popupQ.shift();
+  showModal(p);
 }
-
-function renderDomain() {
-  document.getElementById('devVal').textContent = G.domain.dev;
-  document.getElementById('devBar').style.width = Math.min(100, G.domain.dev * 10) + '%';
-  document.getElementById('loyVal').textContent = G.domain.loyalty;
-  document.getElementById('loyBar').style.width = G.domain.loyalty + '%';
-
-  const res = getResources();
-  const gEl = document.getElementById('resGold');
-  const fEl = document.getElementById('resFood');
-  const tEl = document.getElementById('resTroop');
-  const dEl = document.getElementById('resDef');
-  gEl.textContent = res.gold;
-  fEl.textContent = res.food;
-  tEl.textContent = res.troop;
-  dEl.textContent = res.def;
-  gEl.className = 'res-val' + (res.gold < 50 ? ' danger' : res.gold > 150 ? ' good' : '');
-  fEl.className = 'res-val' + (res.food < 60 ? ' danger' : '');
-  tEl.className = 'res-val' + (res.troop < 40 ? ' danger' : '');
-
-  // 후계자
-  const heirSec = document.getElementById('heirSection');
-  if (G.heir) {
-    const ol = G.heir.outlook ? `· ${OUTLOOK_META[G.heir.outlook.type].label} ${G.heir.outlook.stars}성` : '· 교육 중';
-    heirSec.innerHTML = `<div class="heir-row"><span class="heir-avatar">👦</span><div class="heir-info"><span class="heir-name">후계자 ${G.heir.name}</span><span class="heir-detail">${G.heir.age}세 ${ol}</span></div></div>`;
-  } else {
-    heirSec.innerHTML = `<span class="no-heir">⚠ 후계자 없음</span>`;
-  }
-}
-
-function renderNPCs() {
-  const strip = document.getElementById('npcStrip');
-  strip.innerHTML = '';
-  for (const [key, npc] of Object.entries(G.npcs)) {
-    const rel = npc.rel;
-    const cls = rel >= 65 ? 'allied' : rel <= 30 ? 'hostile' : '';
-    const relLabel = rel >= 65 ? `우호(${rel})` : rel <= 30 ? `적대(${rel})` : `중립(${rel})`;
-    const fillCls = rel <= 30 ? 'hostile-fill' : '';
-    const card = document.createElement('div');
-    card.className = `npc-card ${cls}`;
-    card.innerHTML = `<div class="npc-avatar">${npc.avatar}</div><div class="npc-info"><span class="npc-name">${npc.name}</span><span class="npc-rel-label">${relLabel}</span><div class="npc-rel-bar"><div class="npc-rel-fill ${fillCls}" style="width:${rel}%"></div></div></div>`;
-    card.onclick = () => showNpcPopup(key);
-    strip.appendChild(card);
-  }
-}
-
-function renderSchedule() {
-  const daysEl = document.getElementById('scheduleDays');
-  daysEl.innerHTML = '';
-  let filled = 0;
-  for (const entry of G.schedule) {
-    const a = ACTIONS[entry.actionKey];
-    for (let i = 0; i < entry.days; i++) {
-      const slot = document.createElement('div');
-      slot.className = 'day-slot filled';
-      slot.innerHTML = `<span class="day-num">${filled+1}</span><span class="day-icon">${a.icon}</span>`;
-      slot.title = a.name;
-      slot.onclick = () => removeScheduleEntry(entry.actionKey);
-      daysEl.appendChild(slot);
-      filled++;
-    }
-  }
-  for (let i = filled; i < 7; i++) {
-    const slot = document.createElement('div');
-    slot.className = 'day-slot empty';
-    slot.innerHTML = `<span class="day-num">${i+1}</span><span style="font-size:0.6rem;color:rgba(201,151,58,0.2);">—</span>`;
-    daysEl.appendChild(slot);
-  }
-  const remain = 7 - G.scheduleDaysUsed;
-  document.getElementById('daysRemain').innerHTML = `남은 일수: <strong style="color:var(--gold-light);">${remain}</strong>일`;
-  document.getElementById('confirmBtn').disabled = remain !== 0;
-  document.getElementById('schedInfo').textContent = remain === 0 ? '✓ 확정 가능' : `${remain}일 남음`;
-}
-
-function renderActionList() {
-  // 탭
-  const catsEl = document.getElementById('actionCats');
-  catsEl.innerHTML = '';
-  CATS.forEach(c => {
-    const btn = document.createElement('button');
-    btn.className = 'cat-btn' + (activeCat === c.key ? ' active' : '');
-    btn.textContent = c.label;
-    btn.onclick = () => { activeCat = c.key; renderActionList(); };
-    catsEl.appendChild(btn);
+function showModal(p){
+  state.modalOpen=true;
+  const box=document.getElementById('modalBox');
+  let h=`<h2>${p.title}</h2><div class="sub">${p.sub||'이벤트'}</div><div class="body">${p.body||''}</div>`;
+  if(p.html) h+=p.html;
+  h+=`<div class="opts">`;
+  (p.opts||[{t:'확인'}]).forEach((o,i)=>{
+    h+=`<button onclick="modalPick(${i})">${o.t}${o.d?`<small>${o.d}</small>`:''}</button>`;
   });
+  h+=`</div>`;
+  box.innerHTML=h;
+  box._opts=p.opts||[{}];
+  document.getElementById('shade').classList.add('show');
+}
+function modalPick(i){
+  const box=document.getElementById('modalBox');
+  const o=box._opts[i];
+  closeModal();
+  if(o&&o.f) o.f();
+  flushPopups();
+  if(!state.modalOpen && !state.popupQ.length && state.autoResume){
+    state.autoResume=false; resume();
+  }
+  renderAll();
+}
+function closeModal(){
+  state.modalOpen=false;
+  document.getElementById('shade').classList.remove('show');
+}
 
-  const listEl = document.getElementById('actionList');
-  listEl.innerHTML = '';
-  const remain = 7 - G.scheduleDaysUsed;
+/* ---------- 스트레스 ---------- */
+function addStress(c,amt,why){
+  if(c.dead) return;
+  let g=amt;
+  for(const t of c.traits){ if(TRAITS[t]&&TRAITS[t].stressGainMul&&amt>0) g*=TRAITS[t].stressGainMul; }
+  const before=stressLvl(c);
+  c.stress=Math.max(0,Math.min(300,c.stress+Math.round(g)));
+  const after=stressLvl(c);
+  if(c.id===state.player&&amt!==0&&why) log(`스트레스 ${amt>0?'+':''}${Math.round(g)} — ${why}`);
+  if(after>before&&after<3) mentalBreak(c,after);
+  if(c.stress>=300) stressDeath(c);
+}
+function stressLvl(c){ return c.stress>=300?3 : c.stress>=200?2 : c.stress>=100?1 : 0; }
+function mentalBreak(c,lvl){
+  if(state.year - c.lastBreakY < 5) return;
+  c.lastBreakY=state.year;
+  if(c.id!==state.player){ c.stress=Math.max(0,c.stress-60); return; }
+  popup({title:'정신적 한계', sub:`스트레스 ${lvl}단계 — 정신 붕괴`,
+    body:`통치의 무게가 ${c.name}의 어깨를 짓누릅니다. 밤마다 잠을 이루지 못하고, 신하들 앞에서 손이 떨립니다.\n무언가 의지할 것이 필요합니다.`,
+    opts:[
+      {t:'대처법을 찾는다', d:'스트레스 -80, 이후 스트레스 해소 +20%', f:()=>{c.stress=Math.max(0,c.stress-80); c.copings++; log('대처법을 찾아 마음을 다스립니다.','fam');}},
+      {t:'이를 악물고 버틴다', d:'스트레스 +30 — 위험한 선택', f:()=>{addStress(c,30,'억눌린 고통');}},
+    ]});
+}
+function stressDeath(c){
+  if(c.dead) return;
+  log(`<b>${c.name}</b>이(가) 한계에 도달했습니다. 심장이 멎었습니다.`,'war');
+  if(c.id===state.player){
+    popup({title:'무너진 왕', sub:'스트레스 3단계',
+      body:`${c.name}은(는) 통치의 중압을 끝내 이기지 못했습니다.\n어느 새벽, 침소에서 싸늘하게 발견되었습니다.`,
+      opts:[{t:'...', f:()=>kill(c,'스트레스')}]});
+  } else kill(c,'스트레스');
+}
 
-  for (const [key, a] of Object.entries(ACTIONS)) {
-    if (activeCat !== 'all' && a.cat !== activeCat) continue;
-    const canFit = a.solo ? G.scheduleDaysUsed === 0 && a.days <= 7 : a.days <= remain;
-    const alreadySolo = G.schedule.some(e => ACTIONS[e.actionKey].solo);
-    const unavail = !canFit || (a.solo && G.scheduleDaysUsed > 0) || alreadySolo;
-
-    const item = document.createElement('div');
-    item.className = 'action-item' + (unavail ? ' unavailable' : '');
-    const pips = '<div class="day-pip"></div>'.repeat(a.days);
-    item.innerHTML = `<span class="action-emoji">${a.icon}</span><span class="action-content"><span class="action-name">${a.name}</span><span class="action-desc">${a.desc}</span></span><span class="action-days">${pips}</span>`;
-    if (!unavail) item.onclick = () => addScheduleEntry(key);
-    listEl.appendChild(item);
+/* ---------- 사망 / 상속 ---------- */
+function kill(c, cause){
+  if(c.dead) return;
+  c.dead=true;
+  // 배우자 해제
+  if(c.spouse&&chars[c.spouse]){ chars[c.spouse].spouse=null; addStress(chars[c.spouse],40,'배우자의 죽음'); }
+  // 자녀 스트레스
+  for(const id in chars){const k=chars[id];
+    if(!k.dead&&(k.father===c.id||k.mother===c.id)) addStress(k,30,'부모의 죽음');}
+  if(c.ruler) succession(c);
+  if(c.id===state.player){
+    // 플레이어 상속
+    const heir=findHeir(c);
+    if(heir && age(heir)>=0){
+      state.player=heir.id;
+      heir.ruler=true; heir.region=c.region;
+      for(const rid of regionsOf(c.id)) REGIONS[rid].owner=heir.id;
+      log(`<b>${heir.name}</b>이(가) ${REGIONS[c.region].n}의 칭호를 계승했습니다.`,'fam');
+      popup({title:'왕은 죽었다', sub:'계승',
+        body:`${c.name}의 시대가 끝났습니다. 사인: ${cause}.\n이제 ${heir.name}(${age(heir)}세)이(가) ${REGIONS[c.region].n}을(를) 다스립니다.\n\n가문은 계속됩니다.`,
+        opts:[{t:'왕은 만세하리라'}]});
+    } else {
+      gameOver(`${c.name}이(가) 후계자 없이 사망했습니다. 우어 브리언 가문의 직계가 끊겼습니다.`);
+    }
+  } else {
+    log(`<b>${c.name}</b> 사망 (${cause}).`,'war');
   }
 }
-
-// ═══════════════════════════════════
-// SCHEDULE LOGIC
-// ═══════════════════════════════════
-function addScheduleEntry(key) {
-  const a = ACTIONS[key];
-  const remain = 7 - G.scheduleDaysUsed;
-  if (a.days > remain) return;
-  if (a.solo && G.scheduleDaysUsed > 0) return;
-  G.schedule.push({ actionKey: key, days: a.days });
-  G.scheduleDaysUsed += a.days;
-  renderSchedule();
-  renderActionList();
+function findHeir(c){
+  // 장자상속 단순화: 살아있는 아들 연장자 → 딸 연장자
+  const kids=Object.values(chars).filter(k=>!k.dead&&(k.father===c.id||k.mother===c.id));
+  kids.sort((a,b)=>a.byear-b.byear||a.bmonth-b.bmonth);
+  return kids.find(k=>k.sex==='m')||kids[0]||null;
+}
+function succession(c){
+  if(c.id===state.player) return; // 플레이어는 kill에서 처리
+  const owned=regionsOf(c.id);
+  if(!owned.length) return cleanupAfterDeath(c);
+  const seat=c.region&&owned.includes(c.region)?c.region:owned[0];
+  const heir=findHeir(c);
+  if(heir&&age(heir)>=16){
+    heir.ruler=true; heir.region=seat; heir.courtOf=null;
+    for(const rid of owned) REGIONS[rid].owner=heir.id;
+    log(`${REGIONS[seat].n}의 왕좌가 <b>${heir.name}</b>에게 넘어갔습니다.`,'dip');
+  } else {
+    const nu=mk({name:randName(), dyn:c.dyn, byear:state.year-30-Math.floor(Math.random()*15), bmonth:1+Math.floor(Math.random()*12), bday:1+Math.floor(Math.random()*28),
+      traits:randTraits(3), base:randStats(), edu:1+Math.floor(Math.random()*3), eduFocus:randKey(SKILLS),
+      region:seat, ruler:true});
+    for(const rid of owned) REGIONS[rid].owner=nu.id;
+    log(`${REGIONS[seat].n}에서 방계 <b>${nu.name}</b>이(가) 왕좌를 차지했습니다.`,'dip');
+  }
+  cleanupAfterDeath(c);
+}
+function cleanupAfterDeath(c){
+  // 진행 중이던 전쟁/음모 정리
+  state.wars=state.wars.filter(w=>{
+    if(w.atk===c.id||w.def===c.id){ log(`${REGIONS[c.region].n}의 전쟁이 지배자 사망으로 종결되었습니다.`,'war'); return false;}
+    return true;});
+  state.schemes=state.schemes.filter(s=>s.plotter!==c.id&&s.target!==c.id);
+}
+const NAMES_M=['타드그','로르칸','피네언','콘','니얼','루어드리','케르발','플란','브란','에오한'];
+function randName(){ return NAMES_M[Math.floor(Math.random()*NAMES_M.length)]; }
+function randKey(o){ const k=Object.keys(o); return k[Math.floor(Math.random()*k.length)]; }
+function randTraits(n){
+  const out=[]; let pool=[...PERSONALITY_KEYS];
+  while(out.length<n&&pool.length){
+    const t=pool.splice(Math.floor(Math.random()*pool.length),1)[0];
+    if(!out.includes(TRAITS[t].opp)) out.push(t);
+  }
+  return out;
+}
+function randStats(){ const r=()=>3+Math.floor(Math.random()*8);
+  return {dip:r(),mar:r(),stew:r(),intr:r(),learn:r(),prow:r()}; }
+function gameOver(msg){
+  state.over=true; pause();
+  popup({title:'가문의 종언', sub:'게임 오버', body:msg+'\n\n에이레의 연대기는 다른 가문의 이름으로 쓰일 것입니다.',
+    opts:[{t:'다시 시작', f:()=>location.reload()}]});
 }
 
-function removeScheduleEntry(key) {
-  const idx = G.schedule.findIndex(e => e.actionKey === key);
-  if (idx === -1) return;
-  G.scheduleDaysUsed -= G.schedule[idx].days;
-  G.schedule.splice(idx, 1);
-  renderSchedule();
-  renderActionList();
+/* ---------- 시간 진행 ---------- */
+function togglePause(){ state.paused?resume():pause(); }
+function pause(){ state.paused=true; clearInterval(state.timer); state.timer=null; updPauseBtn(); }
+function resume(){
+  if(state.over||state.modalOpen) return;
+  state.paused=false;
+  const iv = state.speed===1?550 : state.speed===2?260 : 110;
+  clearInterval(state.timer);
+  state.timer=setInterval(tick,iv);
+  updPauseBtn();
+}
+function setSpeed(s){ state.speed=s; document.querySelectorAll('.spd').forEach(b=>b.classList.toggle('on',+b.dataset.s===s)); if(!state.paused) resume(); }
+function updPauseBtn(){
+  const b=document.getElementById('pauseBtn');
+  b.textContent=state.paused?'▶ 진행':'⏸ 정지';
+  b.classList.toggle('paused',state.paused);
+}
+function tick(){
+  if(state.paused||state.over) return;
+  state.day++;
+  const dim=MDAYS[state.month-1];
+  if(state.day>dim){
+    state.day=1; state.month++;
+    if(state.month>12){ state.month=1; state.year++; }
+    monthlyPulse();
+  }
+  dailyBirthdays();
+  renderHeader(); renderChar();
+  if(state.popupQ.length) flushPopups();
 }
 
-function confirmSchedule() {
-  if (G.scheduleDaysUsed !== 7) return;
-  if (G.currentEvent) return;
+/* ---------- 생일 / 연령 이벤트 ---------- */
+function dailyBirthdays(){
+  for(const id in chars){
+    const c=chars[id]; if(c.dead) continue;
+    if(c.bmonth===state.month&&c.bday===state.day){
+      const a=age(c);
+      onBirthday(c,a);
+    }
+  }
+}
+function onBirthday(c,a){
+  // 어린시절 특성 (3세)
+  if(a===3&&!c.childTrait){
+    c.childTrait=randKey(CHILD_TRAITS);
+    if(isPlayerFamily(c)) log(`<b>${c.name}</b>(3세)에게서 <b>${CHILD_TRAITS[c.childTrait].n}</b>의 기질이 보입니다.`,'fam');
+  }
+  // 교육 방향 + 후견인 (6세)
+  if(a===6&&!c.eduFocus){
+    if(isPlayerFamily(c)) askEducation(c);
+    else { c.eduFocus=CHILD_TRAITS[c.childTrait||'curious'].foci[0]; }
+  }
+  // 교육 점수 굴림 (6~15세, 위키 공식)
+  if(a>=6&&a<16&&c.eduFocus){
+    if(eduRoll(c)) c.eduScore+=2;
+  }
+  // 성격 이벤트 (9·11·13세)
+  if((a===9||a===11||a===13)&&c.traits.length<3){
+    if(isPlayerFamily(c)) askPersonality(c,a);
+    else npcGainPersonality(c);
+  }
+  // 성인 (16세) — 교육 특성 확정
+  if(a===16&&c.edu===null){
+    comeOfAge(c);
+  }
+  // 노화 사망 (60세 이후, 위키: 60세 이후 자연사 가능)
+  if(a>=60){
+    const chance=(a-58)*0.035;
+    if(Math.random()<chance) kill(c,'노환');
+  }
+}
+function isPlayerFamily(c){
+  const p=playerChar();
+  return c.father===p.id||c.mother===p.id||c.courtOf===p.region;
+}
+function eduRoll(c){
+  // 성공확률 = (60+S)/(100+S+F)  [위키 확정 공식]
+  let S=0,F=0;
+  const g=guardianOf(c);
+  if(c.childTrait && CHILD_TRAITS[c.childTrait].foci.includes(c.eduFocus)) S+=20; else S-=20;
+  if(g){ S += 0.4*stat(g,c.eduFocus) + 0.2*stat(g,'learn'); }
+  else F+=20;
+  const chance=(60+S)/(100+S+F);
+  return Math.random()<chance;
+}
+function guardianOf(c){
+  if(c.guardian&&chars[c.guardian]&&!chars[c.guardian].dead) return chars[c.guardian];
+  if(c.father&&chars[c.father]&&!chars[c.father].dead) return chars[c.father];
+  return null;
+}
+function comeOfAge(c){
+  const sc=c.eduScore;
+  c.edu = sc>=18?3 : sc>=13?2 : sc>=8?1 : 0;
+  if(isPlayerFamily(c)||c.ruler){
+    log(`<b>${c.name}</b>이(가) 성인이 되었습니다 — <b>${EDU_NAMES[c.eduFocus||'dip'][c.edu]}</b> (교육 점수 ${sc})`,'fam');
+  }
+  if(!c.eduFocus) c.eduFocus='dip';
+  // 성격 특성 보충: 성인은 3개를 갖춰야 함 (시작 시점에 이벤트 시기를 지난 캐릭터 보정)
+  if(isPlayerFamily(c)){
+    while(c.traits.length<2) npcGainPersonality(c);
+    if(c.traits.length<3) askPersonality(c,16);
+  } else {
+    while(c.traits.length<3) npcGainPersonality(c);
+  }
+  // 인생관: 플레이어 캐릭터 본인일 때만 선택 팝업
+  if(c.id===state.player) askLifestyle(c);
+  else c.lifestyle=randKey(SKILLS);
+}
 
-  // 행동 처리
-  const actionsDone = [];
-  for (const entry of G.schedule) {
-    actionsDone.push(entry.actionKey);
-    const a = ACTIONS[entry.actionKey];
+/* ---------- 교육/성격 선택 팝업 ---------- */
+function askEducation(c){
+  const ct=CHILD_TRAITS[c.childTrait||'curious'];
+  const courtAdults=Object.values(chars).filter(k=>!k.dead&&age(k)>=16&&(k.courtOf===playerChar().region||k.id===state.player));
+  const opts=Object.entries(SKILLS).map(([k,n])=>({
+    t:`${n} 교육`+(ct.foci.includes(k)?' ★ 기질 일치':''),
+    d:ct.foci.includes(k)?'어린시절 특성과 일치 — 교육 성공률 상승':'기질과 불일치 — 성공률 하락',
+    f:()=>{ c.eduFocus=k; pickGuardian(c,courtAdults); }
+  }));
+  popup({title:`${c.name}의 교육`, sub:'6세 — 교육 방향 결정',
+    body:`${c.name}이(가) 배움을 시작할 나이가 되었습니다.\n기질: ${ct.n} (적성: ${ct.foci.map(f=>SKILLS[f]).join(', ')})`,
+    opts});
+}
+function pickGuardian(c,adults){
+  const opts=adults.slice(0,5).map(g=>({
+    t:`${g.name}`, d:`${SKILLS[c.eduFocus]} ${stat(g,c.eduFocus)} · 학문 ${stat(g,'learn')} · 성격: ${g.traits.map(t=>TRAITS[t].n).join('·')||'—'}`,
+    f:()=>{ c.guardian=g.id; chOp(c,g,15); chOp(g,c,5);
+      log(`<b>${g.name}</b>이(가) ${c.name}의 후견인이 되었습니다.`,'fam'); }
+  }));
+  popup({title:`${c.name}의 후견인`, sub:'후견 — 교육의 질을 결정합니다',
+    body:'후견인의 해당 스킬(×0.4)과 학문(×0.2)이 교육 점수에 영향을 줍니다.\n아이는 후견인의 성격을 닮아갑니다.', opts});
+}
+function askPersonality(c,a){
+  const g=guardianOf(c);
+  const cand=new Set();
+  if(g) g.traits.forEach(t=>{ if(canHaveTrait(c,t)) cand.add(t); });
+  while(cand.size<3){
+    const t=PERSONALITY_KEYS[Math.floor(Math.random()*PERSONALITY_KEYS.length)];
+    if(canHaveTrait(c,t)) cand.add(t);
+  }
+  const opts=[...cand].slice(0,3).map(t=>({
+    t:TRAITS[t].n, d:(g&&g.traits.includes(t))?'후견인의 영향':'',
+    f:()=>{ c.traits.push(t); log(`<b>${c.name}</b>(${a}세)이(가) <b>${TRAITS[t].n}</b> 성격을 갖게 되었습니다.`,'fam'); }
+  }));
+  popup({title:`${c.name}의 성장`, sub:`${a}세 — 성격 형성`,
+    body:`${c.name}의 성격이 뚜렷해지고 있습니다. 어떤 면모가 두드러집니까?`, opts});
+}
+function npcGainPersonality(c){
+  const g=guardianOf(c);
+  let t=null;
+  if(g&&Math.random()<0.5){ const gs=g.traits.filter(x=>canHaveTrait(c,x)); if(gs.length) t=gs[Math.floor(Math.random()*gs.length)]; }
+  if(!t){ let tries=0; do{ t=PERSONALITY_KEYS[Math.floor(Math.random()*PERSONALITY_KEYS.length)]; tries++; }while(!canHaveTrait(c,t)&&tries<20); }
+  if(t&&canHaveTrait(c,t)) c.traits.push(t);
+}
+function canHaveTrait(c,t){
+  return !c.traits.includes(t)&&!c.traits.includes(TRAITS[t].opp)&&c.traits.length<3;
+}
+function askLifestyle(c){
+  const opts=Object.entries(SKILLS).map(([k,n])=>({
+    t:`${n}의 길`, d:c.eduFocus===k?`교육 일치 — 경험치 +${(EDU_BONUS[c.edu]||1)*10}%`:'',
+    f:()=>{ c.lifestyle=k; log(`<b>${c.name}</b>이(가) <b>${n}</b>의 길을 걷기로 했습니다.`,'fam'); }
+  }));
+  popup({title:'인생관', sub:'삶의 방향',
+    body:`${c.name}은(는) 앞으로 어떤 통치자가 되려 합니까?\n(퍼크 시스템은 추후 — 현재는 경험치만 축적됩니다)`, opts});
+}
 
-    // 능력치 카운트
-    if (a.statKey) {
-      G.statCount[a.statKey]++;
-      if (G.statCount[a.statKey] >= 30) {
-        G.statCount[a.statKey] = 0;
-        G.stats[a.statKey] = Math.min(50, G.stats[a.statKey] + 1);
-        addLog(`${STAT_META[a.statKey].label} 능력이 향상됐다. (${G.stats[a.statKey]})`, true);
+/* ---------- 월간 펄스 ---------- */
+function monthlyPulse(){
+  for(const id in chars){
+    const c=chars[id]; if(c.dead) continue;
+    // 스트레스 자연 감소
+    if(c.stress>0){
+      let loss=4*(1+0.2*c.copings);
+      for(const t of c.traits){ if(TRAITS[t]&&TRAITS[t].stressLossMul) loss*=TRAITS[t].stressLossMul; }
+      c.stress=Math.max(0,c.stress-Math.round(loss));
+    }
+    // 인생관 경험치
+    if(c.lifestyle){ let xp=10; if(c.edu!==null&&c.eduFocus===c.lifestyle) xp*=1+(EDU_BONUS[c.edu]*0.1); c.lifeXP+=Math.round(xp); }
+    // 임신 진행
+    if(c.pregnant>0){
+      c.pregnant++;
+      if(c.pregnant>=10) giveBirth(c);
+    }
+  }
+  fertilityPulse();
+  schemePulse();
+  warPulse();
+  aiPulse();
+  randomEventPulse();
+  goldPulse();
+  renderMap();
+}
+function goldPulse(){
+  for(const rid in REGIONS){
+    REGIONS[rid].troops=Math.min(REGIONS[rid].cap, REGIONS[rid].troops+12);
+    const o=rulerOf(rid); if(!o) continue;
+    const inc = 8 + Math.round(stat(o,'stew')*0.8);
+    const home = (o.region&&REGIONS[o.region]) ? o.region : rid;
+    const cap = o.id===state.player?3000:2000;
+    REGIONS[home].gold=Math.min(cap, REGIONS[home].gold+inc);
+  }
+}
+/* ---------- 수태력 (위키: 평균수태력 × 4.75%) ---------- */
+function fertilityPulse(){
+  for(const id in chars){
+    const c=chars[id];
+    if(c.dead||c.sex!=='f'||!c.spouse||c.pregnant>0) continue;
+    const h=chars[c.spouse]; if(!h||h.dead) continue;
+    if(age(c)<16||age(h)<16) continue;
+    const avg=(fert(c)+fert(h))/2;
+    const chance=avg*0.0475;
+    if(Math.random()<chance){
+      c.pregnant=1;
+      if(isPlayerFamily(c)||c.id===state.player||h.id===state.player)
+        log(`<b>${c.name}</b>이(가) 회임했습니다.`,'fam');
+    }
+  }
+}
+function giveBirth(c){
+  c.pregnant=0; c.births++;
+  const h=chars[c.spouse];
+  const sex=Math.random()<0.51?'m':'f';
+  const baby=mk({name:sex==='m'?randName():['이테','고름라트','사브','베브','오를라트'][Math.floor(Math.random()*5)],
+    dyn:h?h.dyn:c.dyn, sex, byear:state.year, bmonth:state.month, bday:Math.min(state.day,28),
+    base:babyStats(c,h), father:h?h.id:null, mother:c.id, courtOf:c.courtOf||((h&&h.region)?h.region:null)});
+  if(h&&h.region) baby.courtOf=h.region;
+  const fam=isPlayerFamily(baby)||(h&&h.id===state.player);
+  if(fam){
+    log(`<b>${c.name}</b>이(가) ${sex==='m'?'아들':'딸'} <b>${baby.name}</b>을(를) 낳았습니다.`,'good');
+    if(h&&h.id===state.player) popup({title:'새 생명', sub:'출산',
+      body:`${c.name}이(가) 건강한 ${sex==='m'?'아들':'딸'}을 낳았습니다.\n아이의 이름은 ${baby.name}입니다.`,
+      opts:[{t:'가문에 축복이 있기를', f:()=>addStress(playerChar(),-15,'아이의 탄생')}]});
+  } else if(h&&h.ruler){
+    log(`${REGIONS[h.region].n}의 궁정에 아이가 태어났습니다.`,'dip');
+  }
+}
+function babyStats(m,f){
+  const r={}; for(const k of ['dip','mar','stew','intr','learn','prow']){
+    const mv=m?m.base[k]:5, fv=f?f.base[k]:5;
+    r[k]=Math.max(0,Math.min(10,Math.round((mv+fv)/2 + (Math.random()*4-2))));
+  } return r;
+}
+
+/* ---------- 살해 모략 (초기 CK3 단순 모델) ---------- */
+function startScheme(plotter,target){
+  if(state.schemes.some(s=>s.plotter===plotter.id&&s.target===target.id)) return false;
+  state.schemes.push({plotter:plotter.id,target:target.id,months:0});
+  // 성격에 반하는 행동 → 스트레스 (위키 상호작용표 기준)
+  if(plotter.id===state.player){
+    if(plotter.traits.includes('just')) addStress(plotter,30,'공정한 자의 음모');
+    if(plotter.traits.includes('honest')) addStress(plotter,20,'정직한 자의 음모');
+    if(plotter.traits.includes('forgiving')) addStress(plotter,20,'관용적인 자의 음모');
+    if(plotter.traits.includes('kind')) addStress(plotter,20,'친절한 자의 음모');
+    log(`<b>${target.name}</b>에 대한 살해 모략을 시작했습니다.`,'war');
+  }
+  return true;
+}
+function schemePulse(){
+  state.schemes=state.schemes.filter(s=>{
+    const p=chars[s.plotter], t=chars[s.target];
+    if(!p||!t||p.dead||t.dead) return false;
+    s.months++;
+    if(s.months<3) return true; // 준비 기간
+    // 성공률: 음모 스탯 차이 기반
+    const succ=Math.max(0.04, Math.min(0.45, 0.08+(stat(p,'intr')-stat(t,'intr'))*0.03));
+    const discover=0.07+stat(t,'intr')*0.008;
+    const roll=Math.random();
+    if(roll<succ){
+      log(`<b>${t.name}</b>이(가) 의문의 죽음을 맞았습니다. 독이 든 술잔이었습니다.`,'war');
+      if(s.plotter===state.player) log('아무도 진실을 모릅니다. 아직은.','war');
+      if(s.target===state.player){
+        popup({title:'독배', sub:'암살',
+          body:'연회의 술잔에 독이 들어 있었습니다.\n시야가 흐려지고, 다리에 힘이 풀립니다...',
+          opts:[{t:'...', f:()=>kill(t,'독살')}]});
+      } else kill(t,'독살');
+      return false;
+    }
+    if(roll<succ+discover){
+      log(`<b>${p.name}</b>의 살해 모략이 발각되었습니다! 대상: ${t.name}`,'war');
+      chOp(t,p,-50);
+      for(const rid in REGIONS){const r=rulerOf(rid); if(r&&r.id!==p.id) chOp(r,p,-15);}
+      if(s.plotter===state.player) addStress(p,20,'모략 발각의 수치');
+      if(s.target===state.player){
+        popup({title:'발각된 음모', sub:'첩보',
+          body:`첩자가 보고합니다. <b>${p.name}</b>이(가) 당신의 목숨을 노리고 있었습니다.\n모략은 저지되었으나, 칼끝은 여전히 어둠 속에 있습니다.`,
+          opts:[{t:'경계를 강화한다'},
+                {t:'복수를 다짐한다', d:'관계 -30', f:()=>chOp(playerChar(),p,-30)}]});
       }
+      return false;
     }
+    return s.months<30;
+  });
+}
 
-    // 특수 행동
-    if (entry.actionKey === 'admin') {
-      // 개발도 카운트 (별도 관리)
-      G._devCount = (G._devCount||0) + 1;
-      if (G._devCount >= 8) { G._devCount = 0; G.domain.dev = Math.min(10, G.domain.dev+1); addLog(`영지 개발도가 ${G.domain.dev}로 올랐다.`, true); }
+/* ---------- 전쟁 ---------- */
+function declareWar(atk,def){
+  if(truceBetween(atk.id,def.id)){ return false; }
+  if(state.wars.some(w=>(w.atk===atk.id&&w.def===def.id)||(w.atk===def.id&&w.def===atk.id))) return false;
+  state.wars.push({atk:atk.id,def:def.id,score:0,months:0});
+  chOp(def,atk,-40);
+  log(`<b>${atk.name}</b>이(가) <b>${REGIONS[def.region].n}</b>에 전쟁을 선포했습니다!`,'war');
+  if(atk.id===state.player){
+    if(atk.traits.includes('calm')) addStress(atk,15,'침착한 자의 개전');
+    if(atk.traits.includes('content')) addStress(atk,15,'만족하는 자의 개전');
+  }
+  if(def.id===state.player){
+    popup({title:'전쟁이다!', sub:'침공',
+      body:`${atk.name}의 군대가 국경을 넘었습니다.\n${REGIONS[atk.region].n}의 깃발이 지평선을 메우고 있습니다.`,
+      opts:[{t:'전군 소집!', f:()=>addStress(playerChar(),10,'전쟁의 무게)'.replace(')',''))}]});
+  }
+  renderMap();
+  return true;
+}
+function truceBetween(a,b){ const k=[a,b].sort().join('|'); return state.truces[k]&&state.truces[k]>state.year; }
+function setTruce(a,b,years){ const k=[a,b].sort().join('|'); state.truces[k]=state.year+years; }
+function power(c){
+  let t=0; for(const rid of regionsOf(c.id)) t+=REGIONS[rid].troops;
+  if(!t) t=150;
+  return t*(1+stat(c,'mar')*0.04)*(1+stat(c,'prow')*0.01);
+}
+function warPulse(){
+  state.wars=state.wars.filter(w=>{
+    const a=chars[w.atk], d=chars[w.def];
+    if(!a||!d||a.dead||d.dead) return false;
+    w.months++;
+    const pa=power(a), pd=power(d);
+    const delta=((pa-pd)/Math.max(pa,pd))*14 + (Math.random()*16-6);
+    w.score=Math.max(-100,Math.min(100,w.score+delta));
+    // 매월 소모
+    for(const rid of regionsOf(a.id)) REGIONS[rid].troops=Math.max(120,Math.round(REGIONS[rid].troops*0.97));
+    for(const rid of regionsOf(d.id)) REGIONS[rid].troops=Math.max(120,Math.round(REGIONS[rid].troops*0.97));
+    if(w.months%3===0&&(w.atk===state.player||w.def===state.player)){
+      const my = w.atk===state.player? w.score : -w.score;
+      log(`전황: ${my>=0?'+':''}${Math.round(my)}% — ${my>30?'아군 우세':my<-30?'적군 우세':'교착 상태'}`,'war');
     }
-    if (entry.actionKey === 'rest') {
-      G.health = Math.min(100, G.health + 5);
+    if(w.score>=100){ conquer(a,d); return false; }
+    if(w.score<=-100){
+      log(`<b>${a.name}</b>의 침공이 격퇴되었습니다. 백색 강화.`,'war');
+      setTruce(a.id,d.id,5);
+      if(w.atk===state.player) addStress(a,30,'패전의 굴욕');
+      if(w.def===state.player){ addStress(d,-10,'승전'); REGIONS[d.region].gold+=60; }
+      return false;
     }
-    if (entry.actionKey === 'heirEdu' && G.heir && !G.heir.outlook) {
-      const focusKeys = Object.keys(G.heir.eduFocus);
-      const focusKey = entry.statKey || 'admin';
-      G.heir.eduFocus[G.outlook.type] = (G.heir.eduFocus[G.outlook.type]||0) + 1;
-      // 인생관 확정 (18세)
-      if (G.heir.age >= 18) confirmHeirOutlook();
+    if(w.months>48){ setTruce(a.id,d.id,3); log('길어진 전쟁이 흐지부지 끝났습니다.','war'); return false; }
+    return true;
+  });
+}
+function conquer(a,d){
+  const lost=d.region;
+  log(`<b>${a.name}</b>이(가) <b>${REGIONS[lost].n}</b>을(를) 정복했습니다!`,'war');
+  setTruce(a.id,d.id,5);
+  const taken=regionsOf(d.id);
+  for(const rid of taken){
+    REGIONS[a.region].gold += Math.round(REGIONS[rid].gold*0.4);
+    REGIONS[rid].gold = Math.round(REGIONS[rid].gold*0.6);
+    REGIONS[rid].owner = a.id;
+  }
+  d.ruler=false; d.region=null; d.courtOf=a.region;
+  if(a.id===state.player){
+    addStress(a,-15,'정복의 영광');
+    popup({title:'정복', sub:REGIONS[lost].n,
+      body:`${REGIONS[lost].n}이(가) 당신의 깃발 아래 들어왔습니다.\n패배한 ${d.name}은(는) 당신의 궁정에 무릎 꿇었습니다.`,
+      opts:[{t:'에이레가 지켜보고 있다', f:checkVictoryHint}]});
+  }
+  if(d.id===state.player){
+    gameOver(`${REGIONS[lost].n}이(가) 함락되었습니다. ${a.name}이(가) 당신의 왕좌를 빼앗았습니다.`);
+  }
+  renderMap();
+}
+function ownerOf(rid){ return rulerOf(rid); }
+function playerRegions(){ return regionsOf(state.player); }
+function checkVictoryHint(){
+  const n=playerRegions().length;
+  if(n>=7) return; // 결단에서 처리
+  if(n>=4) log(`현재 ${n}개 왕국을 지배 중입니다. [결단] 메뉴를 확인하세요.`,'good');
+}
+
+/* ---------- NPC AI ---------- */
+function aiPulse(){
+  const p=playerChar();
+  for(const rid in REGIONS){
+    const r=ownerOf(rid);
+    if(!r||r.id===state.player||!r.ruler) continue;
+    if(Math.random()>0.35) continue; // 매월 35% 확률로 행동
+    const targets=ADJ[rid].map(x=>ownerOf(x)).filter(t=>t&&t.id!==r.id);
+    if(!targets.length) continue;
+    const t=targets[Math.floor(Math.random()*targets.length)];
+    const op=opinion(r,t);
+    const bold=aiW(r,'bold'), greed=aiW(r,'greed'), venge=aiW(r,'venge'), honor=aiW(r,'honor'), soc=aiW(r,'soc');
+    // 전쟁 욕구
+    if(op<-20 && (bold+greed)>1 && power(r)>power(t)*1.15 && !truceBetween(r.id,t.id) && Math.random()<0.18){
+      declareWar(r,t); continue;
+    }
+    // 살해 모략 욕구
+    if(op<-35 && (venge>1||honor<-1) && Math.random()<0.12){
+      startScheme(r,t);
+      continue;
+    }
+    // 친선
+    if(op>-10 && soc>=0 && Math.random()<0.25){
+      if(t.id===state.player){
+        npcDiplomacyToPlayer(r);
+      } else { chOp(r,t,5); chOp(t,r,5); }
     }
   }
-
-  // 시간 경과
-  G.week++;
-  G.totalWeeks++;
-  if (G.week > 4) { G.week = 1; G.month++; }
-  if (G.month > 12) { G.month = 1; G.year++; }
-
-  // 나이
-  if (G.totalWeeks % 52 === 0) {
-    G.age++;
-    if (G.heir) G.heir.age++;
-    if (G.heir && G.heir.age >= 18 && !G.heir.outlook) confirmHeirOutlook();
-    G.health = Math.max(0, G.health - (G.age > 50 ? 5 : 1));
-    addLog(`${G.age}세가 됐다.`);
-    if (G.age > 55 && G.health < 30) {
-      addLog('건강이 급격히 나빠지고 있다.', true);
-    }
+}
+function npcDiplomacyToPlayer(r){
+  const p=playerChar();
+  const op=opinion(r,p);
+  const kind=Math.random();
+  if(kind<0.4&&op>-20){
+    popup({title:`${REGIONS[r.region].n}의 사절`, sub:'외교 — 동맹 제안',
+      body:`${r.name}이(가) 사절을 보냈습니다.\n"에이레의 평화를 위해 손을 잡읍시다. 동맹을 제안합니다."`,
+      opts:[
+        {t:'수락한다', d:'상호 관계 +25', f:()=>{chOp(p,r,25);chOp(r,p,25); log(`<b>${r.name}</b>과(와) 동맹을 맺었습니다.`,'dip');}},
+        {t:'거절한다', d:'관계 -10', f:()=>{chOp(r,p,-10); log(`${r.name}의 동맹 제안을 거절했습니다.`,'dip');}},
+      ]});
+  } else if(kind<0.7){
+    popup({title:`${REGIONS[r.region].n}의 선물`, sub:'외교',
+      body:`${r.name}이(가) 우호의 표시로 은제 술잔과 사냥개를 보냈습니다.`,
+      opts:[{t:'받아들인다', d:'관계 +15', f:()=>{chOp(p,r,15);chOp(r,p,10);}},
+            {t:'돌려보낸다', d:'관계 -15', f:()=>{chOp(r,p,-15);}}]});
+  } else {
+    const myKids=Object.values(chars).filter(k=>!k.dead&&(k.father===p.id||k.mother===p.id)&&!k.spouse&&age(k)>=12);
+    if(!myKids.length){ chOp(r,p,3); return; }
+    const kid=myKids[0];
+    popup({title:`혼담`, sub:`외교 — ${REGIONS[r.region].n}`,
+      body:`${r.name}이(가) 가문 간 혼인을 제안합니다.\n대상: 당신의 ${kid.sex==='m'?'아들':'딸'} <b>${kid.name}</b>(${age(kid)}세)\n\n혼인은 두 가문을 묶는 가장 단단한 사슬입니다.`,
+      opts:[
+        {t:'혼약을 맺는다', d:'관계 +35, 동맹', f:()=>{
+          const sp=mk({name:r.dyn+' 가문의 '+(kid.sex==='m'?'딸':'아들'), dyn:r.dyn, sex:kid.sex==='m'?'f':'m',
+            byear:kid.byear, bmonth:1, bday:1, traits:randTraits(2), base:randStats(), edu:1, eduFocus:'dip', courtOf:p.region});
+          if(age(kid)>=16){ kid.spouse=sp.id; sp.spouse=kid.id; }
+          chOp(p,r,35); chOp(r,p,35);
+          log(`<b>${kid.name}</b>과(와) ${r.dyn} 가문의 혼약이 성사되었습니다.`,'fam');
+        }},
+        {t:'정중히 거절한다', d:'관계 -10', f:()=>chOp(r,p,-10)},
+      ]});
   }
+}
 
-  // 사망 체크
-  if (G.health <= 0 || G.age >= 75) {
-    if (!G.heir) { endGame('no_heir'); return; }
-    succeedHeir();
+/* ---------- 랜덤 이벤트 ---------- */
+const EVENTS=[
+  {cond:c=>true, w:3, run:c=>popup({title:'흉작의 소문', sub:'영지',
+    body:'올해 보리 수확이 시원치 않다는 보고가 올라왔습니다. 농민들이 동요하고 있습니다.',
+    opts:[
+      {t:'곡식 창고를 연다', d:'금 -40, 스트레스 -10', f:()=>{REGIONS[c.region].gold-=40; addStress(c,-10,'민심 안정'); if(c.traits.includes('greedy'))addStress(c,15,'탐욕스러운 자의 베풂');}},
+      {t:'버티라고 한다', d:'스트레스 +10', f:()=>{addStress(c,10,'민심 악화'); if(c.traits.includes('kind'))addStress(c,10,'친절한 자의 외면');}},
+    ]})},
+  {cond:c=>true, w:3, run:c=>popup({title:'사냥 초대', sub:'여흥',
+    body:'시종장이 가을 사냥을 제안합니다. 숲에는 사슴이 많고, 왕에게는 휴식이 필요합니다.',
+    opts:[
+      {t:'사냥을 나간다', d:'스트레스 -20', f:()=>{addStress(c,-20,'사냥의 즐거움'); if(c.traits.includes('brave'))addStress(c,-5,'용맹한 피의 해방');}},
+      {t:'정무가 우선이다', d:'금 +20', f:()=>{REGIONS[c.region].gold+=20; if(c.traits.includes('diligent'))addStress(c,-5,'근면한 자의 보람');}},
+    ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'음유시인', sub:'궁정',
+    body:'떠돌이 시인이 궁정에 찾아와 당신의 가문을 칭송하는 노래를 지어 바치겠다 합니다.',
+    opts:[
+      {t:'후원한다', d:'금 -25, 위신 +15, 스트레스 -10', f:()=>{REGIONS[c.region].gold-=25; state.prestige=(state.prestige||120)+15; addStress(c,-10,'노래의 위안');}},
+      {t:'내쫓는다', d:'—', f:()=>{ if(c.traits.includes('generous'))addStress(c,10,'관대한 자의 인색함'); }},
+    ]})},
+  {cond:c=>stressLvl(c)>=1, w:4, run:c=>popup({title:'잠 못 드는 밤', sub:'내면',
+    body:'또 새벽입니다. 촛불이 다 타들어 가도록 잠이 오지 않습니다.\n창밖 어둠 속에서 누군가 지켜보는 것만 같습니다.',
+    opts:[
+      {t:'주교에게 고해한다', d:'스트레스 -15', f:()=>addStress(c,-15,'고해의 위안')},
+      {t:'술로 잊는다', d:'스트레스 -25, 절제 위반', f:()=>{addStress(c,-25,'취기'); if(c.traits.includes('temperate'))addStress(c,20,'절제하는 자의 폭음');}},
+    ]})},
+  {cond:c=>true, w:2, run:c=>{
+    const others=Object.values(chars).filter(k=>!k.dead&&k.ruler&&k.id!==c.id);
+    if(!others.length) return;
+    const o=others[Math.floor(Math.random()*others.length)];
+    popup({title:'국경의 분쟁', sub:REGIONS[o.region].n,
+      body:`${REGIONS[o.region].n}의 목동들이 국경을 넘어 방목하다 우리 농민들과 충돌했습니다. 사상자가 나왔습니다.`,
+      opts:[
+        {t:'배상을 요구한다', d:'관계 -15', f:()=>{chOp(o,c,-15); chOp(c,o,-10);}},
+        {t:'조용히 묻는다', d:'스트레스 +5', f:()=>{addStress(c,5,'삼킨 분노'); if(c.traits.includes('wrathful'))addStress(c,10,'분노를 누른 대가');}},
+      ]});
+  }},
+];
+function randomEventPulse(){
+  if(state.over) return;
+  const c=playerChar();
+  if(Math.random()<0.32){
+    const pool=EVENTS.filter(e=>e.cond(c));
+    let tw=pool.reduce((s,e)=>s+e.w,0), r=Math.random()*tw;
+    for(const e of pool){ r-=e.w; if(r<=0){ e.run(c); break; } }
+  }
+}
+
+/* ---------- 플레이어 외교 ---------- */
+function openRegion(rid){
+  const c=ownerOf(rid);
+  if(!c) return;
+  const p=playerChar();
+  if(c.id===p.id){
+    showModal({title:REGIONS[rid].n, sub:'내 영토',
+      body:`병력 ${REGIONS[rid].troops} · 금고 ${Math.round(REGIONS[rid].gold)}`,
+      opts:[{t:'닫기'}]});
     return;
   }
-
-  // 게임오버 체크
-  if (G.domain.loyalty <= 0) { endGame('revolt'); return; }
-
-  // 트리거 이벤트 체크
-  for (const actionKey of actionsDone) {
-    const pool = EVENT_POOL.trigger[actionKey];
-    if (pool && Math.random() < 0.55) {
-      const ev = pool[Math.floor(Math.random() * pool.length)];
-      G.pendingEvents.push(ev);
-    }
-  }
-
-  // 월드 이벤트 체크
-  for (const wev of EVENT_POOL.world) {
-    if (!firedWorldEvents.has(wev.id) && G.totalWeeks >= wev.minWeek && Math.random() < 0.3) {
-      G.pendingEvents.push(wev);
-      firedWorldEvents.add(wev.id);
-    }
-  }
-
-  // 스케줄 초기화
-  G.schedule = [];
-  G.scheduleDaysUsed = 0;
-
-  renderDate();
-  renderStats();
-  renderDomain();
-  renderNPCs();
-  renderSchedule();
-  renderActionList();
-
-  // 이벤트 처리
-  if (G.pendingEvents.length > 0) {
-    showEvent(G.pendingEvents.shift());
-  }
-}
-
-// ═══════════════════════════════════
-// EVENTS
-// ═══════════════════════════════════
-function showEvent(ev) {
-  G.currentEvent = ev;
-  document.getElementById('schedulePanel').style.opacity = '0.3';
-  document.getElementById('schedulePanel').style.pointerEvents = 'none';
-  const ep = document.getElementById('eventPanel');
-  ep.style.display = '';
-  document.getElementById('eventLabel').textContent = ev.label;
-  document.getElementById('eventLoc').textContent = ev.loc;
-  document.getElementById('eventAvatar').textContent = ev.avatar;
-  document.getElementById('eventSpeaker').textContent = ev.speaker;
-  document.getElementById('eventRole').textContent = ev.role;
-  document.getElementById('eventBody').innerHTML = ev.text.replace(/\n/g,'<br>');
-
-  const cw = document.getElementById('choicesWrap');
-  cw.innerHTML = '';
-  ev.choices.forEach((c, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'choice-btn';
-    let hintHtml = '';
-    if (c.statKey) {
-      const val = G.stats[c.statKey];
-      const outlook_bonus = G.outlook.type === c.statKey ? G.outlook.stars : 0;
-      const total = val + outlook_bonus;
-      const chance = Math.min(95, Math.max(10, Math.round(((total - c.threshold) / c.threshold) * 60 + 50)));
-      hintHtml = `<span class="choice-hint">${c.hint} · ${STAT_META[c.statKey].label} ${total} vs ${c.threshold} (성공률 약 ${chance}%)</span>`;
-    } else {
-      hintHtml = `<span class="choice-hint">${c.hint||''}</span>`;
-    }
-    btn.innerHTML = `<span class="choice-icon">${c.icon}</span><span class="choice-text">${c.text}${hintHtml}</span>`;
-    btn.onclick = () => resolveChoice(c);
-    cw.appendChild(btn);
-  });
-
-  ep.classList.add('flash-border');
-  ep.scrollIntoView({ behavior:'smooth', block:'nearest' });
-}
-
-function resolveChoice(c) {
-  if (c.statKey) {
-    const val = G.stats[c.statKey];
-    const bonus = G.outlook.type === c.statKey ? G.outlook.stars : 0;
-    const total = val + bonus;
-    const chance = Math.min(0.95, Math.max(0.1, ((total - c.threshold) / c.threshold) * 0.6 + 0.5));
-    if (Math.random() < chance) {
-      if (c.success) c.success(G);
-    } else {
-      if (c.fail) c.fail(G);
-    }
+  const op=opinion(c,p);
+  const myOp=opinion(p,c);
+  const atWar=state.wars.some(w=>(w.atk===p.id&&w.def===c.id)||(w.atk===c.id&&w.def===p.id));
+  const truce=truceBetween(p.id,c.id);
+  const html=`
+    <div class="kv"><span>지배자</span><span>${c.name} (${age(c)}세)</span></div>
+    <div class="kv"><span>가문</span><span>${c.dyn}</span></div>
+    <div class="kv"><span>성격</span><span>${c.traits.map(t=>TRAITS[t].n).join(' · ')||'—'}</span></div>
+    <div class="kv"><span>능력</span><span>외${stat(c,'dip')} 무${stat(c,'mar')} 내${stat(c,'stew')} 음${stat(c,'intr')} 학${stat(c,'learn')}</span></div>
+    <div class="kv"><span>병력</span><span>${REGIONS[rid].troops}</span></div>
+    <div class="kv"><span>나를 보는 시각</span><span class="${op>15?'relGood':op<-15?'relBad':'relMid'}">${op>0?'+':''}${op}</span></div>
+    <div class="kv"><span>내가 보는 시각</span><span class="${myOp>15?'relGood':myOp<-15?'relBad':'relMid'}">${myOp>0?'+':''}${myOp}</span></div>
+  `;
+  const opts=[];
+  if(!atWar){
+    opts.push({t:'선물 보내기', d:'금 50 — 관계 +15', f:()=>{
+      if(REGIONS[p.region].gold<50){log('금이 부족합니다.');return;}
+      REGIONS[p.region].gold-=50; chOp(c,p,15);
+      log(`<b>${c.name}</b>에게 선물을 보냈습니다. (+15)`,'dip');
+      if(p.traits.includes('greedy'))addStress(p,10,'탐욕스러운 자의 선물');
+    }});
+    opts.push({t:'동맹 제안', d:`수락 가능성: ${allianceChance(c,p)}%`, f:()=>{
+      if(Math.random()*100<allianceChance(c,p)){
+        chOp(c,p,25); chOp(p,c,25); log(`<b>${c.name}</b>이(가) 동맹을 수락했습니다!`,'good');
+      } else { chOp(c,p,-5); log(`<b>${c.name}</b>이(가) 동맹을 거절했습니다.`,'dip'); }
+    }});
+    opts.push({t:'봉신 요청', d:`수락 가능성: ${vassalChance(c,p)}% — 거절 시 관계 악화`, f:()=>{
+      if(Math.random()*100<vassalChance(c,p)){
+        for(const r2 of regionsOf(c.id)) REGIONS[r2].owner=p.id;
+        c.ruler=false; c.region=null; c.courtOf=p.region;
+        log(`<b>${REGIONS[rid].n}</b>이(가) 평화롭게 복속했습니다!`,'good');
+        checkVictoryHint();
+      } else { chOp(c,p,-20); log(`<b>${c.name}</b>: "먼스터의 개가 되느니 죽음을 택하겠다."`,'dip'); }
+    }});
+    opts.push({t:'혼인 교섭', d:'가문 간 혼약 — 관계 +30', f:()=>tryMarriage(c)});
+    opts.push({t:'살해 모략', d:'은밀한 칼 — 발각 시 모든 관계 악화', f:()=>{
+      if(startScheme(p,c)) log(`어둠 속에서 칼을 갈기 시작합니다...`,'war');
+      else log('이미 진행 중인 모략입니다.');
+    }});
+    if(!truce) opts.push({t:'전쟁 선포', d:`내 전력 ${Math.round(power(p))} vs ${Math.round(power(c))}`, f:()=>declareWar(p,c)});
+    else opts.push({t:'(휴전 중 — 전쟁 불가)', d:'', f:()=>{}});
   } else {
-    if (c.fn) c.fn(G);
+    opts.push({t:'(교전 중)', d:'전쟁이 끝나야 외교가 가능합니다', f:()=>{}});
   }
+  opts.push({t:'닫기'});
+  showModal({title:`${REGIONS[rid].n} 왕국`, sub:'외교', body:'', html, opts});
+  pause();
+}
+function allianceChance(c,p){
+  let v=30+opinion(c,p);
+  v+=aiW(c,'soc')*5;
+  if(power(p)>power(c)) v+=10;
+  return Math.max(2,Math.min(95,Math.round(v)));
+}
+function vassalChance(c,p){
+  let v=-20+opinion(c,p);
+  const ratio=power(p)/power(c);
+  v+=ratio>2?45:ratio>1.5?25:ratio>1.2?10:-20;
+  v-=aiW(c,'bold')*6;
+  if(c.traits.includes('content'))v+=15;
+  if(c.traits.includes('craven'))v+=15;
+  if(c.traits.includes('ambitious'))v-=20;
+  return Math.max(1,Math.min(85,Math.round(v)));
+}
+function tryMarriage(c){
+  const p=playerChar();
+  const myKids=Object.values(chars).filter(k=>!k.dead&&(k.father===p.id||k.mother===p.id)&&!k.spouse&&age(k)>=6);
+  if(!myKids.length){ log('혼인시킬 미혼 가족이 없습니다.'); return; }
+  const opts=myKids.map(kid=>({
+    t:`${kid.name} (${kid.sex==='m'?'아들':'딸'} · ${age(kid)}세)`,
+    d:age(kid)<16?'성인이 되면 혼인 — 지금은 혼약':'즉시 혼인',
+    f:()=>{
+      const acc=40+opinion(c,p)+aiW(c,'soc')*4;
+      if(Math.random()*100<acc){
+        const sp=mk({name:c.dyn+' 가문의 '+(kid.sex==='m'?'규수':'자제'), dyn:c.dyn, sex:kid.sex==='m'?'f':'m',
+          byear:kid.byear, bmonth:2, bday:2, traits:randTraits(2), base:randStats(), edu:1, eduFocus:'dip', courtOf:p.region});
+        if(age(kid)>=16){ kid.spouse=sp.id; sp.spouse=kid.id; }
+        chOp(c,p,30); chOp(p,c,30);
+        log(`<b>${kid.name}</b>과(와) ${c.dyn} 가문의 혼약 성사 — 두 가문이 맺어졌습니다.`,'good');
+      } else { chOp(c,p,-5); log(`${c.name}이(가) 혼담을 정중히 물렸습니다.`,'dip'); }
+    }
+  }));
+  opts.push({t:'그만둔다'});
+  showModal({title:'혼인 교섭', sub:`${c.dyn} 가문과의 혼담`,
+    body:'누구의 혼처를 알아보시겠습니까?', opts});
+}
 
-  G.currentEvent = null;
-  document.getElementById('eventPanel').style.display = 'none';
-  document.getElementById('schedulePanel').style.opacity = '';
-  document.getElementById('schedulePanel').style.pointerEvents = '';
-
-  renderStats();
-  renderDomain();
-  renderNPCs();
-
-  if (G.domain.loyalty <= 0) { endGame('revolt'); return; }
-
-  if (G.pendingEvents.length > 0) {
-    setTimeout(() => showEvent(G.pendingEvents.shift()), 400);
+/* ---------- 궁정 ---------- */
+function openCourt(){
+  pause();
+  const p=playerChar();
+  const fam=Object.values(chars).filter(c=>!c.dead&&(c.id===p.id||c.spouse===p.id||c.father===p.id||c.mother===p.id||c.courtOf===p.region));
+  let rows='';
+  for(const c of fam){
+    const rel=c.id===p.id?'본인':c.spouse===p.id?'배우자':(c.father===p.id||c.mother===p.id)?(c.sex==='m'?'아들':'딸'):'궁정인';
+    const eduTxt=c.edu!==null?EDU_NAMES[c.eduFocus][c.edu]:(c.eduFocus?`${SKILLS[c.eduFocus]} 교육 중 (점수 ${c.eduScore})`:'유아');
+    rows+=`<tr><td><b>${c.name}</b><br><small style="color:var(--parch-dim)">${rel} · ${age(c)}세${c.pregnant>0?' · 임신 중':''}</small></td>
+      <td style="font-size:.76rem">${c.traits.map(t=>TRAITS[t].n).join('·')||(c.childTrait?CHILD_TRAITS[c.childTrait].n:'—')}<br><small style="color:var(--steel)">${eduTxt}</small></td>
+      <td style="text-align:right;font-size:.76rem">외${stat(c,'dip')} 무${stat(c,'mar')}<br>내${stat(c,'stew')} 음${stat(c,'intr')} 학${stat(c,'learn')}</td></tr>`;
   }
+  showModal({title:'궁정', sub:`${REGIONS[p.region].n}의 사람들`,
+    body:'', html:`<table>${rows}</table>`, opts:[{t:'닫기'}]});
 }
 
-// ═══════════════════════════════════
-// 후계자
-// ═══════════════════════════════════
-function confirmHeirOutlook() {
-  if (!G.heir || G.heir.outlook) return;
-  const focus = G.heir.eduFocus;
-  let best = 'admin', bestVal = -1;
-  for (const [k,v] of Object.entries(focus)) {
-    if (v > bestVal) { bestVal = v; best = k; }
+/* ---------- 결단 ---------- */
+function openDecisions(){
+  pause();
+  const p=playerChar();
+  const n=playerRegions().length;
+  const opts=[];
+  // 아일랜드 왕국 선포
+  if(n>=4&&!state.kingdomFormed){
+    opts.push({t:'⚜ 아일랜드 왕국을 선포한다', d:`금 250 필요 (현재 ${Math.round(REGIONS[p.region].gold)}) — 위신 +200`, f:()=>{
+      if(REGIONS[p.region].gold<250){ log('금이 부족합니다. 250 필요.'); return; }
+      REGIONS[p.region].gold-=250; state.kingdomFormed=true; state.prestige=(state.prestige||120)+200;
+      log('<b>아일랜드 왕국</b>이 선포되었습니다! 이제 당신은 소왕이 아닌 왕입니다.','good');
+      popup({title:'아일랜드 왕국', sub:'대관식',
+        body:'캐셸의 바위 위에서 주교가 왕관을 씌웁니다.\n에이레의 절반이 당신의 이름을 외칩니다.\n\n그러나 아직 일곱 왕국 전부가 당신의 것은 아닙니다.',
+        opts:[{t:'하이킹의 길은 계속된다'}]});
+    }});
   }
-  const stars = Math.min(4, Math.max(1, Math.floor(bestVal / 3) + 1));
-  G.heir.outlook = { type: best, stars };
-  addLog(`후계자 ${G.heir.name}의 인생관이 확정됐다. ${OUTLOOK_META[best].label} ${stars}성`, true);
+  // 하이킹 등극 (승리)
+  if(n>=7){
+    opts.push({t:'☀ 하이킹에 등극한다', d:'에이레 전토 통일 — 승리', f:victory});
+  }
+  // 연회
+  opts.push({t:'연회를 연다', d:'금 60 — 모든 군주 관계 +8, 스트레스 -20', f:()=>{
+    if(REGIONS[p.region].gold<60){ log('금이 부족합니다.'); return; }
+    REGIONS[p.region].gold-=60; addStress(p,-20,'연회의 즐거움');
+    for(const rid in REGIONS){const r=ownerOf(rid); if(r&&r.id!==p.id) chOp(r,p,8);}
+    if(p.traits.includes('gregarious'))addStress(p,-8,'사교적인 자의 기쁨');
+    if(p.traits.includes('shy'))addStress(p,12,'내성적인 자의 고역');
+    log('성대한 연회가 열렸습니다. 에이레의 군주들이 호감을 표합니다.','good');
+  }});
+  // 기도
+  opts.push({t:'클론맥노이즈 순례를 떠난다', d:'금 30 — 스트레스 -25, 위신 +10', f:()=>{
+    if(REGIONS[p.region].gold<30){ log('금이 부족합니다.'); return; }
+    REGIONS[p.region].gold-=30; addStress(p,-25,'순례의 평안'); state.prestige=(state.prestige||120)+10;
+    log('섀넌 강가의 수도원에서 기도를 올렸습니다.','fam');
+  }});
+  // 병력 소집
+  opts.push({t:'추가 병력을 소집한다', d:'금 80 — 병력 +200', f:()=>{
+    if(REGIONS[p.region].gold<80){ log('금이 부족합니다.'); return; }
+    REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
+    log('먼스터 전역에서 창병 200이 소집되었습니다.','war');
+  }});
+  opts.push({t:'닫기'});
+  showModal({title:'결단', sub:`지배 중인 왕국: ${n} / 7`, body:'조건이 충족된 결단만 표시됩니다.', opts});
+}
+function victory(){
+  state.victory=true; state.over=true; pause();
+  const p=playerChar();
+  showModal({title:'에이레의 하이킹', sub:'승리',
+    body:`타라 언덕에서, 일곱 왕국의 군주들이 지켜보는 가운데\n<b>${p.name}</b>이(가) 하이킹의 자리에 오릅니다.\n\n브리언 보루 이후 처음으로, 에이레 전토가 한 사람의 깃발 아래 통일되었습니다.\n\n${state.year}년 — 우어 브리언 가문의 시대가 시작됩니다.`,
+    opts:[{t:'새 연대기를 시작한다', f:()=>location.reload()}]});
 }
 
-function succeedHeir() {
-  addLog(`오웬 백작이 ${G.age}세로 생을 마쳤다. 후계자 ${G.heir.name}이 백작위를 계승한다.`, true);
-  const newOutlook = G.heir.outlook || { type: 'admin', stars: 1 };
-  G.stats = { combat:5, diplomacy:5, intrigue:5, admin:5, learning:5 };
-  G.statCount = { combat:0, diplomacy:0, intrigue:0, admin:0, learning:0 };
-  G.outlook = newOutlook;
-  G.age = 18;
-  G.health = 90;
-  // NPC 관계 초기화
-  for (const npc of Object.values(G.npcs)) npc.rel = 30 + Math.floor(Math.random()*20);
-  G.heir = null;
-  renderStats();
-  renderDomain();
-  renderNPCs();
+/* ---------- 렌더링 ---------- */
+function renderHeader(){
+  document.getElementById('dateTxt').textContent=`${state.year}년 ${state.month}월 ${state.day}일`;
+  document.getElementById('seasonTxt').textContent=`${SEASONS[state.month-1]} · ${REGIONS[playerChar().region]?REGIONS[playerChar().region].n:'—'}`;
+  const reg=REGIONS[playerChar().region];
+  document.getElementById('goldTxt').textContent=reg?Math.round(reg.gold):0;
+  document.getElementById('prestigeTxt').textContent=state.prestige||120;
+  document.getElementById('troopTxt').textContent=reg?reg.troops.toLocaleString():0;
 }
-
-// ═══════════════════════════════════
-// NPC POPUP
-// ═══════════════════════════════════
-function showNpcPopup(key) {
-  const npc = G.npcs[key];
-  document.getElementById('popAvatar').textContent = npc.avatar;
-  document.getElementById('popName').textContent = npc.name;
-  document.getElementById('popRole').textContent = npc.title;
-  document.getElementById('popBio').textContent = npc.bio;
-  const rel = npc.rel;
-  const fill = document.getElementById('popRelFill');
-  fill.style.width = rel + '%';
-  fill.style.background = rel >= 65 ? 'linear-gradient(90deg,#2d5a27,#4a8c42)' : rel <= 30 ? 'linear-gradient(90deg,#6b1010,#b83232)' : 'linear-gradient(90deg,var(--gold-dark),var(--gold-light))';
-  const relTxt = rel >= 65 ? '우호적' : rel <= 30 ? '적대적' : '중립';
-  document.getElementById('popRelLabel').textContent = `관계도 ${rel} — ${relTxt}`;
-  const weekIdx = G.totalWeeks % (npc.schedule.length||1);
-  document.getElementById('popSchedule').textContent = `이번 주 일정: ${npc.schedule[weekIdx] || '—'}`;
-  document.getElementById('npcOverlay').classList.add('show');
+function renderChar(){
+  const c=playerChar();
+  document.getElementById('portrait').textContent=c.name[0];
+  document.getElementById('cNm').textContent=c.name;
+  const ttl=state.kingdomFormed?'아일랜드 왕':`${REGIONS[c.region]?REGIONS[c.region].n:''} 소왕`;
+  document.getElementById('cTtl').textContent=`${ttl} · ${age(c)}세 · ${c.dyn} 가문`;
+  let chips='';
+  for(const t of c.traits) chips+=`<span class="chip">${TRAITS[t].n}</span>`;
+  if(c.edu!==null) chips+=`<span class="chip edu">${EDU_NAMES[c.eduFocus][c.edu]}</span>`;
+  if(c.lifestyle) chips+=`<span class="chip life">${SKILLS[c.lifestyle]}의 길 · ${c.lifeXP}xp</span>`;
+  document.getElementById('cChips').innerHTML=chips;
+  document.getElementById('stats').innerHTML=
+    Object.entries(SKILLS).map(([k,n])=>`<span>${n} <b>${stat(c,k)}</b></span>`).join('')+
+    `<span>용맹 <b>${stat(c,'prow')}</b></span>`;
+  // 스트레스
+  const pct=Math.min(100,c.stress/3);
+  document.getElementById('stressFill').style.width=pct+'%';
+  document.getElementById('stressNum').textContent=`${c.stress} / 300`;
+  const lv=stressLvl(c);
+  const lvTxt=['0단계 — 평온함','1단계 — 불안','2단계 — 위험','3단계 — 죽음'][lv];
+  const el=document.getElementById('stressLvl');
+  el.textContent=lvTxt;
+  el.style.color=lv===0?'var(--parch-dim)':lv===1?'#c8a24a':lv===2?'#c87a4a':'#d05a4a';
 }
-
-function closePopup(e, id) { if (e.target === document.getElementById(id)) closePopupById(id); }
-function closePopupById(id) { document.getElementById(id).classList.remove('show'); }
-
-// ═══════════════════════════════════
-// LOG
-// ═══════════════════════════════════
-function addLog(text, imp=false) {
-  G.log.unshift({ text, imp });
-  if (G.log.length > 10) G.log.pop();
-  const ll = document.getElementById('logList');
-  ll.innerHTML = G.log.map(e => `<div class="log-entry${e.imp?' imp':''}">${e.text}</div>`).join('');
+function renderMap(){
+  const svg=document.getElementById('map');
+  let h='';
+  // 간선
+  const drawn=new Set();
+  for(const a in ADJ){
+    for(const b of ADJ[a]){
+      const k=[a,b].sort().join('|');
+      if(drawn.has(k)) continue; drawn.add(k);
+      const A=REGIONS[a],B=REGIONS[b];
+      const war=state.wars.some(w=>{
+        const ra=chars[w.atk]?ownerRegionOf(chars[w.atk]):null;
+        const rb=chars[w.def]?ownerRegionOf(chars[w.def]):null;
+        return (ra===a&&rb===b)||(ra===b&&rb===a);
+      });
+      h+=`<line class="edge${war?' warEdge':''}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
+    }
+  }
+  // 노드
+  const p=playerChar();
+  for(const rid in REGIONS){
+    const R=REGIONS[rid];
+    const o=ownerOf(rid);
+    const mine=o&&o.id===p.id;
+    const homeRid=o&&o.region?o.region:rid;
+    const col=mine?'#3d6b4a':(REGION_COLORS[homeRid]||REGION_COLORS[rid]||'#555');
+    const stroke=mine?'#c8a24a':'#6a5836';
+    h+=`<g class="node" onclick="openRegion('${rid}')">
+      <circle class="body" cx="${R.x}" cy="${R.y}" r="${mine?30:26}" fill="${col}" stroke="${stroke}"/>
+      ${mine?`<circle cx="${R.x}" cy="${R.y}" r="34" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:''}
+      <text x="${R.x}" y="${R.y-2}">${R.n}</text>
+      <text class="owner" x="${R.x}" y="${R.y+13}">${o?(o.dyn||o.name.split(' ')[0]):'—'}</text>
+      <text class="owner" x="${R.x}" y="${R.y+42}" style="font-size:9px;fill:#8a7858">⚔${R.troops}</text>
+    </g>`;
+  }
+  svg.innerHTML=h;
 }
+function ownerRegionOf(c){ return c.region || regionsOf(c.id)[0] || null; }
+function renderAll(){ renderHeader(); renderChar(); renderMap(); }
 
-// ═══════════════════════════════════
-// END GAME
-// ═══════════════════════════════════
-const ENDINGS = {
-  no_heir: { icon:'💀', title:'대가 끊기다', body: g => `오웬 백작이 후계자 없이 세상을 떠났다. 카스텔 영지는 왕국에 귀속되었고, 오웬의 이름은 역사에서 지워졌다.` },
-  revolt:  { icon:'🔥', title:'반란으로 무너지다', body: g => `충성도가 바닥났다. 백성과 기사들이 들고 일어났다. 오웬 백작은 자신의 성에서 쫓겨났다.` },
-};
-
-function endGame(type) {
-  G.gameOver = true;
-  const e = ENDINGS[type];
-  document.getElementById('outIcon').textContent = e.icon;
-  document.getElementById('outTitle').textContent = e.title;
-  document.getElementById('outBody').textContent = e.body(G);
-  document.getElementById('outcomeOverlay').classList.add('show');
+/* ---------- 시작 ---------- */
+function intro(){
+  popup({title:'에이레, 1066년', sub:'먼스터의 소왕',
+    body:`잉글랜드에서는 세 명의 왕이 하나의 왕관을 두고 칼을 뽑았습니다.\n그러나 바다 건너 이 섬은, 그들의 전쟁과 무관하게 자신의 운명을 기다리고 있습니다.\n\n당신은 <b>무르하드 막 돈하드</b> — 먼스터의 소왕.\n할아버지 브리언 보루는 한때 에이레 전토의 하이킹이었습니다.\n\n일곱 왕국을 하나로. 그것이 당신의 길입니다.`,
+    opts:[{t:'연대기를 시작한다', f:()=>{
+      askLifestyle(playerChar());
+    }}]});
 }
-
-function restart() {
-  document.getElementById('outcomeOverlay').classList.remove('show');
-  document.getElementById('logList').innerHTML = '';
-  firedWorldEvents.clear();
-  initGame();
-  renderDate();
-  renderStats();
-  renderDomain();
-  renderNPCs();
-  renderSchedule();
-  renderActionList();
-  addLog('1200년. 오웬 백작의 연대기가 시작됐다.', true);
-}
-
-// ═══════════════════════════════════
-// INIT
-// ═══════════════════════════════════
-initGame();
-renderDate();
-renderStats();
-renderDomain();
-renderNPCs();
-renderSchedule();
-renderActionList();
-addLog('1200년 봄. 에르덴 왕국, 팔제스 3세는 병상에 있다.', true);
-addLog('카스텔의 오웬 백작. 작은 영지, 큰 야망.');
+setSpeed(1);
+renderAll();
+log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니다.','good');
+log('지도의 왕국을 클릭하면 외교를 할 수 있습니다.','dip');
+intro();
 </script>
 </body>
 </html>
