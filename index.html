@@ -332,13 +332,13 @@ const EDU_BONUS = [1,2,3,5]; // 등급별 스탯 보너스 (위키 기준)
 
 /* ---------- 지역 ---------- */
 const REGIONS = {
-  munster:  {n:'먼스터',   x:140, y:355, troops:1200, gold:340},
-  leinster: {n:'레인스터', x:258, y:330, troops:1050, gold:280},
-  dublin:   {n:'더블린',   x:300, y:252, troops:700,  gold:380},
-  meath:    {n:'미드',     x:228, y:205, troops:850,  gold:240},
-  connacht: {n:'코노트',   x:108, y:215, troops:1100, gold:260},
-  breifne:  {n:'브레프네', x:172, y:152, troops:600,  gold:160},
-  ulster:   {n:'얼스터',   x:218, y:78,  troops:900,  gold:220},
+  munster:  {n:'먼스터',   x:140, y:355, troops:1200, gold:340, pop:65},
+  leinster: {n:'레인스터', x:258, y:330, troops:1050, gold:280, pop:55},
+  dublin:   {n:'더블린',   x:300, y:252, troops:700,  gold:380, pop:60},
+  meath:    {n:'미드',     x:228, y:205, troops:850,  gold:240, pop:60},
+  connacht: {n:'코노트',   x:108, y:215, troops:1100, gold:260, pop:60},
+  breifne:  {n:'브레프네', x:172, y:152, troops:600,  gold:160, pop:55},
+  ulster:   {n:'얼스터',   x:218, y:78,  troops:900,  gold:220, pop:60},
 };
 const ADJ = {
   munster:['connacht','meath','leinster'],
@@ -395,6 +395,8 @@ function opinion(a,b){ // a가 b를 보는 시각
   }
   if(a.spouse===b.id) v += 30;
   if(a.father===b.id||a.mother===b.id||b.father===a.id||b.mother===a.id) v += 25;
+  // 위신이 높은 군주는 타인에게 더 좋게 보임
+  if(b.id===state.player) v += Math.round((state.prestige-120)/15);
   return Math.max(-100, Math.min(100, v));
 }
 function chOp(a,b,d){ a.op[b.id]=(a.op[b.id]||0)+d; }
@@ -466,7 +468,8 @@ const state = {
   year:1066, month:9, day:15,
   paused:true, speed:1, timer:null,
   player:murchad.id,
-  schemes:[], wars:[], truces:{},
+  schemes:[], wars:[], truces:{}, npcAlliances:[],
+  prestige:120,
   popupQ:[], modalOpen:false,
   over:false, victory:false,
   introDone:false,
@@ -809,12 +812,8 @@ function askLifestyle(c){
 function monthlyPulse(){
   for(const id in chars){
     const c=chars[id]; if(c.dead) continue;
-    // 스트레스 자연 감소
-    if(c.stress>0){
-      let loss=4*(1+0.2*c.copings);
-      for(const t of c.traits){ if(TRAITS[t]&&TRAITS[t].stressLossMul) loss*=TRAITS[t].stressLossMul; }
-      c.stress=Math.max(0,c.stress-Math.round(loss));
-    }
+    // 스트레스 자연감소 없음 (CK3 원작 동일)
+    // 대처법(coping) 결단 사용 시에만 직접 감소
     // 인생관 경험치
     if(c.lifestyle){ let xp=10; if(c.edu!==null&&c.eduFocus===c.lifestyle) xp*=1+(EDU_BONUS[c.edu]*0.1); c.lifeXP+=Math.round(xp); }
     // 임신 진행
@@ -987,10 +986,10 @@ function warPulse(){
   });
 }
 function conquer(a,d){
-  const lost=d.region;
-  log(`<b>${a.name}</b>이(가) <b>${REGIONS[lost].n}</b>을(를) 정복했습니다!`,'war');
+  const taken=regionsOf(d.id); if(!taken.length) return;
+  const lost=d.region||taken[0];
+  log(`<b>${a.name}</b>이(가) <b>${REGIONS[lost]?REGIONS[lost].n:'영지'}</b>을(를) 정복했습니다!`,'war');
   setTruce(a.id,d.id,5);
-  const taken=regionsOf(d.id);
   for(const rid of taken){
     REGIONS[a.region].gold += Math.round(REGIONS[rid].gold*0.4);
     REGIONS[rid].gold = Math.round(REGIONS[rid].gold*0.6);
@@ -1022,28 +1021,120 @@ function aiPulse(){
   for(const rid in REGIONS){
     const r=ownerOf(rid);
     if(!r||r.id===state.player||!r.ruler) continue;
-    if(Math.random()>0.35) continue; // 매월 35% 확률로 행동
-    const targets=ADJ[rid].map(x=>ownerOf(x)).filter(t=>t&&t.id!==r.id);
-    if(!targets.length) continue;
-    const t=targets[Math.floor(Math.random()*targets.length)];
-    const op=opinion(r,t);
+
+    // 성격별 행동 빈도 차등 (야심가·분노·용감은 더 자주 행동)
+    const actChance=0.45 + aiW(r,'bold')*0.06 + aiW(r,'greed')*0.04;
+    if(Math.random()>actChance) continue;
+
+    const allTargets=Object.keys(REGIONS)
+      .map(x=>ownerOf(x)).filter(t=>t&&t.id!==r.id&&!t.dead);
+    const adjTargets=ADJ[rid].map(x=>ownerOf(x)).filter(t=>t&&t.id!==r.id&&!t.dead);
+    if(!allTargets.length) continue;
+
     const bold=aiW(r,'bold'), greed=aiW(r,'greed'), venge=aiW(r,'venge'), honor=aiW(r,'honor'), soc=aiW(r,'soc');
-    // 전쟁 욕구
-    if(op<-20 && (bold+greed)>1 && power(r)>power(t)*1.15 && !truceBetween(r.id,t.id) && Math.random()<0.18){
-      declareWar(r,t); continue;
-    }
-    // 살해 모략 욕구
-    if(op<-35 && (venge>1||honor<-1) && Math.random()<0.12){
-      startScheme(r,t);
+
+    // ① 전쟁 (인접 대상 우선, 성격 가중치 반영)
+    const warTarget=adjTargets.find(t=>{
+      const op=opinion(r,t);
+      const warThresh = -15 - bold*3; // 야심가·용감은 더 낮은 관계도에서도 전쟁
+      return op<warThresh && (bold+greed)>0 && power(r)>power(t)*1.05 && !truceBetween(r.id,t.id)
+        && !state.wars.some(w=>w.atk===r.id||w.def===r.id);
+    });
+    if(warTarget && Math.random()<0.22+(bold*0.05)){
+      declareWar(r,warTarget);
+      if(warTarget.id!==p.id)
+        log(`<b>${r.name}</b>(${REGIONS[r.region].n})이(가) <b>${REGIONS[warTarget.region].n}</b>에 전쟁을 선포했습니다.`,'war');
       continue;
     }
-    // 친선
-    if(op>-10 && soc>=0 && Math.random()<0.25){
-      if(t.id===state.player){
-        npcDiplomacyToPlayer(r);
-      } else { chOp(r,t,5); chOp(t,r,5); }
+
+    // ② 살해 모략 (복수심·기만 성향)
+    const schemeTarget=adjTargets.find(t=>opinion(r,t)<-30&&(venge>1||honor<-2));
+    if(schemeTarget && Math.random()<0.14+(venge*0.03)){
+      if(!state.schemes.some(s=>s.plotter===r.id)){
+        state.schemes.push({plotter:r.id, target:schemeTarget.id, months:0});
+        if(schemeTarget.id===p.id)
+          log(`${r.name}이(가) 어둠 속에서 당신을 노리고 있다는 첩보가 들어왔습니다.`,'war');
+      }
+      continue;
+    }
+
+    // ③ NPC끼리 동맹 (사교적·관대·공정 성향)
+    if(soc>=0 || honor>1){
+      const allyTarget=adjTargets.find(t=>opinion(r,t)>10 && !state.npcAlliances.includes([r.id,t.id].sort().join('|')));
+      if(allyTarget && Math.random()<0.18+(soc*0.04)){
+        const key=[r.id,allyTarget.id].sort().join('|');
+        state.npcAlliances.push(key);
+        chOp(r,allyTarget,20); chOp(allyTarget,r,20);
+        if(allyTarget.id===p.id){
+          npcDiplomacyToPlayer(r);
+        } else {
+          log(`<b>${r.name}</b>과(와) <b>${allyTarget.name}</b>이(가) 동맹을 맺었습니다.`,'dip');
+        }
+        continue;
+      }
+    }
+
+    // ④ 플레이어에게 외교
+    if(adjTargets.some(t=>t.id===p.id) && Math.random()<0.3){
+      npcDiplomacyToPlayer(r);
+      continue;
+    }
+
+    // ⑤ 관계 자연 악화 (야심가는 주변 모두를 잠재적 적으로 봄)
+    if(greed>1 || bold>1){
+      const victim=adjTargets[Math.floor(Math.random()*adjTargets.length)];
+      if(victim) chOp(r,victim,-3);
     }
   }
+
+  // 민중의견 펄스 (매달)
+  popPulse();
+}
+
+/* ---------- 민중의견 시스템 ---------- */
+function popPulse(){
+  for(const rid in REGIONS){
+    const o=ownerOf(rid); if(!o) return;
+    let delta=0;
+    // 외지인 통치 페널티
+    if(o.dyn!=='우어 브리언' && REGIONS[rid].pop>30) delta-=1;
+    // 전쟁 중 불안
+    if(state.wars.some(w=>w.atk===o.id||w.def===o.id)) delta-=2;
+    // 금고 부족 = 세금 압박
+    if(REGIONS[rid].gold<50) delta-=1;
+    // 평화 유지 보너스
+    if(!state.wars.length) delta+=0.5;
+    // 관대한 통치자는 민심 유지
+    if(o.traits.includes('generous')) delta+=1;
+    if(o.traits.includes('arbitrary')) delta-=1;
+    REGIONS[rid].pop=Math.max(0,Math.min(100,Math.round((REGIONS[rid].pop||60)+delta)));
+
+    // 반란 체크 (민중의견 25 이하, 플레이어 영지만 이벤트)
+    if(REGIONS[rid].pop<=25 && rid===playerChar().region && Math.random()<0.08){
+      rebellionEvent(rid);
+    }
+    // NPC 영지 반란 → 자동 처리 (병력 소모)
+    if(REGIONS[rid].pop<=20 && rid!==playerChar().region && Math.random()<0.05){
+      REGIONS[rid].troops=Math.max(100, Math.round(REGIONS[rid].troops*0.8));
+      log(`${REGIONS[rid].n}에서 민란이 일어났습니다. 병력이 일부 소모됐습니다.`,'war');
+    }
+  }
+}
+function rebellionEvent(rid){
+  const p=playerChar();
+  popup({title:'반란의 기운', sub:`${REGIONS[rid].n} — 민중의견 위기`,
+    body:`${REGIONS[rid].n}의 농민들이 창과 낫을 들었습니다.
+세금과 전쟁에 지친 그들의 눈에 분노가 타오르고 있습니다.
+
+민중의견: ${REGIONS[rid].pop}/100`,
+    opts:[
+      {t:'무력으로 진압한다', d:'병력 -150, 민중의견 +15 (단기), 스트레스 +15',
+        f:()=>{ REGIONS[rid].troops=Math.max(100,REGIONS[rid].troops-150); REGIONS[rid].pop+=15; addStress(p,15,'피로 진압한 반란'); if(p.traits.includes('kind'))addStress(p,15,'친절한 자의 잔인함'); log(`${REGIONS[rid].n}의 반란을 진압했습니다. 피가 흘렀습니다.`,'war'); }},
+      {t:'세금을 줄이고 달랜다', d:'금 -80, 민중의견 +25, 스트레스 -10',
+        f:()=>{ REGIONS[rid].gold-=80; REGIONS[rid].pop+=25; addStress(p,-10,'민심을 얻은 기쁨'); if(p.traits.includes('greedy'))addStress(p,20,'탐욕스러운 자의 양보'); log(`${REGIONS[rid].n}의 민심을 달랬습니다. 금고가 가벼워졌습니다.`,'good'); }},
+      {t:'무시한다', d:'민중의견 -10, 반란 확대 위험',
+        f:()=>{ REGIONS[rid].pop-=10; addStress(p,10,'외면한 백성의 목소리'); log(`${REGIONS[rid].n}의 불만이 커지고 있습니다.`,'war'); }},
+    ]});
 }
 function npcDiplomacyToPlayer(r){
   const p=playerChar();
@@ -1082,49 +1173,378 @@ function npcDiplomacyToPlayer(r){
 
 /* ---------- 랜덤 이벤트 ---------- */
 const EVENTS=[
+  /* ── 영지 ── */
   {cond:c=>true, w:3, run:c=>popup({title:'흉작의 소문', sub:'영지',
     body:'올해 보리 수확이 시원치 않다는 보고가 올라왔습니다. 농민들이 동요하고 있습니다.',
     opts:[
-      {t:'곡식 창고를 연다', d:'금 -40, 스트레스 -10', f:()=>{REGIONS[c.region].gold-=40; addStress(c,-10,'민심 안정'); if(c.traits.includes('greedy'))addStress(c,15,'탐욕스러운 자의 베풂');}},
-      {t:'버티라고 한다', d:'스트레스 +10', f:()=>{addStress(c,10,'민심 악화'); if(c.traits.includes('kind'))addStress(c,10,'친절한 자의 외면');}},
+      {t:'곡식 창고를 연다', d:'금 -40, 민심 +10, 스트레스 +10', f:()=>{REGIONS[c.region].gold-=40; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+10); addStress(c,10,'무거운 책임감'); if(c.traits.includes('greedy'))addStress(c,20,'탐욕스러운 자의 베풂');}},
+      {t:'버티라고 한다', d:'민심 -15, 스트레스 +5', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-15); addStress(c,5,'민심 악화를 외면함'); if(c.traits.includes('just'))addStress(c,15,'공정한 자의 냉혹함');}},
     ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'전염병 소식', sub:'영지',
+    body:'인근 마을에서 발병이 시작됐습니다. 아직 성 안까지는 들어오지 않았지만, 농민들이 도망치고 있습니다.',
+    opts:[
+      {t:'의원을 보내고 격리한다', d:'금 -60, 민심 +8, 병력 -50', f:()=>{REGIONS[c.region].gold-=60; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+8); REGIONS[c.region].troops=Math.max(100,REGIONS[c.region].troops-50); log('전염병을 조기에 막았습니다.','good');}},
+      {t:'방치한다', d:'민심 -20, 병력 -100', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-20); REGIONS[c.region].troops=Math.max(100,REGIONS[c.region].troops-100); addStress(c,15,'퍼진 전염병'); log('전염병이 번졌습니다.','war');}},
+    ]})},
+  {cond:c=>REGIONS[c.region].gold>200, w:2, run:c=>popup({title:'성벽 보수', sub:'영지',
+    body:'성벽 일부가 무너졌습니다. 이번 겨울 전에 손을 봐야 할 것 같습니다.',
+    opts:[
+      {t:'즉시 보수한다', d:'금 -80, 병력 +80, 민심 +5', f:()=>{REGIONS[c.region].gold-=80; REGIONS[c.region].cap=(REGIONS[c.region].cap||1200)+80; REGIONS[c.region].troops=Math.min(REGIONS[c.region].cap, REGIONS[c.region].troops+80); REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+5); log('성벽을 보수했습니다. 방어력이 높아졌습니다.','good');}},
+      {t:'다음 해로 미룬다', d:'스트레스 +8', f:()=>addStress(c,8,'미뤄진 숙제')},
+    ]})},
+  {cond:c=>(REGIONS[c.region].pop||60)<50, w:3, run:c=>popup({title:'민심의 균열', sub:'영지',
+    body:'시장의 소문이 심상치 않습니다. 세금이 너무 무겁다, 왕이 백성을 돌보지 않는다는 말들이 오갑니다.\n\n민중의견: '+REGIONS[c.region].pop+'/100',
+    opts:[
+      {t:'공개 재판을 열어 신뢰를 쌓는다', d:'민심 +15, 위신 +10, 스트레스 +10', f:()=>{REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+15); state.prestige+=10; addStress(c,10,'무거운 판결의 책임');}},
+      {t:'밀정을 풀어 선동자를 찾는다', d:'민심 -5, 음모자 제거', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-5); log('밀정이 선동자를 적발했습니다.','dip');}},
+    ]})},
+
+  /* ── 여흥/휴식 ── */
   {cond:c=>true, w:3, run:c=>popup({title:'사냥 초대', sub:'여흥',
     body:'시종장이 가을 사냥을 제안합니다. 숲에는 사슴이 많고, 왕에게는 휴식이 필요합니다.',
     opts:[
       {t:'사냥을 나간다', d:'스트레스 -20', f:()=>{addStress(c,-20,'사냥의 즐거움'); if(c.traits.includes('brave'))addStress(c,-5,'용맹한 피의 해방');}},
-      {t:'정무가 우선이다', d:'금 +20', f:()=>{REGIONS[c.region].gold+=20; if(c.traits.includes('diligent'))addStress(c,-5,'근면한 자의 보람');}},
+      {t:'정무가 우선이다', d:'금 +20, 스트레스 +5', f:()=>{REGIONS[c.region].gold+=20; addStress(c,5,'쉬지 못하는 왕'); if(c.traits.includes('diligent'))addStress(c,-5,'근면한 자의 보람');}},
     ]})},
   {cond:c=>true, w:2, run:c=>popup({title:'음유시인', sub:'궁정',
     body:'떠돌이 시인이 궁정에 찾아와 당신의 가문을 칭송하는 노래를 지어 바치겠다 합니다.',
     opts:[
-      {t:'후원한다', d:'금 -25, 위신 +15, 스트레스 -10', f:()=>{REGIONS[c.region].gold-=25; state.prestige=(state.prestige||120)+15; addStress(c,-10,'노래의 위안');}},
-      {t:'내쫓는다', d:'—', f:()=>{ if(c.traits.includes('generous'))addStress(c,10,'관대한 자의 인색함'); }},
+      {t:'후원한다', d:'금 -25, 위신 +15, 스트레스 -10', f:()=>{REGIONS[c.region].gold-=25; state.prestige+=15; addStress(c,-10,'노래의 위안');}},
+      {t:'내쫓는다', d:'스트레스 +5', f:()=>{ addStress(c,5,'쫓겨난 시인'); if(c.traits.includes('generous'))addStress(c,10,'관대한 자의 인색함'); }},
     ]})},
-  {cond:c=>stressLvl(c)>=1, w:4, run:c=>popup({title:'잠 못 드는 밤', sub:'내면',
+  {cond:c=>stressLvl(c)>=1, w:5, run:c=>popup({title:'잠 못 드는 밤', sub:'내면',
     body:'또 새벽입니다. 촛불이 다 타들어 가도록 잠이 오지 않습니다.\n창밖 어둠 속에서 누군가 지켜보는 것만 같습니다.',
     opts:[
-      {t:'주교에게 고해한다', d:'스트레스 -15', f:()=>addStress(c,-15,'고해의 위안')},
-      {t:'술로 잊는다', d:'스트레스 -25, 절제 위반', f:()=>{addStress(c,-25,'취기'); if(c.traits.includes('temperate'))addStress(c,20,'절제하는 자의 폭음');}},
+      {t:'주교에게 고해한다', d:'스트레스 -20', f:()=>addStress(c,-20,'고해의 위안')},
+      {t:'술로 잊는다', d:'스트레스 -30, 절제 위반', f:()=>{addStress(c,-30,'취기'); if(c.traits.includes('temperate'))addStress(c,25,'절제하는 자의 폭음');}},
+      {t:'그냥 버틴다', d:'스트레스 +10', f:()=>addStress(c,10,'혼자 삼킨 고통')},
     ]})},
+  {cond:c=>stressLvl(c)===0, w:2, run:c=>popup({title:'맑은 아침', sub:'내면',
+    body:'오랜만에 개운하게 눈을 떴습니다. 샤넌 강 위로 아침 안개가 걷히고 있습니다. 작은 평화입니다.',
+    opts:[
+      {t:'감사히 받아들인다', d:'스트레스 -5', f:()=>addStress(c,-5,'고요한 아침의 선물')},
+    ]})},
+
+  /* ── 궁정/인물 ── */
   {cond:c=>true, w:2, run:c=>{
     const others=Object.values(chars).filter(k=>!k.dead&&k.ruler&&k.id!==c.id);
     if(!others.length) return;
     const o=others[Math.floor(Math.random()*others.length)];
-    popup({title:'국경의 분쟁', sub:REGIONS[o.region].n,
-      body:`${REGIONS[o.region].n}의 목동들이 국경을 넘어 방목하다 우리 농민들과 충돌했습니다. 사상자가 나왔습니다.`,
+    popup({title:'국경의 분쟁', sub:REGIONS[o.region]?REGIONS[o.region].n:'인근 왕국',
+      body:`${REGIONS[o.region]?REGIONS[o.region].n:'인근'}의 목동들이 국경을 넘어 우리 농민들과 충돌했습니다. 사상자가 나왔습니다.`,
       opts:[
-        {t:'배상을 요구한다', d:'관계 -15', f:()=>{chOp(o,c,-15); chOp(c,o,-10);}},
-        {t:'조용히 묻는다', d:'스트레스 +5', f:()=>{addStress(c,5,'삼킨 분노'); if(c.traits.includes('wrathful'))addStress(c,10,'분노를 누른 대가');}},
+        {t:'배상을 요구한다', d:'관계 -15, 위신 +5', f:()=>{chOp(o,c,-15); chOp(c,o,-10); state.prestige+=5; if(c.traits.includes('wrathful'))addStress(c,-5,'분노를 표출한 통쾌함');}},
+        {t:'조용히 묻는다', d:'스트레스 +10', f:()=>{addStress(c,10,'삼킨 분노'); if(c.traits.includes('wrathful'))addStress(c,15,'분노를 누른 대가');}},
+      ]});
+  }},
+  {cond:c=>Object.values(chars).filter(k=>!k.dead&&k.courtOf===c.region).length>0, w:2, run:c=>{
+    const court=Object.values(chars).filter(k=>!k.dead&&k.courtOf===c.region&&k.id!==c.id);
+    if(!court.length) return;
+    const npc=court[Math.floor(Math.random()*court.length)];
+    popup({title:'신하의 청원', sub:'궁정',
+      body:`${npc.name}이(가) 개인적인 청원을 올렸습니다.
+가문의 오래된 영지를 되찾게 도와달라는 것입니다.`,
+      opts:[
+        {t:'돕겠다고 약속한다', d:'관계 +20, 스트레스 +8', f:()=>{chOp(npc,c,20); addStress(c,8,'약속의 무게');}},
+        {t:'정중히 거절한다', d:'관계 -10', f:()=>chOp(npc,c,-10)},
+        {t:'나중에 보자고 한다', d:'관계 -5, 스트레스 +3', f:()=>{chOp(npc,c,-5); addStress(c,3,'미룬 청원');}},
+      ]});
+  }},
+  {cond:c=>age(c)>=45, w:2, run:c=>popup({title:'건강의 신호', sub:'내면',
+    body:'아침마다 무릎이 쑤십니다. 시의가 조심스럽게 식단을 바꾸라고 권합니다.\n나이는 속일 수 없는 것입니다.',
+    opts:[
+      {t:'시의의 말을 따른다', d:'스트레스 +10', f:()=>addStress(c,10,'늙어가는 몸을 받아들임')},
+      {t:'무시한다', d:'스트레스 +5', f:()=>addStress(c,5,'외면한 경고')},
+    ]})},
+
+  /* ── 외교/전쟁 상황 연동 ── */
+  {cond:c=>state.wars.some(w=>w.atk===c.id||w.def===c.id), w:4, run:c=>popup({title:'전장의 소식', sub:'전쟁',
+    body:'전선에서 전령이 왔습니다. 병사들의 사기가 흔들리고 있다고 합니다.\n보급이 부족한 것이 원인입니다.',
+    opts:[
+      {t:'금을 보내 보급을 채운다', d:'금 -60, 스트레스 -10', f:()=>{REGIONS[c.region].gold-=60; addStress(c,-10,'통솔자의 결단'); log('전선에 보급을 보냈습니다.','war');}},
+      {t:'버티라고 명령한다', d:'스트레스 +15', f:()=>{addStress(c,15,'병사들의 원망'); if(c.traits.includes('brave'))addStress(c,-5,'강한 자의 명령');}},
+    ]})},
+  {cond:c=>!state.wars.some(w=>w.atk===c.id||w.def===c.id)&&playerRegions().length>=2, w:2, run:c=>popup({title:'새 영토의 민심', sub:'통치',
+    body:'새로 얻은 영지의 백성들이 아직 당신을 낯설어합니다.\n그들의 마음을 얻는 데는 시간이 필요합니다.',
+    opts:[
+      {t:'직접 순행을 나선다', d:'금 -30, 확장 영지 민심 +20, 스트레스 +8', f:()=>{
+        REGIONS[c.region].gold-=30; addStress(c,8,'긴 순행의 피로');
+        playerRegions().forEach(rid=>{ REGIONS[rid].pop=Math.min(100,(REGIONS[rid].pop||60)+20); });
+        log('순행을 마쳤습니다. 백성들이 얼굴을 봤습니다.','good');
+      }},
+      {t:'세금을 한 계절 면제한다', d:'금 수입 중단, 민심 +15', f:()=>{
+        playerRegions().forEach(rid=>{ REGIONS[rid].pop=Math.min(100,(REGIONS[rid].pop||60)+15); });
+        log('세금 면제령이 내려졌습니다. 백성들이 환호했습니다.','good');
+      }},
+    ]})},
+  {cond:c=>opinion(c, Object.values(chars).find(k=>k.ruler&&k.id!==c.id&&!k.dead)||c)<-30, w:3, run:c=>{
+    const enemy=Object.values(chars).find(k=>k.ruler&&k.id!==c.id&&!k.dead&&opinion(c,k)<-30);
+    if(!enemy) return;
+    popup({title:'적의의 소문', sub:'첩보',
+      body:`${enemy.name}이(가) 당신을 두고 모욕적인 말을 했다는 소문이 들립니다.
+"먼스터의 왕좌는 오래 버티지 못할 것이다."`,
+      opts:[
+        {t:'공개 반박한다', d:'위신 +10, 적대 관계 -10', f:()=>{state.prestige+=10; chOp(enemy,c,-10); log(`${enemy.name}의 모욕에 당당히 답했습니다.`,'dip');}},
+        {t:'무시한다', d:'스트레스 +10', f:()=>{addStress(c,10,'삼킨 치욕'); if(c.traits.includes('proud')||c.traits.includes('arrogant'))addStress(c,10,'오만한 자의 굴욕');}},
+        {t:'밀사를 보내 경고한다', d:'스트레스 -5, 관계 -15', f:()=>{addStress(c,-5,'분노의 해소'); chOp(enemy,c,-15); log(`${enemy.name}에게 경고를 보냈습니다.`,'dip');}},
+      ]});
+  }},
+
+  /* ── 가문 ── */
+  {cond:c=>Object.values(chars).filter(k=>!k.dead&&(k.father===c.id||k.mother===c.id)).length>0, w:2, run:c=>{
+    const child=Object.values(chars).filter(k=>!k.dead&&(k.father===c.id||k.mother===c.id)&&age(k)<16)[0];
+    if(!child) return;
+    popup({title:'아이의 장난', sub:'가문',
+      body:`${child.name}(${age(child)}세)이(가) 말을 훔쳐 타다 넘어졌습니다. 다행히 크게 다치지는 않았습니다.
+아이의 눈에는 아직 두려움보다 흥분이 더 많습니다.`,
+      opts:[
+        {t:'엄하게 꾸짖는다', d:'아이 관계 -5, 스트레스 -5', f:()=>{addStress(c,-5,'훈육의 책임');}},
+        {t:'웃어 넘긴다', d:'아이 관계 +10, 스트레스 -10', f:()=>{addStress(c,-10,'아이의 웃음이 주는 위안');}},
+      ]});
+  }},
+  {cond:c=>chars[c.spouse]&&!chars[c.spouse].dead, w:2, run:c=>{
+    const sp=chars[c.spouse]; if(!sp||sp.dead) return;
+    popup({title:'배우자의 말', sub:'가문',
+      body:`${sp.name}이(가) 오늘 밤 조용히 말했습니다.
+"당신이 너무 지쳐 보여요. 잠시라도 쉬어요."`,
+      opts:[
+        {t:'고맙다고 한다', d:'스트레스 -15, 관계 +5', f:()=>{addStress(c,-15,'배우자의 위로'); chOp(sp,c,5);}},
+        {t:'괜찮다고 한다', d:'스트레스 +8', f:()=>addStress(c,8,'혼자 버티는 무게')},
+      ]});
+  }},
+
+  /* ════════ 추가 이벤트 (CK3 위키 카테고리 기반 각색) ════════ */
+
+  /* ── 계책/음모 ── */
+  {cond:c=>stat(c,'intr')>=6, w:2, run:c=>popup({title:'밀정의 보고', sub:'계책',
+    body:'당신의 밀정이 인근 궁정에서 흥미로운 소문을 가져왔습니다.\\n한 영주가 비밀스러운 약점을 숨기고 있다는 것입니다.',
+    opts:[
+      {t:'약점을 캔다', d:'음모 경험, 스트레스 +5', f:()=>{addStress(c,5,'은밀한 모의'); state.prestige+=8; log('약점을 손에 넣었습니다. 언젠가 쓸모가 있겠지요.','dip');}},
+      {t:'관심 없다', d:'—', f:()=>{}},
+    ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'독초를 아는 노파', sub:'계책',
+    body:'늪지에 사는 한 노파가 온갖 약초와 독초에 능하다는 소문이 돕니다.\\n그녀를 궁정에 들일 수도 있습니다.',
+    opts:[
+      {t:'은밀히 부른다', d:'금 -20, 음모 +위험', f:()=>{REGIONS[c.region].gold-=20; if(c.traits.includes('deceitful'))addStress(c,-5,'기만하는 자의 만족'); log('노파가 궁정의 그늘에 자리잡았습니다.','dip');}},
+      {t:'마녀라며 쫓는다', d:'민심 +5', f:()=>{REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+5); if(c.traits.includes('zealous'))addStress(c,-5,'광신자의 정의');}},
+    ]})},
+  {cond:c=>Object.values(chars).some(k=>!k.dead&&k.ruler&&k.id!==c.id&&opinion(c,k)<-25), w:2, run:c=>{
+    const foe=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==c.id&&opinion(c,k)<-25);
+    if(!foe) return;
+    popup({title:'위조된 편지', sub:'계책',
+      body:`서기가 은밀히 제안합니다. ${foe.name}의 필체를 흉내내어 그를 곤경에 빠뜨릴 편지를 위조할 수 있다고 합니다.`,
+      opts:[
+        {t:'위조하게 한다', d:'관계 -15(적), 정직 위반', f:()=>{chOp(foe,c,-15); if(c.traits.includes('honest'))addStress(c,20,'정직한 자의 거짓'); else addStress(c,5,'위험한 도박'); log(`${foe.name}을(를) 음해하는 편지가 퍼졌습니다.`,'dip');}},
+        {t:'정도를 지킨다', d:'스트레스 -5', f:()=>{addStress(c,-5,'양심의 평안'); if(c.traits.includes('just'))addStress(c,-5,'공정한 자의 긍지');}},
+      ]});
+  }},
+
+  /* ── 종교/신앙 ── */
+  {cond:c=>true, w:3, run:c=>popup({title:'수도원의 청원', sub:'신앙',
+    body:'클론퍼트 수도원의 원장이 찾아왔습니다.\\n낡은 필사실을 새로 짓는 데 후원을 청합니다. 신의 가호가 따를 것이라 합니다.',
+    opts:[
+      {t:'후하게 기부한다', d:'금 -50, 위신 +20, 스트레스 -10', f:()=>{REGIONS[c.region].gold-=50; state.prestige+=20; addStress(c,-10,'신앙의 위안'); if(c.traits.includes('zealous'))addStress(c,-10,'독실한 자의 기쁨');}},
+      {t:'조금만 돕는다', d:'금 -15, 위신 +5', f:()=>{REGIONS[c.region].gold-=15; state.prestige+=5;}},
+      {t:'거절한다', d:'위신 -5', f:()=>{state.prestige=Math.max(0,state.prestige-5); if(c.traits.includes('zealous'))addStress(c,15,'독실한 자의 죄책감');}},
+    ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'순례자의 무리', sub:'신앙',
+    body:'성 패트릭의 발자취를 따르는 순례자들이 영지를 지나갑니다.\\n그들에게 잠자리와 음식을 베풀 수 있습니다.',
+    opts:[
+      {t:'환대한다', d:'금 -20, 민심 +10, 위신 +10', f:()=>{REGIONS[c.region].gold-=20; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+10); state.prestige+=10;}},
+      {t:'그냥 보낸다', d:'—', f:()=>{ if(c.traits.includes('generous'))addStress(c,8,'관대한 자의 인색함'); }},
+    ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'불길한 징조', sub:'신앙',
+    body:'한낮에 까마귀 떼가 성탑 위를 맴돌았습니다.\\n늙은 사제들이 불길한 징조라며 수군거립니다. 백성들도 동요합니다.',
+    opts:[
+      {t:'미사를 올려 안심시킨다', d:'금 -25, 민심 +8, 스트레스 -5', f:()=>{REGIONS[c.region].gold-=25; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+8); addStress(c,-5,'신께 의탁함');}},
+      {t:'미신이라 일축한다', d:'민심 -8', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-8); if(c.traits.includes('cynical'))addStress(c,-5,'냉소가의 평정');}},
+    ]})},
+
+  /* ── 내정/경제 ── */
+  {cond:c=>true, w:3, run:c=>popup({title:'상인 길드의 제안', sub:'내정',
+    body:'워터퍼드의 상인들이 교역 특권을 요청합니다.\\n그 대가로 매달 일정한 상납을 약속합니다.',
+    opts:[
+      {t:'특권을 허락한다', d:'금 +60 즉시, 민심 -5', f:()=>{REGIONS[c.region].gold+=60; REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-5); log('상인들과 교역 협정을 맺었습니다.','good');}},
+      {t:'거절한다', d:'민심 +5', f:()=>{REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+5);}},
+    ]})},
+  {cond:c=>REGIONS[c.region].gold>150, w:2, run:c=>popup({title:'다리 건설', sub:'내정',
+    body:'섀넌 강을 가로지르는 다리를 놓자는 제안이 올라왔습니다.\\n비용은 크지만 교역과 이동이 크게 편해질 것입니다.',
+    opts:[
+      {t:'건설을 명한다', d:'금 -100, 민심 +15, 위신 +10', f:()=>{REGIONS[c.region].gold-=100; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+15); state.prestige+=10; if(c.traits.includes('diligent'))addStress(c,-5,'근면한 자의 성취'); log('다리가 완성되었습니다. 백성들이 기뻐합니다.','good');}},
+      {t:'시기상조다', d:'—', f:()=>{}},
+    ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'세금 징수 보고', sub:'내정',
+    body:'징세관이 올해 세수를 보고합니다.\\n일부 지주가 세금을 체납하고 있는데, 강하게 나갈지 정하셔야 합니다.',
+    opts:[
+      {t:'엄격히 징수한다', d:'금 +50, 민심 -10', f:()=>{REGIONS[c.region].gold+=50; REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-10); if(c.traits.includes('greedy'))addStress(c,-5,'탐욕가의 흡족함');}},
+      {t:'관대히 봐준다', d:'민심 +10, 위신 +5', f:()=>{REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+10); state.prestige+=5; if(c.traits.includes('generous'))addStress(c,-5,'관대한 자의 보람');}},
+    ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'대장간의 호황', sub:'내정',
+    body:'영지의 대장장이들이 좋은 철광을 발견했습니다.\\n무기와 농기구 생산이 늘어날 조짐입니다.',
+    opts:[
+      {t:'무기 생산에 투자한다', d:'금 -40, 병력 +120', f:()=>{REGIONS[c.region].gold-=40; REGIONS[c.region].cap=(REGIONS[c.region].cap||1200)+60; REGIONS[c.region].troops=Math.min(REGIONS[c.region].cap,REGIONS[c.region].troops+120);}},
+      {t:'농기구에 투자한다', d:'금 -40, 민심 +12', f:()=>{REGIONS[c.region].gold-=40; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+12);}},
+    ]})},
+
+  /* ── 무예/군사 ── */
+  {cond:c=>true, w:2, run:c=>popup({title:'용병단의 방문', sub:'군사',
+    body:'바다 건너온 노르드 용병단이 일자리를 찾고 있습니다.\\n금을 주면 당신의 깃발 아래 싸우겠다 합니다.',
+    opts:[
+      {t:'고용한다', d:'금 -70, 병력 +250', f:()=>{if(REGIONS[c.region].gold<70){log('금이 부족합니다.');return;} REGIONS[c.region].gold-=70; REGIONS[c.region].troops+=250; log('노르드 용병들이 합류했습니다.','war');}},
+      {t:'돌려보낸다', d:'—', f:()=>{}},
+    ]})},
+  {cond:c=>stat(c,'mar')>=7, w:2, run:c=>popup({title:'무술 시합', sub:'군사',
+    body:'기사들이 무술 시합을 열자고 청합니다.\\n왕이 직접 참가하면 사기가 오를 것입니다. 다만 부상의 위험도 있습니다.',
+    opts:[
+      {t:'직접 출전한다', d:'위신 +15, 부상 위험', f:()=>{state.prestige+=15; if(Math.random()<0.2){addStress(c,15,'시합 중 부상'); log('시합에서 부상을 입었습니다.','war');}else{addStress(c,-15,'승리의 영광'); if(c.traits.includes('brave'))addStress(c,-5,'용맹한 자의 기쁨');}}},
+      {t:'관전만 한다', d:'위신 +5', f:()=>{state.prestige+=5; if(c.traits.includes('craven'))addStress(c,-5,'비겁한 자의 안도');}},
+    ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'탈영병', sub:'군사',
+    body:'몇몇 병사가 군영을 이탈했습니다.\\n붙잡혔는데, 어떻게 처리할지 본보기가 필요합니다.',
+    opts:[
+      {t:'처형한다', d:'병력 규율 +, 스트레스 +10', f:()=>{addStress(c,10,'본보기의 무게'); if(c.traits.includes('cruel'))addStress(c,-5,'잔인한 자의 만족'); if(c.traits.includes('kind'))addStress(c,15,'친절한 자의 잔혹'); log('탈영병을 처형해 군기를 세웠습니다.','war');}},
+      {t:'용서한다', d:'민심 +5, 군기 -', f:()=>{REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+5); if(c.traits.includes('forgiving'))addStress(c,-5,'관용의 평안');}},
+    ]})},
+
+  /* ── 외교/이웃 ── */
+  {cond:c=>Object.values(chars).some(k=>!k.dead&&k.ruler&&k.id!==c.id&&opinion(c,k)>10), w:2, run:c=>{
+    const friend=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==c.id&&opinion(c,k)>10);
+    if(!friend) return;
+    popup({title:'우호의 초대', sub:`외교 — ${REGIONS[friend.region]?REGIONS[friend.region].n:''}`,
+      body:`${friend.name}이(가) 자신의 궁정 연회에 당신을 초대했습니다.\\n참석하면 관계가 깊어지겠지만, 자리를 비우는 동안의 위험도 있습니다.`,
+      opts:[
+        {t:'참석한다', d:'관계 +20, 위신 +10', f:()=>{chOp(friend,c,20); chOp(c,friend,15); state.prestige+=10; log(`${friend.name}의 연회에 다녀왔습니다.`,'dip');}},
+        {t:'사절을 대신 보낸다', d:'관계 +5', f:()=>{chOp(friend,c,5);}},
+        {t:'거절한다', d:'관계 -10', f:()=>{chOp(friend,c,-10);}},
+      ]});
+  }},
+  {cond:c=>true, w:2, run:c=>popup({title:'바이킹의 그림자', sub:'외교',
+    body:'더블린 만에 노르드 장선들이 나타났다는 소식입니다.\\n약탈인지 교역인지 아직 분명치 않습니다.',
+    opts:[
+      {t:'해안 경비를 강화한다', d:'금 -40, 병력 +80', f:()=>{REGIONS[c.region].gold-=40; REGIONS[c.region].troops+=80; log('해안 경비를 강화했습니다.','war');}},
+      {t:'교역을 시도한다', d:'금 +40, 위험', f:()=>{if(Math.random()<0.7){REGIONS[c.region].gold+=40; log('노르드인과 교역에 성공했습니다.','good');}else{REGIONS[c.region].troops=Math.max(100,REGIONS[c.region].troops-60); addStress(c,10,'기습 약탈'); log('노르드인이 약탈하고 사라졌습니다!','war');}}},
+    ]})},
+
+  /* ── 가문/개인 ── */
+  {cond:c=>true, w:2, run:c=>popup({title:'떠돌이 학자', sub:'궁정',
+    body:'먼 곳에서 온 학자가 궁정에 머물기를 청합니다.\\n그의 지식은 깊어 보이지만, 출신이 불분명합니다.',
+    opts:[
+      {t:'궁정에 들인다', d:'금 -20, 학문 자극', f:()=>{REGIONS[c.region].gold-=20; const sc=mk({name:randName(),dyn:'',byear:state.year-35,bmonth:3,bday:3,traits:randTraits(2),base:{dip:5,mar:2,stew:5,intr:4,learn:9,prow:1},edu:3,eduFocus:'learn',courtOf:c.region}); log('학자가 궁정에 합류했습니다.','fam'); if(c.traits.includes('cynical'))addStress(c,-3,'지식의 즐거움');}},
+      {t:'거절한다', d:'—', f:()=>{}},
+    ]})},
+  {cond:c=>true, w:2, run:c=>popup({title:'사냥개 선물', sub:'궁정',
+    body:'한 봉신이 혈통 좋은 아이리시 울프하운드 한 마리를 선물로 바쳤습니다.\\n늠름한 사냥개입니다.',
+    opts:[
+      {t:'기쁘게 받는다', d:'스트레스 -10', f:()=>{addStress(c,-10,'충직한 벗'); log('사냥개에게 이름을 지어주었습니다.','fam');}},
+      {t:'사냥터지기에게 준다', d:'관계 +5', f:()=>{}},
+    ]})},
+  {cond:c=>chars[c.spouse]&&!chars[c.spouse].dead&&age(chars[c.spouse])<45&&c.sex==='m', w:2, run:c=>{
+    const sp=chars[c.spouse]; if(!sp||sp.dead) return;
+    popup({title:'후사의 기대', sub:'가문',
+      body:`${sp.name}과(와)의 사이에 더 많은 자손을 보아야 한다는 신하들의 조언이 있습니다.\\n가문의 미래가 걸린 일입니다.`,
+      opts:[
+        {t:'함께 시간을 보낸다', d:'관계 +10, 스트레스 -10', f:()=>{chOp(sp,c,10); chOp(c,sp,10); addStress(c,-10,'부부의 정');}},
+        {t:'국정이 우선이다', d:'스트레스 +5', f:()=>{addStress(c,5,'미뤄둔 가정');}},
+      ]});
+  }},
+  {cond:c=>Object.values(chars).some(k=>!k.dead&&(k.father===c.id||k.mother===c.id)&&age(k)>=16&&!k.spouse), w:2, run:c=>{
+    const adult=Object.values(chars).find(k=>!k.dead&&(k.father===c.id||k.mother===c.id)&&age(k)>=16&&!k.spouse);
+    if(!adult) return;
+    popup({title:'장성한 자식', sub:'가문',
+      body:`당신의 ${adult.sex==='m'?'아들':'딸'} ${adult.name}(${age(adult)}세)이(가) 이제 제 앞가림을 할 나이가 되었습니다.\\n혼처를 알아봐야 할 때입니다.`,
+      opts:[
+        {t:'좋은 혼처를 찾아본다', d:'외교에서 혼인 교섭 가능', f:()=>{log(`${adult.name}의 혼처를 알아보기로 했습니다. 이웃 왕국과 교섭해보세요.`,'fam');}},
+        {t:'아직 이르다', d:'관계 -5', f:()=>{chOp(adult,c,-5);}},
+      ]});
+  }},
+  {cond:c=>age(c)>=50, w:2, run:c=>popup({title:'지난 세월', sub:'내면',
+    body:'벽난로 앞에서 문득 지나온 날들을 떠올립니다.\\n젊은 날의 야망, 잃어버린 벗들, 그리고 아직 이루지 못한 꿈들.',
+    opts:[
+      {t:'회한에 잠긴다', d:'스트레스 +8', f:()=>addStress(c,8,'지난날의 회한')},
+      {t:'남은 날을 다짐한다', d:'스트레스 -10, 위신 +5', f:()=>{addStress(c,-10,'새로운 각오'); state.prestige+=5;}},
+    ]})},
+
+  /* ── 자연/재해 ── */
+  {cond:c=>true, w:2, run:c=>popup({title:'겨울 폭풍', sub:'재해',
+    body:'유난히 혹독한 겨울입니다. 폭풍이 농가의 지붕을 날리고 가축이 얼어 죽었습니다.',
+    opts:[
+      {t:'구휼미를 푼다', d:'금 -50, 민심 +15', f:()=>{REGIONS[c.region].gold-=50; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+15);}},
+      {t:'각자 버티게 한다', d:'민심 -12', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-12); addStress(c,5,'얼어붙은 민심');}},
+    ]})},
+  {cond:c=>true, w:1, run:c=>popup({title:'풍년', sub:'영지',
+    body:'올해는 보기 드문 풍년입니다. 곳간이 가득 차고 백성들의 얼굴에 웃음이 돕니다.',
+    opts:[
+      {t:'추수 축제를 연다', d:'금 -20, 민심 +15, 스트레스 -10', f:()=>{REGIONS[c.region].gold-=20; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+15); addStress(c,-10,'풍요의 기쁨');}},
+      {t:'잉여를 비축한다', d:'금 +50', f:()=>{REGIONS[c.region].gold+=50;}},
+    ]})},
+  {cond:c=>true, w:1, run:c=>popup({title:'들불', sub:'재해',
+    body:'마른 가을 들판에 불이 번졌습니다. 농민들이 필사적으로 진화에 나섰습니다.',
+    opts:[
+      {t:'병력을 동원해 돕는다', d:'민심 +12, 병력 일시 차출', f:()=>{REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+12); log('병사들이 들불을 잡았습니다. 백성들이 고마워합니다.','good');}},
+      {t:'농민에게 맡긴다', d:'민심 -8', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-8);}},
+    ]})},
+
+  /* ── 봉신/궁정 정치 ── */
+  {cond:c=>Object.values(chars).some(k=>!k.dead&&k.courtOf===c.region&&k.id!==c.id), w:2, run:c=>{
+    const v=Object.values(chars).filter(k=>!k.dead&&k.courtOf===c.region&&k.id!==c.id);
+    if(!v.length) return;
+    const va=v[Math.floor(Math.random()*v.length)];
+    popup({title:'봉신의 불만', sub:'궁정',
+      body:`${va.name}이(가) 다른 봉신들 앞에서 당신의 통치에 불만을 토로했습니다.\\n그냥 두면 권위가 흔들릴 수 있습니다.`,
+      opts:[
+        {t:'엄히 질책한다', d:'관계 -15, 위신 +10', f:()=>{chOp(va,c,-15); state.prestige+=10; if(c.traits.includes('wrathful'))addStress(c,-5,'분노의 표출');}},
+        {t:'달래어 회유한다', d:'금 -30, 관계 +15', f:()=>{REGIONS[c.region].gold-=30; chOp(va,c,15);}},
+        {t:'무시한다', d:'위신 -8', f:()=>{state.prestige=Math.max(0,state.prestige-8); addStress(c,5,'흔들리는 권위');}},
+      ]});
+  }},
+  {cond:c=>Object.values(chars).some(k=>!k.dead&&k.courtOf===c.region&&k.id!==c.id&&stat(k,'mar')>=8), w:2, run:c=>{
+    const knight=Object.values(chars).find(k=>!k.dead&&k.courtOf===c.region&&k.id!==c.id&&stat(k,'mar')>=8);
+    if(!knight) return;
+    popup({title:'충성스러운 기사', sub:'궁정',
+      body:`용맹한 기사 ${knight.name}이(가) 당신에게 충성을 맹세하며 영지를 청합니다.\\n그의 무용은 의심할 여지가 없습니다.`,
+      opts:[
+        {t:'약속한다', d:'관계 +25, 스트레스 +5', f:()=>{chOp(knight,c,25); addStress(c,5,'지킬 약속의 무게');}},
+        {t:'공을 더 세우라 한다', d:'관계 -5', f:()=>{chOp(knight,c,-5);}},
+      ]});
+  }},
+
+  /* ── 인생관/성장 ── */
+  {cond:c=>c.lifestyle==='dip', w:1, run:c=>popup({title:'외교의 묘', sub:'인생관 — 외교',
+    body:'협상 자리에서 당신은 상대의 속내를 꿰뚫어 보았습니다.\\n말 한마디로 분위기를 뒤집는 법을 터득해갑니다.',
+    opts:[{t:'경험을 새긴다', d:'인생관 경험 +30', f:()=>{c.lifeXP+=30; addStress(c,-3,'성장의 기쁨');}}]})},
+  {cond:c=>c.lifestyle==='mar', w:1, run:c=>popup({title:'전술의 깨달음', sub:'인생관 — 무예',
+    body:'옛 전투를 복기하던 중, 당신은 새로운 진형의 가능성을 발견했습니다.',
+    opts:[{t:'연구를 거듭한다', d:'인생관 경험 +30', f:()=>{c.lifeXP+=30; addStress(c,-3,'성장의 기쁨');}}]})},
+  {cond:c=>c.lifestyle==='stew', w:1, run:c=>popup({title:'장부의 지혜', sub:'인생관 — 내정',
+    body:'복잡한 세무 장부를 들여다보다, 낭비되던 재정의 구멍을 찾아냈습니다.',
+    opts:[{t:'개선책을 적용한다', d:'금 +30, 인생관 경험 +30', f:()=>{REGIONS[c.region].gold+=30; c.lifeXP+=30;}}]})},
+  {cond:c=>c.lifestyle==='intr', w:1, run:c=>popup({title:'그림자의 기술', sub:'인생관 — 음모',
+    body:'밀정들을 다루는 법, 비밀을 캐는 법, 흔적을 지우는 법.\\n당신은 어둠의 기술에 점점 능해집니다.',
+    opts:[{t:'기술을 연마한다', d:'인생관 경험 +30', f:()=>{c.lifeXP+=30; addStress(c,-3,'은밀한 성취');}}]})},
+  {cond:c=>c.lifestyle==='learn', w:1, run:c=>popup({title:'고서의 발견', sub:'인생관 — 학문',
+    body:'수도원 서고 깊은 곳에서 오래된 라틴어 필사본을 발견했습니다.\\n잊혀진 지식이 그 안에 잠들어 있습니다.',
+    opts:[{t:'밤새 탐독한다', d:'위신 +5, 인생관 경험 +30', f:()=>{state.prestige+=5; c.lifeXP+=30; addStress(c,-3,'지식의 기쁨');}}]})},
+
+  /* ── 어린시절 (자녀 대상) ── */
+  {cond:c=>Object.values(chars).some(k=>!k.dead&&(k.father===c.id||k.mother===c.id)&&age(k)>=6&&age(k)<16), w:2, run:c=>{
+    const child=Object.values(chars).find(k=>!k.dead&&(k.father===c.id||k.mother===c.id)&&age(k)>=6&&age(k)<16);
+    if(!child) return;
+    popup({title:'아이의 재능', sub:'가문',
+      body:`${child.name}(${age(child)}세)이(가) 또래보다 영민하다는 것이 보입니다.\\n어떻게 길러야 할지 고민이 됩니다.`,
+      opts:[
+        {t:'엄격히 교육시킨다', d:'교육 점수 +3, 관계 -5', f:()=>{child.eduScore+=3; chOp(child,c,-5);}},
+        {t:'자유롭게 둔다', d:'관계 +10', f:()=>{chOp(child,c,10);}},
       ]});
   }},
 ];
 function randomEventPulse(){
   if(state.over) return;
   const c=playerChar();
+  if(!c||c.dead||!c.region||!REGIONS[c.region]) return; // 영지 없는 상태 방어
   if(Math.random()<0.32){
-    const pool=EVENTS.filter(e=>e.cond(c));
+    const pool=EVENTS.filter(e=>{ try{ return e.cond(c); }catch(err){ return false; } });
     let tw=pool.reduce((s,e)=>s+e.w,0), r=Math.random()*tw;
-    for(const e of pool){ r-=e.w; if(r<=0){ e.run(c); break; } }
+    for(const e of pool){ r-=e.w; if(r<=0){ try{ e.run(c); }catch(err){} break; } }
   }
 }
 
@@ -1187,10 +1607,12 @@ function openRegion(rid){
   showModal({title:`${REGIONS[rid].n} 왕국`, sub:'외교', body:'', html, opts});
   pause();
 }
+function prestigeBonus(){ return Math.round((state.prestige-120)/12); } // 위신 120 기준, 12당 +1%
 function allianceChance(c,p){
   let v=30+opinion(c,p);
   v+=aiW(c,'soc')*5;
   if(power(p)>power(c)) v+=10;
+  v+=prestigeBonus();
   return Math.max(2,Math.min(95,Math.round(v)));
 }
 function vassalChance(c,p){
@@ -1201,6 +1623,7 @@ function vassalChance(c,p){
   if(c.traits.includes('content'))v+=15;
   if(c.traits.includes('craven'))v+=15;
   if(c.traits.includes('ambitious'))v-=20;
+  v+=Math.round(prestigeBonus()*1.5); // 봉신 수락에 위신 비중 높음
   return Math.max(1,Math.min(85,Math.round(v)));
 }
 function tryMarriage(c){
@@ -1211,7 +1634,7 @@ function tryMarriage(c){
     t:`${kid.name} (${kid.sex==='m'?'아들':'딸'} · ${age(kid)}세)`,
     d:age(kid)<16?'성인이 되면 혼인 — 지금은 혼약':'즉시 혼인',
     f:()=>{
-      const acc=40+opinion(c,p)+aiW(c,'soc')*4;
+      const acc=40+opinion(c,p)+aiW(c,'soc')*4+prestigeBonus();
       if(Math.random()*100<acc){
         const sp=mk({name:c.dyn+' 가문의 '+(kid.sex==='m'?'규수':'자제'), dyn:c.dyn, sex:kid.sex==='m'?'f':'m',
           byear:kid.byear, bmonth:2, bday:2, traits:randTraits(2), base:randStats(), edu:1, eduFocus:'dip', courtOf:p.region});
@@ -1303,7 +1726,8 @@ function renderHeader(){
   const reg=REGIONS[playerChar().region];
   document.getElementById('goldTxt').textContent=reg?Math.round(reg.gold):0;
   document.getElementById('prestigeTxt').textContent=state.prestige||120;
-  document.getElementById('troopTxt').textContent=reg?reg.troops.toLocaleString():0;
+  const totalTroops=playerRegions().reduce((s,rid)=>s+(REGIONS[rid].troops||0),0);
+  document.getElementById('troopTxt').textContent=totalTroops.toLocaleString();
 }
 function renderChar(){
   const c=playerChar();
@@ -1361,7 +1785,7 @@ function renderMap(){
       ${mine?`<circle cx="${R.x}" cy="${R.y}" r="34" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:''}
       <text x="${R.x}" y="${R.y-2}">${R.n}</text>
       <text class="owner" x="${R.x}" y="${R.y+13}">${o?(o.dyn||o.name.split(' ')[0]):'—'}</text>
-      <text class="owner" x="${R.x}" y="${R.y+42}" style="font-size:9px;fill:#8a7858">⚔${R.troops}</text>
+      <text class="owner" x="${R.x}" y="${R.y+42}" style="font-size:9px;fill:#8a7858">⚔${R.troops} 민${(R.pop||60)}</text>
     </g>`;
   }
   svg.innerHTML=h;
