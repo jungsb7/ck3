@@ -552,6 +552,7 @@ function mk(o){
     stress:0, copings:0, lastBreakY:0,
     region:null, ruler:false, spouse:null, mother:null, father:null,
     pregnant:0, births:0, dead:false, courtOf:null,
+    liege:null, // 봉신의 군주 (독립이면 null)
     op:{}, // 관계도
     council:{chancellor:null,marshal:null,steward:null,spymaster:null,chaplain:null},
     claims:[], // [{rid,type,obtained}]
@@ -1125,26 +1126,118 @@ function monthlyPulse(){
   }
   renderMap();
 }
-function goldPulse(){
-  // 모든 남작령: 병력 자연 회복
-  for(const bid in BARONIES){
-    const b=BARONIES[bid];
-    b.troops=Math.min(b.cap, b.troops+4);
+/* ════════════════════════════════════════════════════
+   봉신·직할령 시스템 (Phase 2)
+   ════════════════════════════════════════════════════ */
+
+/* 직할 보유 백작령: 내가 capital 남작령을 직접 소유한 county */
+function directCountiesOf(charId){
+  return Object.keys(COUNTIES).filter(cid=>BARONIES[COUNTIES[cid].capital]?.owner===charId);
+}
+/* 봉신이 보유한 백작령 (liege = charId) */
+function vassalCountiesOf(charId){
+  const vcids=[];
+  for(const id in chars){
+    const v=chars[id]; if(v.dead||v.liege!==charId||!v.ruler) continue;
+    directCountiesOf(id).forEach(cid=>vcids.push(cid));
   }
-  // 각 군주: 소유 남작령에서 세금 수입 → seat barony에 집중
+  return vcids;
+}
+/* 봉신 목록 */
+function vassalsOf(liegeId){ return Object.values(chars).filter(c=>!c.dead&&c.liege===liegeId&&c.ruler); }
+/* 직할령 한도: 칭호 등급 기반 */
+function domainLimit(c){
+  const d=duchiesOf(c.id).length;
+  const ct=directCountiesOf(c.id).length;
+  // 소왕=6, 공작=4, 백작=2 (기본값은 보유 칭호로 판단)
+  const base = d>=1?6 : ct>=3?4 : 2;
+  return base + Math.floor(stat(c,'stew')*0.12);
+}
+/* 직할 초과 여부 */
+function overDomainLimit(c){ return directCountiesOf(c.id).length > domainLimit(c); }
+/* 백작령 봉신 하사 */
+function grantCountyToVassal(liegeId, vassalId, cid){
+  const liege=chars[liegeId], vassal=chars[vassalId];
+  if(!liege||!vassal||!COUNTIES[cid]) return;
+  // 해당 county의 모든 barony를 vassal에게 이전
+  COUNTIES[cid].baronies.forEach(bid=>{ if(BARONIES[bid]) BARONIES[bid].owner=vassalId; });
+  vassal.liege=liegeId;
+  vassal.ruler=true;
+  vassal.courtOf=null;
+  if(!vassal.region||countyOf(vassal.region)!==cid) vassal.region=COUNTIES[cid].capital;
+  chOp(vassal,liege,25); // 임명 감사 보너스
+  log(`<b>${vassal.name}</b>이(가) ${COUNTIES[cid].n}의 백작으로 임명됐습니다.`,'good');
+}
+/* 봉신이 독립 선언 */
+function vassalRevolt(v, liege){
+  v.liege=null;
+  chOp(v,liege,-50); chOp(liege,v,-50);
+  log(`<b>${v.name}</b>이(가) ${liege.name}에게 반기를 들었습니다!`,'war');
+  // 독립 전쟁 (복수 명분)
+  directCountiesOf(v.id).forEach(cid=>v.claims.push({rid:cid, type:'revenge', obtained:state.year}));
+  if(v.id===state.player||liege.id===state.player){
+    popup({title:'봉신 반란!', sub:'정치 위기',
+      body:`<b>${v.name}</b>이(가) 반란을 선포했습니다!\n봉신의 불만이 한계에 달했습니다.`,
+      opts:[{t:'진압 전쟁 선포', f:()=>{
+        if(liege.id===state.player) addClaim(directCountiesOf(v.id)[0],'revenge');
+      }},{t:'독립을 인정한다', f:()=>{
+        addStress(liege.id===state.player?liege:playerChar(), 20,'굴욕적 양보');
+      }}]});
+  }
+}
+
+function goldPulse(){
+  // ① 모든 남작령: 병력 자연 회복
+  for(const bid in BARONIES) BARONIES[bid].troops=Math.min(BARONIES[bid].cap, BARONIES[bid].troops+4);
+
+  // ② 각 지배자: 직할 남작령 세금 수입 계산
+  const TAX_RATE=0.25; // 봉신 → 영주 세금 비율
   const processed=new Set();
   for(const id in chars){
-    const c=chars[id]; if(c.dead||!c.ruler) continue;
-    if(processed.has(id)) continue; processed.add(id);
-    const owned=regionsOf(id);
-    if(!owned.length) continue;
+    const c=chars[id]; if(c.dead||!c.ruler||processed.has(id)) continue;
+    processed.add(id);
+    const owned=regionsOf(id); if(!owned.length) continue;
     const seat=owned.includes(c.region)?c.region:owned[0];
     const seatB=BARONIES[seat]; if(!seatB) continue;
-    const income=owned.reduce((s,bid)=>{
-      const b=BARONIES[bid]; return s+(b?Math.round(4+stat(c,'stew')*0.5):0);
+
+    // 직할령 초과 패널티
+    const dCnt=directCountiesOf(id).length;
+    const dLimit=domainLimit(c);
+    const overPenalty=dCnt>dLimit?Math.max(0.3,1-(dCnt-dLimit)*0.15):1;
+
+    // 직할 남작령 수입
+    const directIncome=owned.reduce((s,bid)=>{
+      const b=BARONIES[bid]; return s+(b?Math.round((4+stat(c,'stew')*0.5)*overPenalty):0);
     },0);
-    const goldCap=id===state.player?3000:2000;
-    seatB.gold=Math.min(goldCap, seatB.gold+income);
+    const goldCap=id===state.player?3500:2500;
+    seatB.gold=Math.min(goldCap, seatB.gold+directIncome);
+
+    // ③ 봉신에게서 세금 수취 (봉신 호감도 기반)
+    if(id===state.player||c.ruler){
+      for(const v of vassalsOf(id)){
+        const opn=Math.max(0,opinion(v,c)+100)/200; // 0~1 (호감도 반영)
+        const taxMul=TAX_RATE*opn;
+        const vOwned=regionsOf(v.id);
+        const vSeat=vOwned.includes(v.region)?v.region:vOwned[0];
+        const vSeatB=vSeat?BARONIES[vSeat]:null;
+        if(!vSeatB) continue;
+        const taxAmt=Math.round(vSeatB.gold*taxMul*0.08); // 월 수입의 일부
+        if(taxAmt>0 && vSeatB.gold>taxAmt){
+          vSeatB.gold-=taxAmt;
+          seatB.gold=Math.min(goldCap, seatB.gold+taxAmt);
+        }
+      }
+    }
+  }
+
+  // ④ 봉신 불만 → 반란 체크 (매달 2% × 불만도)
+  for(const id in chars){
+    const v=chars[id]; if(v.dead||!v.ruler||!v.liege) continue;
+    const liege=chars[v.liege]; if(!liege||liege.dead) continue;
+    const op=opinion(v,liege);
+    if(op<-40 && Math.random()<0.02*((-op-40)/60)){
+      vassalRevolt(v,liege);
+    }
   }
 }
 /* ---------- 수태력 (위키: 평균수태력 × 4.75%) ---------- */
@@ -1369,84 +1462,133 @@ function formAlliance(a,b){
 function power(c){
   let t=0;
   for(const bid of regionsOf(c.id)){ const b=BARONIES[bid]; if(b) t+=b.troops; }
+  // 봉신 병력 10% 징집 가능
+  for(const v of vassalsOf(c.id)){
+    for(const bid of regionsOf(v.id)){ const b=BARONIES[bid]; if(b) t+=b.troops*0.1; }
+  }
   if(!t) t=150;
   return t*(1+stat(c,'mar')*0.04)*(1+stat(c,'prow')*0.01);
 }
-function resolveWarChar(wSide, fallback){
-  // 사망 시 후계자(동일 왕조 살아있는 ruler)로 교체
-  const c=chars[wSide];
-  if(c&&!c.dead) return wSide;
-  // 후계자 탐색
+function resolveWarChar(wSide){
+  const c=chars[wSide]; if(c&&!c.dead) return wSide;
   const heir=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.dyn===c?.dyn&&k.id!==wSide);
-  return heir ? heir.id : null;
+  return heir?heir.id:null;
 }
+
+/* 백작령 점령 진행도: 목표 county의 baronies 중 공격자가 사실상 제압한 비율 */
+function siegeProgress(w){
+  const cid=w.targetRid;
+  if(!cid||!COUNTIES[cid]) return 0;
+  const bids=COUNTIES[cid].baronies;
+  // 점령 비율: 공격자가 우세할수록 baronies가 "점령"됨 (w.occupied 배열로 추적)
+  if(!w.occupied) w.occupied=[];
+  return bids.length>0 ? w.occupied.length/bids.length : 0;
+}
+
 function warPulse(){
-  const toRemove=[];
   state.wars=state.wars.filter(w=>{
-    // ── 사망 시 후계자로 교체 (전쟁 유지)
-    const newAtk=resolveWarChar(w.atk, w.atk);
-    const newDef=resolveWarChar(w.def, w.def);
-    if(!newAtk||!newDef){ toRemove.push(w); return false; }
+    // ── 사망 시 승계 유지
+    const newAtk=resolveWarChar(w.atk), newDef=resolveWarChar(w.def);
+    if(!newAtk||!newDef) return false;
     if(newAtk!==w.atk){ log(`${chars[newAtk].name}이(가) 전쟁을 이어받았습니다.`,'war'); w.atk=newAtk; }
     if(newDef!==w.def){ log(`${chars[newDef].name}이(가) 방어를 이어받았습니다.`,'war'); w.def=newDef; }
-
     const a=chars[w.atk], d=chars[w.def];
 
-    // ── 목표 영지 3자 정복 감지
-    const tRid=w.targetRid;
-    if(tRid&&REGIONS[tRid]&&REGIONS[tRid].owner!==w.def&&REGIONS[tRid].owner!==w.atk){
-      const thief=chars[REGIONS[tRid].owner];
-      if(w.atk===state.player||w.def===state.player){
-        const side = w.atk===state.player?'공격':'방어';
-        popup({title:'전쟁 목표 상실', sub:'전황 변화',
-          body:`${thief?thief.name:'제3자'}이(가) <b>${REGIONS[tRid].n}</b>을(를) 먼저 점령했습니다.\n전쟁 목표가 사라졌습니다.`,
-          opts:[
-            {t:'전쟁을 계속한다 (새 목표 없이)', f:()=>{
-              w.targetRid=regionsOf(w.def)[0]||null;
-              if(w.targetRid) log(`새 목표: ${REGIONS[w.targetRid].n}`,'war');
-              else { setTruce(w.atk,w.def,2); log('목표 영지가 없어 전쟁이 종결됩니다.','war'); state.wars=state.wars.filter(x=>x!==w); }
-            }},
-            {t:'전쟁을 끝낸다', f:()=>{
-              setTruce(w.atk,w.def,2);
-              log('전쟁이 종결되었습니다.','war');
-              state.wars=state.wars.filter(x=>x!==w);
-            }},
-          ]});
-        return true; // 선택 대기 중에는 유지
-      } else {
-        // NPC 전쟁이면 그냥 종결
-        setTruce(w.atk,w.def,2); return false;
+    // ── 목표 백작령 3자 정복 감지 (county id 기반)
+    const tCid=w.targetRid;
+    if(tCid&&COUNTIES[tCid]){
+      const capHolder=countyHolder(tCid);
+      if(capHolder&&capHolder.id!==w.def&&capHolder.id!==w.atk){
+        if(w.atk===state.player||w.def===state.player){
+          popup({title:'전쟁 목표 상실', sub:'전황 변화',
+            body:`${capHolder.name}이(가) <b>${COUNTIES[tCid].n}</b>을(를) 먼저 점령했습니다!\n전쟁 목표가 사라졌습니다.`,
+            opts:[
+              {t:'새 목표를 찾는다', f:()=>{
+                const alt=directCountiesOf(w.def===state.player?a.id:d.id).find(c=>c!==tCid);
+                if(alt){ w.targetRid=alt; w.occupied=[]; log(`새 목표: ${COUNTIES[alt].n}`,'war'); }
+                else { setTruce(w.atk,w.def,2); log('목표가 없어 전쟁 종결.','war'); state.wars=state.wars.filter(x=>x!==w); }
+              }},
+              {t:'전쟁을 끝낸다', f:()=>{ setTruce(w.atk,w.def,2); state.wars=state.wars.filter(x=>x!==w); }},
+            ]});
+          return true;
+        } else { setTruce(w.atk,w.def,2); return false; }
       }
     }
 
     w.months++;
-    const pa=power(a)+(w.allies||[]).reduce((s,id)=>s+power(chars[id]||{id:''})*0.5,0);
-    const pd=power(d);
-    const delta=((pa-pd)/Math.max(pa,pd))*14 + (Math.random()*16-6);
-    w.score=Math.max(-100,Math.min(100,w.score+delta));
-    // 매월 소모 (동맹 참전국 포함)
-    for(const rid of regionsOf(a.id)) REGIONS[rid].troops=Math.max(120,Math.round(REGIONS[rid].troops*0.97));
-    for(const rid of regionsOf(d.id)) REGIONS[rid].troops=Math.max(120,Math.round(REGIONS[rid].troops*0.97));
-    for(const aid of (w.allies||[])){ for(const rid of regionsOf(aid)) REGIONS[rid].troops=Math.max(100,Math.round(REGIONS[rid].troops*0.98)); }
+    if(!w.occupied) w.occupied=[];
 
-    if(w.months%3===0&&(w.atk===state.player||w.def===state.player)){
-      const my = w.atk===state.player? w.score : -w.score;
-      log(`전황: ${my>=0?'+':''}${Math.round(my)}% — ${my>30?'아군 우세':my<-30?'적군 우세':'교착 상태'}`,'war');
-    }
-    // ── 공격 성공: 목표 영지 하나만 정복
-    if(w.score>=100){ conquerTarget(a,d,w.targetRid); return false; }
-    if(w.score<=-100){
-      log(`<b>${a.name}</b>의 침공이 격퇴되었습니다. 백색 강화.`,'war');
-      setTruce(a.id,d.id,5);
-      if(w.atk===state.player){
-        addStress(a,30,'패전의 굴욕');
-        // 백색 강화 → 미확정 주장 획득 (다음 전쟁 준비)
-        if(w.targetRid && REGIONS[w.targetRid]) addClaim(w.targetRid, 'unpressed');
+    // ── 전력 계산 (봉신·동맹 포함)
+    const allyPow=(w.allies||[]).reduce((s,id)=>{ const v=chars[id]; return v?s+power(v)*0.6:s; },0);
+    const vPow=vassalsOf(w.atk).reduce((s,v)=>s+power(v)*0.4,0);
+    const pa=power(a)+allyPow+vPow;
+    const pd=power(d)+vassalsOf(w.def).reduce((s,v)=>s+power(v)*0.4,0);
+    const ratio=(pa-pd)/Math.max(pa,pd);
+
+    // ── 전쟁 소모 (병력·금)
+    const warExhaust=0.97-Math.min(0.03,w.months*0.0005); // 장기전일수록 소모↑
+    for(const bid of regionsOf(a.id)) BARONIES[bid].troops=Math.max(80,Math.round(BARONIES[bid].troops*warExhaust));
+    for(const bid of regionsOf(d.id)) BARONIES[bid].troops=Math.max(80,Math.round(BARONIES[bid].troops*warExhaust));
+    (w.allies||[]).forEach(aid=>{ for(const bid of regionsOf(aid)) BARONIES[bid].troops=Math.max(60,Math.round(BARONIES[bid].troops*0.98)); });
+    // 금 소모
+    const aSeat=BARONIES[a.region]; if(aSeat) aSeat.gold=Math.max(0,aSeat.gold-Math.round(3+w.months*0.1));
+    const dSeat=BARONIES[d.region]; if(dSeat) dSeat.gold=Math.max(0,dSeat.gold-Math.round(3+w.months*0.1));
+
+    // ── 공성 진행 (목표 county baronies 점령)
+    if(tCid&&COUNTIES[tCid]){
+      const bids=COUNTIES[tCid].baronies;
+      if(ratio>0.1 && Math.random()<0.25+ratio*0.3){
+        const unoccupied=bids.filter(bid=>!w.occupied.includes(bid));
+        if(unoccupied.length) w.occupied.push(unoccupied[Math.floor(Math.random()*unoccupied.length)]);
+      } else if(ratio<-0.1 && Math.random()<0.2){
+        // 수비측 반격으로 일부 탈환
+        if(w.occupied.length) w.occupied.splice(Math.floor(Math.random()*w.occupied.length),1);
       }
-      if(w.def===state.player){ addStress(d,-10,'승전의 기쁨'); REGIONS[d.region].gold+=60; }
+    }
+
+    // ── 전황 점수: 전력비(60%) + 공성 진행도(40%)
+    const siegePct=siegeProgress(w);
+    const delta=ratio*9 + siegePct*6 + (Math.random()*8-4);
+    w.score=Math.max(-100,Math.min(100,w.score+delta));
+
+    // ── 전황 보고 (3개월마다)
+    if(w.months%3===0&&(w.atk===state.player||w.def===state.player)){
+      const my=w.atk===state.player?w.score:-w.score;
+      const siege=tCid?` · 공성 ${Math.round(siegePct*100)}%`:'';
+      log(`전황: ${my>=0?'+':''}${Math.round(my)}%${siege} — ${my>30?'아군 우세':my<-30?'적군 우세':'교착 상태'}`,'war');
+    }
+
+    // ── 전투 이벤트 (플레이어 전쟁 시 월 15% 확률)
+    if((w.atk===state.player||w.def===state.player) && Math.random()<0.15 && !state.modalOpen){
+      const isAtk=w.atk===state.player;
+      const foe=isAtk?d:a;
+      const events=[
+        {cond:isAtk&&ratio>0.1, t:'전선 돌파!', body:`${foe.name}의 진지가 흔들립니다. 결정적 추격을 명할 수 있습니다.`,
+         opts:[{t:'추격한다', d:'전황 +15, 소모 +', f:()=>{w.score=Math.min(100,w.score+15); for(const b of regionsOf(a.id)) BARONIES[b].troops=Math.max(80,Math.round(BARONIES[b].troops*0.94));}},
+               {t:'진지를 굳힌다', d:'현 상태 유지', f:()=>{}}]},
+        {cond:!isAtk&&ratio<-0.1, t:'적군 포위!', body:`${foe.name}의 군대가 보급선을 끊었습니다. 돌파를 시도합니까?`,
+         opts:[{t:'돌파한다', d:'50% 성공, 실패시 대손실', f:()=>{if(Math.random()<0.5){w.score=Math.min(100,w.score+20);}else{for(const b of regionsOf(d.id)) BARONIES[b].troops=Math.max(50,Math.round(BARONIES[b].troops*0.75));}}},
+               {t:'방어를 유지한다', d:'전황 -5', f:()=>{w.score=Math.max(-100,w.score-5);}}]},
+        {cond:true, t:'소규모 충돌', body:`국경에서 소규모 전투가 벌어졌습니다. 양측 모두 피해를 입었습니다.`,
+         opts:[{t:'전선을 정비한다', d:'소모 증가', f:()=>{ for(const b of regionsOf(a.id)) BARONIES[b].troops=Math.max(80,Math.round(BARONIES[b].troops*0.96)); }}]},
+      ];
+      const ev=events.find(e=>e.cond);
+      if(ev) popup({title:ev.t, sub:'전황', body:ev.body, opts:ev.opts});
+    }
+
+    // ── 승패 판정
+    const allSieged=tCid&&COUNTIES[tCid]&&w.occupied.length>=COUNTIES[tCid].baronies.length;
+    if(w.score>=100||allSieged){ conquerTarget(a,d,tCid||w.targetRid); return false; }
+    if(w.score<=-100){
+      log(`<b>${a.name}</b>의 침공이 격퇴됐습니다.`,'war');
+      setTruce(a.id,d.id,5);
+      if(w.atk===state.player){ addStress(a,30,'패전의 굴욕'); addClaim(tCid||w.targetRid,'unpressed'); }
+      if(w.def===state.player){ addStress(d,-10,'승전의 기쁨'); if(dSeat) dSeat.gold+=80; }
       return false;
     }
-    if(w.months>48){ setTruce(a.id,d.id,3); log('길어진 전쟁이 흐지부지 끝났습니다.','war'); return false; }
+    if(w.months>60){
+      log('오랜 전쟁이 지쳐 끝났습니다.','war'); setTruce(a.id,d.id,3); return false;
+    }
     return true;
   });
 }
@@ -1478,9 +1620,14 @@ function conquerTarget(a, d, targetCid){
   if(a.id===state.player){
     addStress(a,-15,'정복의 영광');
     const remCnt=countiesOf(d.id).length;
+    const canVassal=remCnt>0&&!d.dead; // 아직 영지가 있으면 봉신화 가능
     popup({title:'정복', sub:cname,
       body:`<b>${cname}</b>이(가) 당신의 깃발 아래 들어왔습니다!${remCnt>0?`\n${d.name}에게는 아직 ${remCnt}개 백작령이 남아있습니다.`:'\n'+d.name+'은(는) 당신의 궁정에 무릎 꿇었습니다.'}`,
-      opts:[{t:'에이레가 지켜보고 있다', f:checkVictoryHint}]});
+      opts:[
+        ...(canVassal?[{t:`${d.name}을 봉신으로 삼는다`, d:'나머지 영지 유지, 세금 수취',
+          f:()=>{ d.liege=a.id; chOp(d,a,20); log(`${d.name}이(가) 당신의 봉신이 됐습니다.`,'dip'); checkVictoryHint(); }}]:[]),
+        {t:'에이레가 지켜보고 있다', f:checkVictoryHint}
+      ]});
   }
   if(d.id===state.player&&!d.region){
     gameOver(`${cname}이(가) 함락되었습니다. ${a.name}이(가) 당신의 왕좌를 빼앗았습니다.`);
@@ -2614,12 +2761,19 @@ function randomEventPulse(){
 
 /* ---------- 플레이어 외교 ---------- */
 function openCounty(cid){
-  // 백작령 클릭 → 수도 남작령의 소유자와 외교
-  const capBid = COUNTIES[cid]?.capital;
-  if(!capBid) return;
-  const holder = countyHolder(cid);
-  if(!holder) return;
-  openRegion(capBid, cid);
+  const holder=countyHolder(cid); if(!holder) return;
+  // 공성 중이면 전황 표시
+  const war=state.wars.find(w=>w.targetRid===cid);
+  if(war&&(war.atk===state.player||war.def===state.player)){
+    const cnt=COUNTIES[cid], bids=cnt.baronies, occ=war.occupied||[];
+    const my=war.atk===state.player?war.score:-war.score;
+    const siegeLines=bids.map(bid=>`${BARONIES[bid]?.n||bid}: ${occ.includes(bid)?'⚔ 점령됨':'🛡 방어중'}`).join('\n');
+    popup({title:`${cnt.n} 공성전`, sub:'전황 상세',
+      body:`전황 점수: ${my>0?'+':''}${Math.round(my)}%\n\n${siegeLines}`,
+      opts:[{t:'닫기'}]});
+    return;
+  }
+  openRegion(COUNTIES[cid]?.capital, cid);
 }
 function openRegion(rid, cid_hint){
   const c=ownerOf(rid);
@@ -3104,6 +3258,26 @@ function renderCourt(){
     html+=`</div></div>`;
   }
 
+  // ── 봉신 목록
+  const myVassals=vassalsOf(p.id);
+  if(myVassals.length>0){
+    html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--line)">봉신 목록 (${myVassals.length}명)</div>`;
+    for(const v of myVassals){
+      const vcids=directCountiesOf(v.id);
+      const vOp=opinion(v,p);
+      const opColor=vOp>=0?'#7a9a6a':'#9e5a5a';
+      html+=`<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:5px 0;border-bottom:1px dotted #2c2316">
+        <span><b>${v.name}</b><span style="color:var(--parch-dim);font-size:.72rem"> — ${vcids.map(cid=>COUNTIES[cid].n).join('·')}</span></span>
+        <span style="color:${opColor}">호감 ${vOp>0?'+':''}${vOp}</span>
+      </div>`;
+    }
+    html+=`<div style="height:10px"></div>`;
+  }
+
+  // ── 직할령 현황
+  const dLim=domainLimit(p), dDir=directCountiesOf(p.id).length;
+  html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line)">직할 백작령 ${dDir}/${dLim}${dDir>dLim?' ⚠ 한도 초과':''}</div>`;
+
   // ── 궁정 인물 목록
   html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin:12px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)">${rn} 궁정의 사람들</div>
     <table style="width:100%;border-collapse:collapse;font-size:.82rem">`;
@@ -3180,6 +3354,41 @@ function renderDec(){
     REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
     log('창병 200이 소집되었습니다.','war'); renderDec();
   });
+  // 직할령 한도 표시 및 백작령 하사
+  const dCnt=directCountiesOf(p.id).length;
+  const dLimit=domainLimit(p);
+  if(dCnt>0){
+    const overTxt=dCnt>dLimit?` ⚠ 한도 초과 (${dCnt}/${dLimit}) — 세금 패널티 적용 중`:`${dCnt}/${dLimit}`;
+    items.unshift({t:`🏛 직할 백작령 현황: ${overTxt}`, d:'', enabled:false, i:-1});
+  }
+
+  // 백작령 하사 (직할 초과 시 또는 전략적으로)
+  const myCids=directCountiesOf(p.id);
+  if(myCids.length>1){
+    const courtierCands=Object.values(chars).filter(c=>!c.dead&&c.courtOf===p.region&&c.id!==p.id&&!c.ruler);
+    if(courtierCands.length>0){
+      addDec('백작령 하사',`궁정인을 백작으로 임명 — 봉신 체계 구축`, true, ()=>{
+        // 백작령 선택 UI
+        const cOpts=myCids.filter(cid=>cid!==countyOf(p.region)).map(cid=>({
+          t:COUNTIES[cid].n, d:`남작령 ${COUNTIES[cid].baronies.length}개`,
+          f:()=>{
+            // 봉신 대상 선택
+            const vOpts=courtierCands.slice(0,4).map(v=>({
+              t:v.name, d:`외${stat(v,'dip')} 무${stat(v,'mar')} 내${stat(v,'stew')}`,
+              f:()=>{ grantCountyToVassal(p.id, v.id, cid); renderDec(); }
+            }));
+            vOpts.push({t:'취소'});
+            showModal({title:`${COUNTIES[cid].n} 백작 임명`, sub:'봉신 임명',
+              body:'누구를 백작으로 임명하겠습니까?', opts:vOpts});
+          }
+        }));
+        cOpts.push({t:'취소'});
+        showModal({title:'백작령 하사', sub:'봉신 임명',
+          body:'어느 백작령을 하사하겠습니까?', opts:cOpts});
+      });
+    }
+  }
+
   // 인재 모집 — 궁정 인원 부족 시
   const courtSize=Object.values(chars).filter(c=>!c.dead&&c.courtOf===p.region&&c.id!==p.id).length;
   const vacancies=Object.values(state.council).filter(v=>!v).length;
@@ -3205,21 +3414,34 @@ function renderDec(){
     });
   }
 
-  // 공격전 동맹 참전 요청
-  const myWar=state.wars.find(w=>w.atk===p.id);
+  // 전쟁 중 선택지
+  const myWar=state.wars.find(w=>w.atk===p.id||w.def===p.id);
   if(myWar){
-    const allies=state.alliances.filter(k=>k.includes(p.id)).map(k=>k.replace(p.id,'').replace('|','').trim()).filter(x=>x&&chars[x]&&!chars[x].dead&&!myWar.allies.includes(x));
-    if(allies.length>0){
-      addDec('동맹에 참전 요청',`위신 30 소모 · 동맹국의 병력 추가`, state.prestige>=30, ()=>{
-        state.prestige-=30;
-        let joined=0;
-        allies.forEach(aid=>{
-          if(Math.random()<0.65){ myWar.allies.push(aid); joined++; log(`${chars[aid].name}이(가) 참전했습니다!`,'war'); }
-          else { log(`${chars[aid].name}이(가) 참전을 거부했습니다.`,'dip'); }
+    const isAtk=myWar.atk===p.id;
+    const foe=chars[isAtk?myWar.def:myWar.atk];
+    // 백색 강화 제안
+    addDec('백색 강화 제안',`${foe?.name}에게 현 상태 강화 — 양측 5년 휴전`, true, ()=>{
+      setTruce(myWar.atk,myWar.def,5);
+      state.wars=state.wars.filter(w=>w!==myWar);
+      addStress(p,5,'미완의 전쟁');
+      log(`${foe?.name}과(와) 백색 강화를 맺었습니다.`,'dip');
+      renderDec();
+    });
+    // 공격전 동맹 참전 요청
+    if(isAtk){
+      const allies=state.alliances.filter(k=>k.includes(p.id)).map(k=>k.replace(p.id,'').replace('|','').trim()).filter(x=>x&&chars[x]&&!chars[x].dead&&!myWar.allies.includes(x));
+      if(allies.length>0){
+        addDec('동맹에 참전 요청',`위신 30 소모 · 동맹국의 병력 추가`, state.prestige>=30, ()=>{
+          state.prestige-=30;
+          let joined=0;
+          allies.forEach(aid=>{
+            if(Math.random()<0.65){ myWar.allies.push(aid); joined++; log(`${chars[aid].name}이(가) 참전했습니다!`,'war'); }
+            else { log(`${chars[aid].name}이(가) 참전을 거부했습니다.`,'dip'); }
+          });
+          if(!joined) { state.prestige+=15; log('어떤 동맹도 응하지 않았습니다.','dip'); }
+          renderDec();
         });
-        if(!joined) { state.prestige+=15; log('어떤 동맹도 응하지 않았습니다.','dip'); }
-        renderDec();
-      });
+      }
     }
   }
 
@@ -3331,14 +3553,19 @@ function renderMap(){
     const C=COUNTIES[cid];
     const holder=countyHolder(cid);
     const mine=holder&&holder.id===p.id;
-    const col=mine?'#3d6b4a':(DUCHIES[C.duchy]?.color||'#555');
-    const stroke=mine?'#c8a24a':'#6a5836';
+    const isVassalOf=holder&&holder.liege===p.id;
+    const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':(DUCHIES[C.duchy]?.color||'#555');
+    const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':'#6a5836';
     const bids=C.baronies;
     const totalT=bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
     const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
     const rad=mine?22:18;
+    // 공성중 표시
+    const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
+    const siegedBy=underSiege?state.wars.find(w=>w.targetRid===cid):'';
     h+=`<g class="node" onclick="openCounty('${cid}')">
-      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${col}" stroke="${stroke}"/>
+      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${col}" stroke="${underSiege?'#c83030':stroke}"/>
+      ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
       ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
       <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
       <text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${holder?holder.name.split(' ')[0]:'—'}</text>
