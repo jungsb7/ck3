@@ -63,13 +63,14 @@ body{
 .chip.edu{border-color:var(--steel)} .chip.life{border-color:var(--violet)}
 #stats{display:flex; gap:14px; font-size:.8rem; margin-top:4px; color:var(--parch-dim)}
 #stats b{color:var(--parch); font-weight:normal}
-#stressBox{flex:1; padding:10px 16px;} /* 무중복 구조 배치 균형 확장 */
+#stressBox{flex:0 0 240px; padding:10px 16px; border-left:1px solid var(--line)}
 #stressBox .lbl{font-size:.7rem; letter-spacing:.2em; color:var(--parch-dim); display:flex; justify-content:space-between}
 #stressTrack{height:13px; background:#0c0906; border:1px solid var(--line); margin-top:6px; position:relative}
 #stressFill{height:100%; background:linear-gradient(90deg,#6e5a2c,#a03c34); width:0%}
 .smark{position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--gold-dim)}
 #stressLvl{font-size:.72rem; margin-top:5px; color:var(--parch-dim)}
-
+#btnCol{flex:0 0 auto; display:flex; flex-direction:column; border-left:1px solid var(--line)}
+#btnCol button{flex:1; min-width:96px}
 /* ===== 푸터 ===== */
 #ftr{
   flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:14px;
@@ -122,10 +123,13 @@ button:disabled{opacity:.35; cursor:default}
   #hdr .date small{ font-size:.47rem }
   #hdr .res{ font-size:.57rem; gap:10px }
   #hdr .res span b{ margin-right:2px }
+
   #main{ position:relative }
   #mapWrap{ flex:1; border-right:none }
   #map{ height:calc(100% - 33px) }
+
   #charBar{ flex-direction:column }
+
   #charTop{
     display:flex; flex-direction:row;
     border-bottom:1px solid var(--line);
@@ -137,6 +141,7 @@ button:disabled{opacity:.35; cursor:default}
   #stats{ gap:8px; font-size:.74rem }
   .chips{ gap:3px }
   .chip{ font-size:.63rem; padding:1px 5px }
+
   #charBot{
     display:flex; flex-direction:row;
     align-items:center; gap:0;
@@ -144,6 +149,14 @@ button:disabled{opacity:.35; cursor:default}
   #stressBox{
     flex:1; border-left:none;
     padding:7px 10px;
+  }
+  #btnCol{
+    flex:0 0 auto; flex-direction:row;
+    border-left:1px solid var(--line);
+  }
+  #btnCol button{
+    flex:0 0 auto; min-width:54px;
+    padding:6px 10px; font-size:.78rem;
   }
 }
 
@@ -172,7 +185,7 @@ button:disabled{opacity:.35; cursor:default}
   display:flex; align-items:center; justify-content:center;
   gap:0;
 }
-.panel-tab:hover{ color:#ecd27a; background:linear-gradient(#382a1a,#231a0e) }
+.panel-tab:hover{ color:var(--gold-bright,#ecd27a); background:linear-gradient(#382a1a,#231a0e) }
 
 #logTab   { top:200px; height:62px; }
 #courtTab { top:266px; height:52px; }
@@ -212,4 +225,5 @@ button:disabled{opacity:.35; cursor:default}
 @media (min-width:769px){
   .panel-tab{ display:flex }
   .side-panel{ width:360px }
+  #btnCol{ display:none }
 }
