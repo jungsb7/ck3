@@ -2338,6 +2338,15 @@ function renderAll(){ renderHeader(); renderChar(); renderMap(); }
 function intro(){
   popup({title:'에이레, 1066년', body:`당신은 무르하드 막 돈하드 — 먼스터의 소왕.\n일곱 왕국을 하나로 통일하십시오.`, opts:[{t:'시작', f:()=>{ askLifestyle(playerChar()); }}]});
 }
-setSpeed(1);
-renderAll();
-intro();
+// 브라우저가 HTML과 모든 요소를 확실히 로드한 뒤에 순서대로 실행하도록 감쌉니다.
+window.onload = function() {
+  setSpeed(1);
+  renderAll();
+  
+  // 최초 시작 로그 기록
+  log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니다.', 'good');
+  log('지도의 왕국을 클릭하면 외교를 할 수 있습니다.', 'dip');
+  
+  // 인트로 모달 팝업 실행
+  intro();
+};
