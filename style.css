@@ -130,6 +130,8 @@ button:disabled{opacity:.35; cursor:default}
   #mapWrap{ flex:1; border-right:none }
   #map{ height:calc(100% - 33px) }
 
+  /* 연대기: .side-panel 공통 클래스로 통합 */
+
   /* 캐릭터 바 — 2층 구조 */
   #charBar{ flex-direction:column }
 
