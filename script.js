@@ -4,6 +4,68 @@
    수치 출처: CK3 위키 (수태력 ×4.75, 교육 공식, 스트레스 단계 등)
 ===================================================================== */
 
+/* ─── 오디오 엔진 (Web Audio API, 외부 파일 불필요) ─── */
+let _audioCtx = null;
+function initAudio(){
+  if(_audioCtx) return;
+  try{ _audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+  catch(e){ _audioCtx = null; }
+}
+function playSynthSFX(type){
+  if(!_audioCtx){ initAudio(); if(!_audioCtx) return; }
+  if(_audioCtx.state==='suspended'){ _audioCtx.resume().then(()=>_doSynth(type)); return; }
+  _doSynth(type);
+}
+function _doSynth(type){
+  const ctx=_audioCtx, t=ctx.currentTime;
+  if(type==='event'){
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);
+    o.type='triangle';
+    o.frequency.setValueAtTime(880,t);
+    o.frequency.exponentialRampToValueAtTime(440,t+0.08);
+    g.gain.setValueAtTime(0.18,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+    o.start(t);o.stop(t+0.2);
+  } else if(type==='gold'){
+    [1318,1568,2093].forEach((freq,i)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      const s=t+i*0.045; o.type='sine';
+      o.frequency.setValueAtTime(freq,s);
+      g.gain.setValueAtTime(0,s);
+      g.gain.linearRampToValueAtTime(0.22,s+0.01);
+      g.gain.exponentialRampToValueAtTime(0.001,s+0.22);
+      o.start(s);o.stop(s+0.25);
+    });
+  } else if(type==='war'){
+    [1,2,3].forEach((h,i)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type=i===0?'sawtooth':'square';
+      o.frequency.setValueAtTime(110*h,t);
+      o.frequency.linearRampToValueAtTime(110*h*1.05,t+0.25);
+      o.frequency.linearRampToValueAtTime(110*h,t+0.7);
+      const v=i===0?0.28:0.09/h;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+0.05);
+      g.gain.setValueAtTime(v,t+0.55);g.gain.exponentialRampToValueAtTime(0.001,t+0.85);
+      o.start(t);o.stop(t+0.9);
+    });
+  } else if(type==='death'){
+    [[130,0,0.32],[110,0.85,0.25],[98,1.65,0.18]].forEach(([freq,delay,vol])=>{
+      [1,2.76].forEach(mult=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.type='sine';o.frequency.setValueAtTime(freq*mult,t+delay);
+        g.gain.setValueAtTime(0,t+delay);
+        g.gain.linearRampToValueAtTime(vol/mult,t+delay+0.01);
+        g.gain.exponentialRampToValueAtTime(0.001,t+delay+2.8);
+        o.start(t+delay);o.stop(t+delay+3.0);
+      });
+    });
+  }
+}
+
 /* ---------- 성격 특성 ---------- */
 const TRAITS = {
   brave:     {n:'용감',   opp:'craven',    mod:{mar:2,prow:3}, ai:{bold:2}},
@@ -227,6 +289,7 @@ function startBuilding(bid, btype){
   const seat=BARONIES[p.region]; if(!seat) return false;
   if(seat.gold<bp.cost){ log(`금이 부족합니다. (필요: ${bp.cost})`,'dip'); return false; }
   seat.gold-=bp.cost;
+  playSynthSFX('gold');
   b.buildings.push({type:btype, progress:0, done:false});
   log(`${b.n}에 ${bp.n} 건설을 시작했습니다. (${bp.time}개월 소요)`,'good');
   return true;
@@ -511,9 +574,19 @@ const state = {
   player:murchad.id,
   schemes:[], wars:[], truces:{}, npcAlliances:[], alliances:[],
   prestige:120,
-  successionLaw:'partition', // 'partition'|'primogeniture'|'elective'
+  successionLaw:'partition',
   council:{ chancellor:null, marshal:null, steward:null, spymaster:null, chaplain:null },
-  claims:[],  // {rid, type:'pressed'|'unpressed'|'revenge', obtained:year}
+  /* 보직별 현재 선택 태스크 (CK3 위키 기반) */
+  councilTasks:{
+    chancellor:'foreign_affairs',
+    marshal:'organize_army',
+    steward:'collect_taxes',
+    spymaster:'disrupt_schemes',
+    chaplain:'religious_relations',
+  },
+  /* 진행형 태스크 진행도 0~100 */
+  councilProgress:{ steward:0, chaplain:0 },
+  claims:[],
   popupQ:[], modalOpen:false,
   over:false, victory:false,
   introDone:false,
@@ -540,6 +613,7 @@ function flushPopups(){
 }
 function showModal(p){
   state.modalOpen=true;
+  playSynthSFX('event');
   const box=document.getElementById('modalBox');
   let h=`<h2>${p.title}</h2><div class="sub">${p.sub||'이벤트'}</div><div class="body">${p.body||''}</div>`;
   if(p.html) h+=p.html;
@@ -606,6 +680,7 @@ function stressDeath(c){
 function kill(c, cause){
   if(c.dead) return;
   c.dead=true;
+  if(c.ruler||c.id===state.player) playSynthSFX('death');
   // 배우자 해제
   if(c.spouse&&chars[c.spouse]){ chars[c.spouse].spouse=null; addStress(chars[c.spouse],40,'배우자의 죽음'); }
   // 자녀 스트레스
@@ -880,6 +955,7 @@ function togglePanel(id){
     if(k!==id) document.getElementById(PANELS[k].wrap).classList.remove('open');
   });
   if(opening){
+    playSynthSFX('event');
     if(info.render) window[info.render]();
     el.classList.add('open');
     if(id!=='log') pause();
@@ -1385,6 +1461,7 @@ function declareWar(atk,def,targetRid){
   chOp(def,atk,-40);
   log(`<b>${atk.name}</b>이(가) <b>${tCid?COUNTIES[tCid]?.n:BARONIES[tRid]?.n||tRid}</b>을(를) 목표로 선전포고했습니다!`,'war');
   if(atk.id===state.player){
+    playSynthSFX('war');
     if(atk.traits.includes('calm')) addStress(atk,15,'침착한 자의 개전');
     if(atk.traits.includes('content')) addStress(atk,15,'만족하는 자의 개전');
   }
@@ -1698,24 +1775,26 @@ function npcCouncilPulse(){
       const cid=r.council[role];
       if(cid&&(!chars[cid]||chars[cid].dead)) r.council[role]=null;
     }
-    // 재상: 명분 위조 (월 6% 확률)
-    if(r.council.chancellor && Math.random()<0.06){
-      const cid = r.council.chancellor;
-      const chan = chars[cid];
-      if(!chan||chan.dead){ r.council.chancellor=null; }
-      // 자신이 관직자인 경우 스킬 60% 적용
-      const sk = (cid===r.id) ? Math.round(stat(r,'dip')*0.6) : (chan?stat(chan,'dip'):4);
-      // NPC 재상: 인접 백작령에 명분 위조
-      const adjCids = COUNTY_ADJ[countyOf(r.region)]||[];
-      const targets = adjCids.filter(cid=>{
-        const holder=countyHolder(cid);
-        return holder && holder.id!==r.id && !r.claims.find(c=>c.rid===cid);
-      });
-      if(targets.length && Math.random() < 0.3+sk*0.04){
-        const cid = targets[Math.floor(Math.random()*targets.length)];
-        r.claims.push({rid:cid, type:'unpressed', obtained:state.year});
-        if(countyHolder(cid)?.id===state.player)
-          log(`${r.name}의 재상이 <b>${COUNTIES[cid].n}</b>에 대한 명분을 위조했습니다!`,'war');
+
+    // 사제: 명분 위조 (월 5% 확률 — CK3: Chaplain Fabricate Claim)
+    if(r.council.chaplain && Math.random()<0.05){
+      const cid = r.council.chaplain;
+      const chap = chars[cid];
+      if(!chap||chap.dead){ r.council.chaplain=null; }
+      else {
+        const sk = (cid===r.id) ? Math.round(stat(r,'learn')*0.6) : stat(chap,'learn');
+        // 진행 속도 3+sk/5%/월 기준 확률화
+        const adjCids = COUNTY_ADJ[countyOf(r.region)]||[];
+        const targets = adjCids.filter(tcid=>{
+          const holder=countyHolder(tcid);
+          return holder && holder.id!==r.id && !r.claims.find(c=>c.rid===tcid);
+        });
+        if(targets.length && Math.random() < (3+sk/5)/100 * 3){
+          const tcid = targets[Math.floor(Math.random()*targets.length)];
+          r.claims.push({rid:tcid, type:'unpressed', obtained:state.year});
+          if(countyHolder(tcid)?.id===state.player)
+            log(`${r.name}의 사제가 <b>${COUNTIES[tcid].n}</b>에 대한 교회법 명분을 확보했습니다!`,'war');
+        }
       }
     }
 
@@ -2777,63 +2856,202 @@ function openCounty(cid){
   }
   openRegion(COUNTIES[cid]?.capital, cid);
 }
+/* ═══════════════════════════════════════════════
+   내 백작령 상세 — 소속 남작령 목록 + 건물 건설
+   지도에서 내 영지 클릭 시 호출
+   ═══════════════════════════════════════════════ */
+function openMyCounty(cid, dispName){
+  const p=playerChar(); if(!p) return;
+  const cnt=COUNTIES[cid];
+  const bids=cnt?cnt.baronies:[p.region];
+  const totalTroops=bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
+  const seatGold=Math.round(BARONIES[p.region]?.gold||0);
+  const duchy=cnt?DUCHIES[cnt.duchy]?.n||'':'';
+  const opts=[];
+  for(const bid of bids){
+    const b=BARONIES[bid]; if(!b) continue;
+    const done=(b.buildings||[]).filter(x=>x.done);
+    const inProg=(b.buildings||[]).find(x=>!x.done);
+    const slotsUsed=done.length+(inProg?1:0);
+    const canBuild=slotsUsed<BUILDING_SLOTS&&!inProg;
+    const doneNames=done.length?done.map(x=>`${BUILDINGS[x.type]?.icon||''}${BUILDINGS[x.type]?.n||x.type}`).join(' '):'없음';
+    const wipText=inProg?` | ⏳${BUILDINGS[inProg.type]?.n||''} 건설중`:'';
+    if(canBuild){
+      opts.push({t:`🔨 ${b.n} — 건설하기`,
+        d:`슬롯 ${slotsUsed}/${BUILDING_SLOTS} · 완공: ${doneNames}${wipText}`,
+        f:()=>openBuildMenu(bid)});
+    } else {
+      opts.push({t:`${b.n}`,
+        d:`슬롯 ${slotsUsed}/${BUILDING_SLOTS} · 완공: ${doneNames}${wipText}${slotsUsed>=BUILDING_SLOTS?' · 슬롯 가득':''}`,
+        f:()=>{}});
+    }
+  }
+  opts.push({t:'닫기'});
+  showModal({
+    title:cnt?.n||dispName,
+    sub:`${duchy}${duchy?' · ':''}남작령 ${bids.length}개`,
+    body:'',
+    html:`<div class="kv"><span>총 병력</span><span>${totalTroops}</span></div>
+          <div class="kv"><span>금고</span><span>${seatGold}</span></div>
+          <div style="margin:10px 0 4px;font-size:.72rem;letter-spacing:.2em;color:var(--gold-dim)">남작령 건물</div>`,
+    opts
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   프로필 모달 — portrait 클릭 시 CK3 스타일 창
+   ═══════════════════════════════════════════════ */
+function skillGrade(v){
+  if(v<=4)  return ['최하','#d08a82'];
+  if(v<=8)  return ['하',  '#b89060'];
+  if(v<=12) return ['중',  '#a89878'];
+  if(v<=16) return ['상',  '#8fbf8f'];
+  return              ['최상','#6adf9a'];
+}
+function skillColor(k){
+  return {dip:'#5a8aaa',mar:'#aa5a5a',stew:'#8aaa5a',intr:'#8a5aaa',learn:'#aa9a5a',prow:'#c87a3a'}[k]||'#8a8a8a';
+}
+
+function buildProfileHTML(c){
+  const p=playerChar();
+  const isPlayer=c.id===p.id;
+  const charAge=age(c);
+  const ttl=(isPlayer&&state.kingdomFormed)?'아일랜드 왕'
+    :`${COUNTIES[countyOf(c.region)]?.n||BARONIES[c.region]?.n||''} ${c.ruler?'소왕':'궁정인'}`;
+
+  /* A. 기본정보 */
+  const stressLv=stressLvl(c);
+  const stressColor=['var(--parch-dim)','#c8a24a','#c87a4a','#d05a4a'][stressLv];
+  const warNow=state.wars.filter(w=>w.atk===c.id||w.def===c.id);
+  const allyList=state.alliances
+    .filter(k=>k.includes(c.id))
+    .map(k=>{ const oid=k.replace(c.id,'').replace('|',''); return chars[oid]?.name||''; })
+    .filter(Boolean);
+  const secA=`
+    <div class="pm-sec-title">인물</div>
+    <div class="pm-kv"><span>가문</span><span>${c.dyn||'—'}</span></div>
+    <div class="pm-kv"><span>나이</span><span>${charAge}세 (${c.byear}년생)</span></div>
+    <div class="pm-kv"><span>성별</span><span>${c.sex==='m'?'남':'여'}</span></div>
+    <div class="pm-kv"><span>칭호</span><span>${ttl}</span></div>
+    ${isPlayer?`<div class="pm-kv"><span>위신</span><span style="color:var(--gold)">${state.prestige}</span></div>`:''}
+    ${isPlayer?`<div class="pm-kv"><span>상속법</span><span>{{SUCCESSION}}</span></div>`.replace('{{SUCCESSION}}',{partition:'분할상속',primogeniture:'장자상속',elective:'선출제'}[state.successionLaw]):''}
+    <div class="pm-kv" style="margin-top:6px"><span>스트레스</span><span style="color:${stressColor}">${c.stress}/150 (${['평온','불안','위험','임계'][stressLv]})</span></div>
+    <div style="height:6px;background:#0c0906;border:1px solid #2a2014;border-radius:2px;overflow:hidden;margin:4px 0 8px">
+      <div style="width:${Math.min(100,c.stress/1.5)}%;height:100%;background:linear-gradient(90deg,#6e5a2c,${stressColor});border-radius:2px"></div>
+    </div>
+    ${warNow.length?`<div class="pm-kv"><span>전쟁</span><span style="color:#d05a4a">⚔ ${warNow.length}건 진행 중</span></div>`:''}
+    ${allyList.length?`<div class="pm-kv"><span>동맹</span><span>${allyList.join(', ')}</span></div>`:''}
+    ${c.spouse&&chars[c.spouse]?`<div class="pm-kv"><span>배우자</span><span>${chars[c.spouse].name}</span></div>`:''}`;
+
+  /* B. 스킬 + 특성 */
+  const SKILL_FULL={dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문',prow:'용맹'};
+  let skillsHtml='';
+  for(const [k,n] of Object.entries(SKILL_FULL)){
+    const v=stat(c,k), pct=Math.min(100,v/20*100);
+    const [grade,gColor]=skillGrade(v);
+    skillsHtml+=`<div class="skill-row">
+      <span class="skill-name">${n.slice(0,2)}</span>
+      <div class="skill-bar-wrap"><div class="skill-bar-fill" style="width:${pct}%;background:${skillColor(k)}"></div></div>
+      <span class="skill-val">${v}</span>
+      <span class="skill-grade" style="color:${gColor}">${grade}</span>
+    </div>`;
+  }
+  const traitChips=c.traits.map(t=>{
+    const tn=TRAITS[t]?.n||t;
+    const neg=['craven','wrathful','lazy','greedy','deceitful','arbitrary','cruel','impatient','gluttonous','shy','vengeful','lustful'].includes(t);
+    return `<span class="pm-chip${neg?' neg':''}">${tn}</span>`;
+  }).join('');
+  const eduChip=c.edu!==null?`<span class="pm-chip edu">${EDU_NAMES[c.eduFocus]?.[c.edu]||''}</span>`:'';
+  const lifeChip=c.lifestyle?`<span class="pm-chip life">${SKILLS[c.lifestyle]}의 길 · ${c.lifeXP}xp</span>`:'';
+  const secB=`
+    <div class="pm-sec-title">능력</div>
+    ${skillsHtml}
+    <div style="margin-top:10px;font-size:.68rem;color:var(--gold-dim);letter-spacing:.15em;margin-bottom:5px">특성</div>
+    <div>${traitChips||'<span style="color:var(--parch-dim);font-size:.75rem">없음</span>'}</div>
+    <div style="margin-top:6px">${eduChip}${lifeChip}</div>`;
+
+  /* C. 가족·영지·자문회 */
+  const kids=Object.values(chars).filter(k=>!k.dead&&(k.father===c.id||k.mother===c.id));
+  const kidsHtml=kids.length
+    ?kids.map(k=>`<div class="pm-kv"><span>${k.sex==='m'?'아들':'딸'} ${k.name}</span><span>${age(k)}세</span></div>`).join('')
+    :'<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>';
+  const myCounties=directCountiesOf(c.id);
+  const countiesHtml=myCounties.length
+    ?myCounties.map(cid2=>{
+        const totalT=COUNTIES[cid2]?.baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0)||0;
+        return `<div class="pm-kv"><span>${COUNTIES[cid2]?.n||cid2}</span><span>⚔${totalT}</span></div>`;
+      }).join('')
+    :'<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>';
+  const vassals=vassalsOf(c.id);
+  const claimsHtml=isPlayer&&state.claims.length
+    ?state.claims.map(cl=>{
+        const cb=CB_TYPES[cl.type];
+        return `<div class="pm-kv"><span>${cb.icon} ${claimName(cl.rid)}</span><span style="color:${cb.color}">${cb.n}</span></div>`;
+      }).join(''):'';
+  const councilSrc=isPlayer?state.council:c.council;
+  const councilHtml=Object.entries(COUNCIL_ROLES).map(([role,info])=>{
+    const cid2=councilSrc[role];
+    const name=cid2&&chars[cid2]&&!chars[cid2].dead?chars[cid2].name.split(' ')[0]:'공석';
+    const color=cid2&&chars[cid2]&&!chars[cid2].dead?'var(--parch)':'var(--parch-dim)';
+    return `<div class="pm-kv"><span>${info.icon} ${info.n}</span><span style="color:${color}">${name}</span></div>`;
+  }).join('');
+  const secC=`
+    <div class="pm-sec-title">자녀</div>${kidsHtml}
+    <div class="pm-sec-title" style="margin-top:12px">직할 백작령</div>${countiesHtml}
+    ${vassals.length?`<div class="pm-kv" style="margin-top:4px"><span>봉신</span><span>${vassals.length}명</span></div>`:''}
+    ${claimsHtml?`<div class="pm-sec-title" style="margin-top:12px">보유 명분</div>${claimsHtml}`:''}
+    <div class="pm-sec-title" style="margin-top:12px">자문회</div>${councilHtml}`;
+
+  return `
+    <div class="pm-header">
+      <div class="pm-portrait">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 86 108" width="86" height="108">
+          <rect width="86" height="108" fill="#1e1508"/>
+          <text x="43" y="68" text-anchor="middle" font-size="38" fill="#c8a24a"
+            font-family="Georgia,serif">${c.name[0]}</text>
+        </svg>
+      </div>
+      <div class="pm-title">
+        <h2>${c.name}</h2>
+        <div class="pm-sub">${ttl} · ${c.dyn} 가문 · ${charAge}세</div>
+      </div>
+      <button class="pm-close" onclick="closeProfile()">✕</button>
+    </div>
+    <div class="pm-body">
+      <div class="pm-section">${secA}</div>
+      <div class="pm-section">${secB}</div>
+      <div class="pm-section">${secC}</div>
+    </div>`;
+}
+
+function openProfile(c){
+  if(!c) c=playerChar();
+  const shade=document.getElementById('profileShade');
+  const modal=document.getElementById('profileModal');
+  if(!shade||!modal) return;
+  modal.innerHTML=buildProfileHTML(c);
+  shade.classList.add('show');
+  if(!state.paused){ state._profileAutoResume=true; pause(); }
+}
+function closeProfile(){
+  const shade=document.getElementById('profileShade');
+  if(shade) shade.classList.remove('show');
+  if(state._profileAutoResume){ state._profileAutoResume=false; resume(); }
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const shade=document.getElementById('profileShade');
+  if(shade) shade.addEventListener('click',e=>{ if(e.target===shade) closeProfile(); });
+});
+
 function openRegion(rid, cid_hint){
   const p=playerChar(); if(!p) return;
-  // 이름 결정: 백작령 > 남작령 순
   const dispName=(cid_hint&&COUNTIES[cid_hint]?.n)||BARONIES[rid]?.n||'영지';
   const c=ownerOf(rid);
   if(!c) return;
 
-  // ── 내 영토 클릭: 백작령 상세 + 소속 남작령 건물 건설
+  // ── 내 영토 클릭: 백작령 상세 + 남작령 건물 건설
   if(c.id===p.id){
-    const cid = cid_hint||countyOf(rid);
-    const cnt = COUNTIES[cid];
-    const bids = cnt ? cnt.baronies : [rid];
-    const totalTroops = bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0), 0);
-    const seatGold = Math.round(BARONIES[p.region]?.gold||0);
-
-    // 남작령별 선택지 생성
-    const opts = [];
-    for(const bid of bids){
-      const b = BARONIES[bid]; if(!b) continue;
-      const done = (b.buildings||[]).filter(x=>x.done);
-      const inProg = (b.buildings||[]).find(x=>!x.done);
-      const slotsUsed = done.length + (inProg ? 1 : 0);
-      const canBuild = slotsUsed < BUILDING_SLOTS && !inProg;
-
-      const doneNames = done.length
-        ? done.map(x=>`${BUILDINGS[x.type]?.icon||''}${BUILDINGS[x.type]?.n||x.type}`).join(' ')
-        : '없음';
-      const wipText = inProg
-        ? ` | ⏳${BUILDINGS[inProg.type]?.n||''} 건설중`
-        : '';
-      const slotText = `슬롯 ${slotsUsed}/${BUILDING_SLOTS}`;
-
-      if(canBuild){
-        opts.push({
-          t:`🔨 ${b.n} — 건설하기`,
-          d:`${slotText} · 완공: ${doneNames}${wipText}`,
-          f:()=>openBuildMenu(bid)
-        });
-      } else {
-        opts.push({
-          t:`${b.n}`,
-          d:`${slotText} · 완공: ${doneNames}${wipText}${slotsUsed>=BUILDING_SLOTS?' · 슬롯 가득 참':''}`,
-          f:()=>{}
-        });
-      }
-    }
-    opts.push({t:'닫기'});
-
-    showModal({
-      title: cnt?.n||dispName,
-      sub: `${DUCHIES[cnt?.duchy]?.n||''}${DUCHIES[cnt?.duchy]?' · ':''}남작령 ${bids.length}개`,
-      body:'',
-      html:`<div class="kv"><span>총 병력</span><span>${totalTroops}</span></div>
-            <div class="kv"><span>금고</span><span>${seatGold}</span></div>
-            <div style="margin:10px 0 4px;font-size:.72rem;letter-spacing:.2em;color:var(--gold-dim)">남작령 건물</div>`,
-      opts
-    });
+    openMyCounty(cid_hint||countyOf(rid), dispName);
     return;
   }
 
@@ -2861,6 +3079,7 @@ function openRegion(rid, cid_hint){
   if(!atWar){
     opts.push({t:'선물 보내기', d:'금 50 — 관계 +15', f:()=>{
       const seatB=BARONIES[p.region]; if(!seatB||seatB.gold<50){log('금이 부족합니다.');return;}
+      playSynthSFX('gold');
       seatB.gold-=50; chOp(c,p,15);
       log(`<b>${c.name}</b>에게 선물을 보냈습니다.`,'dip');
       if(p.traits.includes('greedy'))addStress(p,10,'탐욕스러운 자의 선물');
@@ -3042,7 +3261,7 @@ function openDeclareWar(defId){
       body:`${def.name}에 대한 명분이 없습니다.
 
 명분을 얻는 방법:
-• 재상에게 명분 위조를 맡긴다
+• 사제에게 교회법 명분 위조를 맡긴다
 • 침략을 받아 복수 명분을 얻는다
 • 전쟁 후 백색 강화로 미확정 주장을 얻는다`,
       opts:[{t:'닫기'}]}); return;
@@ -3093,45 +3312,77 @@ function openDeclareWar(defId){
     body:'', html, opts});
 }
 
-/* 재상 명분 위조 임무 처리 */
-function chancellorFabricateClaim(sk){
-  const p = playerChar(); if(!p||!REGIONS[p.region]) return;
-  // 인접 영지 중 명분이 없는 곳 탐색
-  const adj = ADJ[p.region] || [];
-  const targets = adj.filter(rid=>{
-    const o=ownerOf(rid);
-    return o && o.id!==p.id && !hasClaim(rid);
-  });
-  if(!targets.length) return;
-  const rid = targets[Math.floor(Math.random()*targets.length)];
-  const successChance = 0.3 + sk * 0.05; // 스킬 10이면 80%
-  if(Math.random() < successChance){
-    addClaim(rid, 'unpressed');
-    popup({title:'명분 위조 성공', sub:'재상의 보고',
-      body:`재상이 고문서를 뒤져 ${claimName(rid)}에 대한 역사적 주장을 찾아냈습니다.
-「고문서에 선대 왕의 인장이 찍혀 있습니다, 전하.」`,
-      opts:[{t:'잘 했다'}]});
-  } else {
-    // 실패 시 상대에게 알려짐
-    const o=ownerOf(rid);
-    if(o) chOp(o,p,-20);
-    popup({title:'명분 위조 실패', sub:'재상의 보고',
-      body:`${claimName(rid)}에 대한 명분을 위조하려다 발각됐습니다.
-${o?o.name+'이(가)':''} 크게 분노합니다.`,
-      opts:[{t:'어쩔 수 없다', f:()=>addStress(p,10,'위조 발각')}]});
-  }
-}
 
+/* ═══════════════════════════════════════════════════════════
+   자문회 시스템 — CK3 위키(1.19) 태스크 정확 반영
+   출처: https://ck3.paradoxwikis.com/Council
+
+   Chancellor : Foreign Affairs / Domestic Affairs / Bestow Royal Favor
+   Marshal    : Organize Army / Train Commanders / Increase Control
+   Steward    : Collect Taxes / Increase Development / Promote Culture
+   Spymaster  : Disrupt Schemes / Support Schemes / Find Secrets
+   Chaplain   : Religious Relations / Fabricate Claim / Convert Faith
+   ═══════════════════════════════════════════════════════════ */
 const COUNCIL_ROLES = {
-  chancellor: { n:'재상',     skill:'dip',   icon:'⚖', desc:'외교와 봉신 관리' },
-  marshal:    { n:'원수',     skill:'mar',   icon:'⚔', desc:'군사 훈련과 병력 강화' },
-  steward:    { n:'재무관',   skill:'stew',  icon:'💰', desc:'세금 징수와 영지 개발' },
-  spymaster:  { n:'첩보관',   skill:'intr',  icon:'🗡', desc:'모략 방어와 비밀 탐색' },
-  chaplain:   { n:'사제',     skill:'learn', icon:'✝', desc:'민심 안정 · 교회법 명분 조작' },
+  chancellor:{
+    n:'재상', skill:'dip', icon:'⚖',
+    desc:'외교·봉신 관리',
+    tasks:{
+      foreign_affairs:  { n:'외교 담당',    desc:'위신 +0.05/스킬/월 · 독립군주 호감 +0.5/스킬/월' },
+      domestic_affairs: { n:'내정 담당',    desc:'봉신 호감 +0.5/스킬/월 · 폭정 감소 +1%/스킬' },
+      bestow_favor:     { n:'왕실 은총',    desc:'봉신 위신 +0.5/월 · 봉신 호감 +0.5/스킬/월' },
+    },
+  },
+  marshal:{
+    n:'원수', skill:'mar', icon:'⚔',
+    desc:'군사 훈련·병력 강화',
+    tasks:{
+      organize_army:    { n:'군대 조직',    desc:'유지비 -1%/스킬 · 레비 보충 +2%/스킬 · 수비대 +2%/스킬' },
+      train_commanders: { n:'지휘관 훈련',  desc:'기사 효율 +1%/스킬/월 · 병사 공격력·방어력 +1%/스킬/월' },
+      increase_control: { n:'영지 통제',    desc:'부패 제거 +0.2%/스킬/월 · 영지 통제 저하 방지' },
+    },
+  },
+  steward:{
+    n:'재무관', skill:'stew', icon:'💰',
+    desc:'세금 징수·영지 개발',
+    tasks:{
+      collect_taxes:       { n:'세금 징수',  desc:'직할 세금 +0.5%/스킬/월' },
+      increase_development:{ n:'영지 개발',  desc:'건설시간 -1.25%/스킬 · 개발도 +0.175/스킬/월', progressive:true },
+      promote_culture:     { n:'문화 진흥',  desc:'진행 0.25+스킬÷20%/월 → 100% 시 문화 전환', progressive:true },
+    },
+  },
+  spymaster:{
+    n:'첩보관', skill:'intr', icon:'🗡',
+    desc:'모략 방어·비밀 탐색',
+    tasks:{
+      disrupt_schemes: { n:'모략 방해',   desc:'적 모략 지속 +5일+0.5일/스킬 · 발각률 +1%/스킬' },
+      support_schemes: { n:'공작 지원',   desc:'아군 모략 단축 -1일/스킬 · 성공률 +5%+0.5%/스킬' },
+      find_secrets:    { n:'비밀 탐문',   desc:'궁정 비밀 발견 확률 +5%/스킬' },
+    },
+  },
+  chaplain:{
+    n:'사제', skill:'learn', icon:'✝',
+    desc:'경건·민심·신앙 개종·명분 위조',
+    tasks:{
+      religious_relations:{ n:'종교 관계',       desc:'경건 +0.05/스킬/월 · 동일신앙 군주 호감 +0.5/스킬/월' },
+      fabricate_claim:    { n:'교회법 명분 위조', desc:'진행 3+스킬÷5%/월 → 100% 시 미행사 명분 획득', progressive:true },
+      convert_faith:      { n:'신앙 개종',        desc:'진행 0.5+스킬÷10%/월 → 100% 시 지역 신앙 전환', progressive:true },
+    },
+  },
 };
 
-/* 자문회 임명/해임 */
-/* 매달 자문회 효과 적용 + 이벤트 발화 */
+/* 태스크 변경 — 진행형이면 진행도 리셋 */
+function setCouncilTask(role, taskKey){
+  const prev = state.councilTasks[role];
+  if(prev !== taskKey){
+    if(state.councilProgress[role] !== undefined) state.councilProgress[role] = 0;
+    log(`${COUNCIL_ROLES[role].n}의 임무가 [${COUNCIL_ROLES[role].tasks[taskKey].n}](으)로 변경됩니다.`, 'dip');
+  }
+  state.councilTasks[role] = taskKey;
+  renderCourt();
+}
+
+/* ── councilPulse — 매달 호출 ── */
 function councilPulse(){
   const p = playerChar(); if(!p||!REGIONS[p.region]) return;
   const reg = REGIONS[p.region];
@@ -3142,112 +3393,266 @@ function councilPulse(){
     const c = chars[cid];
     if(!c || c.dead){ state.council[role]=null; continue; }
 
-    const sk = stat(c, COUNCIL_ROLES[role].skill); // 0~15
-    const positive = Math.random() < (0.4 + sk*0.03); // 스킬 높을수록 긍정 확률 ↑
+    const sk = stat(c, COUNCIL_ROLES[role].skill);
+    const task = state.councilTasks[role] || Object.keys(COUNCIL_ROLES[role].tasks)[0];
+    const fireEvent = Math.random() < 0.08;
+    const positive  = Math.random() < (0.4 + sk * 0.03);
+    const canPos    = sk > 8;
+    const canNeg    = sk < 15;
 
-    // ── 재상: 외교 강화
-    if(role==='chancellor'){
-      state.prestige += Math.round(sk * 0.4);
-      // 연간 이벤트 (매월 8% 확률)
-      if(Math.random()<0.08){
-        if(positive){
-          const rnd=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id);
-          if(rnd){ chOp(rnd,p, Math.round(sk*0.8));
-            popup({title:'재상의 외교', sub:`${c.name}의 보고`,
-              body:`${c.name}이(가) 인접 왕국과의 관계를 개선했습니다.
-「${REGIONS[rnd.region]?.n||'인근'}과의 신뢰가 쌓이고 있습니다, 전하.」`,
-              opts:[{t:'잘 했다', f:()=>{chOp(c,p,5);}}]});
+    /* ── 재상 ── */
+    if(role === 'chancellor'){
+      if(task === 'foreign_affairs'){
+        state.prestige += parseFloat((sk * 0.05).toFixed(2));
+        if(fireEvent){
+          const rnd = Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id);
+          if(positive && canPos && rnd){
+            chOp(rnd, p, Math.round(sk * 0.5));
+            popup({title:'재상의 외교 성과', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) 인접 왕국과의 관계를 개선했습니다.\n「${REGIONS[rnd.region]?.n||'인근'}과의 신뢰가 쌓이고 있습니다, 전하.」`,
+              opts:[{t:'수고했다', f:()=>chOp(c,p,5)}]});
+          } else if(canNeg){
+            state.prestige = Math.max(0, state.prestige - 10);
+            popup({title:'재상의 외교 실언', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) 외교 교섭에서 실언을 저질렀습니다.\n위신 -10`,
+              opts:[{t:'질책한다', f:()=>{chOp(c,p,-10); addStress(p,5,'재상의 실책');}}]});
           }
-        } else {
-          state.prestige=Math.max(0,state.prestige-10);
-          popup({title:'재상의 실수', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 외교 교섭에서 실언을 저질렀습니다. 인근 왕국이 불쾌해합니다.`,
-            opts:[{t:'질책한다', f:()=>{chOp(c,p,-10); addStress(p,5,'재상의 실책');}}]});
+        }
+      } else if(task === 'domestic_affairs'){
+        for(const v of vassalsOf(p.id)){
+          v.op[p.id] = Math.min(100, (v.op[p.id]||0) + Math.min(0.2, sk*0.5/100));
+        }
+        if(fireEvent && positive && canPos){
+          const v = vassalsOf(p.id)[0];
+          if(v){ chOp(v, p, Math.round(sk*0.3));
+            popup({title:'봉신 화합', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) ${v.name}과의 갈등을 중재했습니다.`,
+              opts:[{t:'잘 됐다', f:()=>chOp(c,p,5)}]}); }
+        } else if(fireEvent && canNeg){
+          const v = vassalsOf(p.id)[0];
+          if(v){ chOp(v,p,-Math.round(sk*0.2));
+            popup({title:'봉신 불만', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) 봉신 관리에 실패해 불만이 커지고 있습니다.`,
+              opts:[{t:'직접 나선다', f:()=>{chOp(v,p,5); addStress(p,5,'봉신 관리의 부담');}}]}); }
+        }
+      } else if(task === 'bestow_favor'){
+        state.prestige += parseFloat((sk * 0.02).toFixed(2));
+        for(const v of vassalsOf(p.id)){
+          v.op[p.id] = Math.min(100, (v.op[p.id]||0) + Math.min(0.2, sk*0.5/100));
+        }
+        if(fireEvent && positive && canPos){
+          const v = vassalsOf(p.id)[Math.floor(Math.random()*Math.max(1,vassalsOf(p.id).length))];
+          if(v){ const gain=Math.round(sk*0.5); chOp(v,p,gain);
+            popup({title:'왕실 은총 효과', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) ${v.name}에게 왕실의 총애를 전달했습니다.\n호감 +${gain}`,
+              opts:[{t:'좋은 일이다', f:()=>chOp(c,p,5)}]}); }
         }
       }
     }
 
-    // ── 원수: 병력 훈련
-    if(role==='marshal'){
-      reg.troops = Math.min(reg.cap, reg.troops + Math.round(sk*1.5));
-      if(Math.random()<0.08){
-        if(positive){
-          popup({title:'원수의 훈련 보고', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 병사들의 훈련 성과를 보고합니다.
-「병사들의 눈빛이 달라졌습니다, 전하. 전투 준비가 갖춰졌습니다.」`,
-            opts:[{t:'격려한다', f:()=>{reg.troops+=50; chOp(c,p,5); log('병력이 강화됐습니다.','war');}}]});
-        } else {
-          reg.troops = Math.max(100, reg.troops - 80);
-          popup({title:'훈련 중 사고', sub:`${c.name}의 보고`,
-            body:`${c.name}의 강훈련 중 부상자가 나왔습니다. 병력 일부가 전력에서 이탈했습니다.`,
-            opts:[{t:'어쩔 수 없다', f:()=>{addStress(p,5,'병사 손실');}}]});
-        }
-      }
-    }
-
-    // ── 재무관: 세금 증가
-    if(role==='steward'){
-      reg.gold += Math.round(sk * 1.2);
-      if(Math.random()<0.08){
-        if(positive){
-          const bonus = 30 + sk*4;
-          popup({title:'재무관의 보고', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 효율적인 세금 징수로 추가 수입을 올렸습니다.
-「창고가 가득 찼습니다, 전하.」`,
-            opts:[{t:'수고했다', f:()=>{reg.gold+=bonus; chOp(c,p,5); log(`재무관이 금 ${bonus}을 추가로 확보했습니다.`,'good');}}]});
-        } else {
-          reg.gold = Math.max(0, reg.gold-40);
-          reg.pop = Math.max(0, (reg.pop||60)-5);
-          popup({title:'세금 마찰', sub:`${c.name}의 보고`,
-            body:`${c.name}의 세금 징수 방식에 백성들이 반발합니다. 민심이 흔들리고 있습니다.`,
-            opts:[{t:'징수 방식을 완화한다', f:()=>{reg.gold-=20; reg.pop=Math.min(100,(reg.pop||60)+8); chOp(c,p,-5);}}]});
-        }
-      }
-    }
-
-    // ── 첩보관: 모략 방어 + 탐색
-    if(role==='spymaster'){
-      // 적 모략 방어 (scheme 성공률 저하)
-      state.schemes.forEach(s=>{ if(s.target===p.id) s.defBonus=(s.defBonus||0)+sk*2; });
-      if(Math.random()<0.08){
-        if(positive){
-          const enemy=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id&&state.schemes.some(s=>s.plotter===k.id&&s.target===p.id));
-          if(enemy){
-            state.schemes=state.schemes.filter(s=>!(s.plotter===enemy.id&&s.target===p.id));
-            popup({title:'첩보관의 성과', sub:`${c.name}의 보고`,
-              body:`${c.name}이(가) ${enemy.name}의 모략을 사전에 분쇄했습니다.
-「그림자 속의 칼을 찾아냈습니다, 전하.」`,
-              opts:[{t:'잘 했다', f:()=>{chOp(c,p,10); addStress(p,-5,'위기 모면');}}]});
-          } else {
-            state.prestige+=8;
-            log(`${c.name}이(가) 유용한 정보를 수집했습니다.`,'dip');
+    /* ── 원수 ── */
+    else if(role === 'marshal'){
+      if(task === 'organize_army'){
+        reg.troops = Math.min(reg.cap, reg.troops + Math.round(sk * 0.6));
+        if(fireEvent){
+          if(positive && canPos){
+            const extra = Math.round(sk * 3);
+            popup({title:'군대 조직 성과', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) 병력 재편성에 성공했습니다.\n「부대 기강이 잡혔습니다, 전하.」\n병력 +${extra}`,
+              opts:[{t:'격려한다', f:()=>{reg.troops=Math.min(reg.cap,reg.troops+extra); chOp(c,p,5); log(`병력 +${extra}.`,'war');}}]});
+          } else if(canNeg){
+            const loss = Math.round((15-sk)*4);
+            reg.troops = Math.max(100, reg.troops - loss);
+            popup({title:'훈련 중 사고', sub:`${c.name}의 보고`,
+              body:`강훈련 중 부상자가 속출했습니다.\n병력 -${loss}`,
+              opts:[{t:'어쩔 수 없다', f:()=>addStress(p,5,'병사 손실')}]});
           }
-        } else {
-          popup({title:'첩보 유출', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 관리하던 밀정 중 하나가 이중 스파이였습니다. 기밀이 유출됐을 수 있습니다.`,
-            opts:[{t:'엄중히 처리한다', f:()=>{addStress(p,10,'배신의 충격'); chOp(c,p,-15);}}]});
+        }
+      } else if(task === 'train_commanders'){
+        reg.troops = Math.min(reg.cap, reg.troops + Math.round(sk * 0.4));
+        if(fireEvent && positive && canPos){
+          popup({title:'지휘관 성장', sub:`${c.name}의 보고`,
+            body:`${c.name}이(가) 유망한 지휘관을 키워냈습니다.\n「새 전사가 전하의 군기 아래 섰습니다.」`,
+            opts:[{t:'훌륭하다', f:()=>{chOp(c,p,8); reg.troops=Math.min(reg.cap,reg.troops+30);}}]});
+        } else if(fireEvent && canNeg){
+          popup({title:'지휘관 부상', sub:`${c.name}의 보고`,
+            body:`훈련 중 유망한 지휘관이 부상을 입었습니다.`,
+            opts:[{t:'위로한다', f:()=>addStress(p,3,'인재 손실')}]});
+        }
+      } else if(task === 'increase_control'){
+        reg.pop = Math.min(100, (reg.pop||60) + sk*0.002);
+        if(fireEvent && positive && canPos){
+          popup({title:'영지 안정화', sub:`${c.name}의 보고`,
+            body:`${c.name}이(가) 직할령의 질서를 회복했습니다.\n민심 +8`,
+            opts:[{t:'수고했다', f:()=>{reg.pop=Math.min(100,(reg.pop||60)+8); chOp(c,p,5);}}]});
+        } else if(fireEvent && canNeg){
+          popup({title:'영지 마찰', sub:`${c.name}의 보고`,
+            body:`강압적 통제로 백성들의 반감을 샀습니다.`,
+            opts:[{t:'방식을 바꾸게 한다', f:()=>{reg.pop=Math.max(0,(reg.pop||60)-5); chOp(c,p,-5);}}]});
         }
       }
     }
 
-    // ── 사제: 민심 + 위신
-    if(role==='chaplain'){
-      reg.pop = Math.min(100, (reg.pop||60) + Math.round(sk*0.15));
-      state.prestige += Math.round(sk * 0.3);
-      if(Math.random()<0.08){
-        if(positive){
-          popup({title:'사제의 설교', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 민심을 달래는 설교를 이어가고 있습니다.
-「백성들이 전하의 이름으로 기도합니다.」`,
-            opts:[{t:'좋은 일이다', f:()=>{reg.pop=Math.min(100,(reg.pop||60)+10); state.prestige+=5; addStress(p,-8,'백성의 사랑');}}]});
-        } else {
-          reg.pop = Math.max(0,(reg.pop||60)-8);
-          popup({title:'사제의 설교 논란', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 설교에서 불필요한 정치 발언을 해 백성들 사이에 갈등이 생겼습니다.`,
-            opts:[{t:'자중하라 경고한다', f:()=>{chOp(c,p,-10); reg.pop=Math.min(100,(reg.pop||60)+3);}}]});
+    /* ── 재무관 ── */
+    else if(role === 'steward'){
+      if(task === 'collect_taxes'){
+        const myBids = regionsOf(p.id);
+        reg.gold = Math.min(3500, (reg.gold||0) + Math.round(myBids.length * sk * 0.05));
+        if(fireEvent){
+          if(positive && canPos){
+            const bonus = 30 + sk*3;
+            popup({title:'세금 성과', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) 효율적인 징수로 금고를 채웠습니다.\n금 +${bonus}`,
+              opts:[{t:'수고했다', f:()=>{reg.gold=Math.min(3500,reg.gold+bonus); chOp(c,p,5); log(`재무관 추가 징수 +${bonus}금.`,'good');}}]});
+          } else if(canNeg){
+            reg.gold=Math.max(0,reg.gold-40); reg.pop=Math.max(0,(reg.pop||60)-3);
+            popup({title:'세금 마찰', sub:`${c.name}의 보고`,
+              body:`강압적 징수에 백성들이 반발합니다.\n금 -40 · 민심 -3`,
+              opts:[{t:'완화한다', f:()=>{reg.gold-=15; reg.pop=Math.min(100,(reg.pop||60)+5); chOp(c,p,-5);}}]});
+          }
+        }
+      } else if(task === 'increase_development'){
+        const rate = sk * 0.175;
+        state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate);
+        if(state.councilProgress.steward >= 100){
+          state.councilProgress.steward = 0;
+          reg.pop = Math.min(100,(reg.pop||60)+3); reg.cap=(reg.cap||300)+20;
+          log(`재무관의 영지 개발 완료! 민심 +3 · 병력 상한 +20`, 'good');
+        } else if(fireEvent && canNeg){
+          popup({title:'개발 지연', sub:`${c.name}의 보고`,
+            body:`개발 사업이 예상치 못한 문제로 지연되고 있습니다.`,
+            opts:[{t:'추가 지원', f:()=>{reg.gold=Math.max(0,reg.gold-20); state.councilProgress.steward+=5;}}]});
+        }
+      } else if(task === 'promote_culture'){
+        const rate2 = 0.25 + sk/20;
+        state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate2);
+        if(state.councilProgress.steward >= 100){
+          state.councilProgress.steward = 0;
+          state.prestige += 15;
+          log(`재무관의 문화 진흥 완료! 위신 +15`, 'good');
+        }
+        if(fireEvent && positive && canPos) reg.pop=Math.min(100,(reg.pop||60)+3);
+        else if(fireEvent && canNeg){
+          popup({title:'문화 저항', sub:`${c.name}의 보고`,
+            body:'일부 백성들이 문화 진흥 정책에 반발합니다.',
+            opts:[{t:'설득한다', f:()=>reg.gold=Math.max(0,reg.gold-15)}]});
         }
       }
     }
+
+    /* ── 첩보관 ── */
+    else if(role === 'spymaster'){
+      if(task === 'disrupt_schemes'){
+        state.schemes.forEach(s=>{ if(s.target===p.id) s.defBonus=(s.defBonus||0)+sk; });
+        if(fireEvent){
+          if(positive && canPos){
+            const enemy=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id&&state.schemes.some(s=>s.plotter===k.id&&s.target===p.id));
+            if(enemy){
+              state.schemes=state.schemes.filter(s=>!(s.plotter===enemy.id&&s.target===p.id));
+              popup({title:'모략 분쇄', sub:`${c.name}의 보고`,
+                body:`${c.name}이(가) ${enemy.name}의 음모를 봉쇄했습니다.\n「그림자 속의 칼날을 찾아냈습니다, 전하.」`,
+                opts:[{t:'잘 했다', f:()=>{chOp(c,p,10); addStress(p,-5,'위기 모면');}}]});
+            } else { state.prestige+=Math.round(sk*0.3); log(`${c.name}이(가) 유용한 정보를 수집했습니다.`,'dip'); }
+          } else if(canNeg){
+            popup({title:'정보 유출', sub:`${c.name}의 보고`,
+              body:`밀정 하나가 이중첩자임이 드러났습니다. 기밀이 유출됐을 수 있습니다.`,
+              opts:[{t:'엄중히 처리', f:()=>{addStress(p,10,'배신의 충격'); chOp(c,p,-15);}}]});
+          }
+        }
+      } else if(task === 'support_schemes'){
+        state.schemes.forEach(s=>{ if(s.plotter===p.id) s.progress=(s.progress||0)+Math.round(sk*0.5); });
+        if(fireEvent && positive && canPos){
+          const s=state.schemes.find(x=>x.plotter===p.id);
+          if(s){ s.progress+=10; log(`${c.name}이(가) 공작 진행을 앞당겼습니다.`,'dip'); }
+        } else if(fireEvent && canNeg){
+          state.prestige=Math.max(0,state.prestige-5);
+          popup({title:'공작 차질', sub:`${c.name}의 보고`,
+            body:`지원 공작이 발각 위험에 처했습니다. 위신 -5`,
+            opts:[{t:'일시 중단', f:()=>addStress(p,5,'공작 차질')}]});
+        }
+      } else if(task === 'find_secrets'){
+        if(Math.random() < sk*0.005 && fireEvent && positive && canPos){
+          const tgt=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id);
+          if(tgt){ chOp(tgt,p,-15);
+            popup({title:'비밀 발견', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) ${tgt.name}의 비밀을 알아냈습니다.\n「이것은 귀중한 패패입니다, 전하.」`,
+              opts:[{t:'잘 보관한다', f:()=>{chOp(c,p,8); state.prestige+=5;}}]}); }
+        }
+      }
+    }
+
+    /* ── 사제 ── */
+    else if(role === 'chaplain'){
+      if(task === 'religious_relations'){
+        state.prestige += parseFloat((sk*0.05).toFixed(2));
+        reg.pop = Math.min(100, (reg.pop||60) + sk*0.05);
+        if(fireEvent){
+          if(positive && canPos){
+            popup({title:'사제의 설교', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) 감동적인 설교로 민심을 하나로 모았습니다.\n「전하의 이름으로 기도하는 목소리가 들립니다.」`,
+              opts:[{t:'좋은 일이다', f:()=>{reg.pop=Math.min(100,(reg.pop||60)+8); state.prestige+=5; addStress(p,-8,'백성의 사랑');}}]});
+          } else if(canNeg){
+            reg.pop=Math.max(0,(reg.pop||60)-5);
+            popup({title:'종교 갈등', sub:`${c.name}의 보고`,
+              body:`설교에서 불필요한 발언을 해 백성들이 반발합니다. 민심 -5`,
+              opts:[{t:'자중하라 경고', f:()=>{chOp(c,p,-10); reg.pop=Math.min(100,(reg.pop||60)+3);}}]});
+          }
+        }
+      } else if(task === 'fabricate_claim'){
+        /* 진행 속도: 기본 3% + 스킬÷5%/월 (CK3 위키 수치) */
+        const rate3 = 3 + sk/5;
+        state.councilProgress.chaplain = Math.min(100, (state.councilProgress.chaplain||0) + rate3);
+        log(`사제 명분 위조 진행: ${state.councilProgress.chaplain.toFixed(0)}%`, 'dip');
+        if(state.councilProgress.chaplain >= 100){
+          state.councilProgress.chaplain = 0;
+          _chaplainFabricateClaim(sk);
+        } else if(fireEvent && canNeg){
+          state.prestige=Math.max(0,state.prestige-8);
+          popup({title:'명분 위조 발각', sub:`${c.name}의 보고`,
+            body:`${c.name}의 문서 조작이 인근 주교에게 발각됐습니다. 위신 -8`,
+            opts:[{t:'수습한다', f:()=>{reg.gold=Math.max(0,reg.gold-30); chOp(c,p,-10);}}]});
+        }
+      } else if(task === 'convert_faith'){
+        /* 진행 속도: 기본 0.5% + 스킬÷10%/월 (CK3 위키 수치) */
+        const rate4 = 0.5 + sk/10;
+        state.councilProgress.chaplain = Math.min(100, (state.councilProgress.chaplain||0) + rate4);
+        if(state.councilProgress.chaplain >= 100){
+          state.councilProgress.chaplain = 0;
+          reg.pop=Math.min(100,(reg.pop||60)+5); state.prestige+=10;
+          log(`${c.name}이(가) 영지 일대의 신앙을 통일했습니다! 위신 +10`, 'good');
+        }
+        if(fireEvent && positive && canPos) reg.pop=Math.min(100,(reg.pop||60)+4);
+        else if(fireEvent && canNeg){
+          popup({title:'개종 저항', sub:`${c.name}의 보고`,
+            body:'일부 주민들이 신앙 개종에 격렬히 저항합니다.',
+            opts:[
+              {t:'강제한다', f:()=>{reg.pop=Math.max(0,(reg.pop||60)-8); state.prestige+=3;}},
+              {t:'설득으로 전환', f:()=>state.councilProgress.chaplain=Math.max(0,state.councilProgress.chaplain-10)},
+            ]});
+        }
+      }
+    }
+  }
+}
+
+/* 사제 명분 위조 완료 처리 */
+function _chaplainFabricateClaim(sk){
+  const p = playerChar(); if(!p) return;
+  const adj = ADJ[p.region]||[];
+  const targets = adj.filter(rid=>{ const o=ownerOf(rid); return o&&o.id!==p.id&&!hasClaim(rid); });
+  if(!targets.length) return;
+  const rid = targets[Math.floor(Math.random()*targets.length)];
+  if(Math.random() < 0.3 + sk*0.05){
+    addClaim(rid,'unpressed');
+    popup({title:'교회법 명분 확보', sub:'사제의 보고',
+      body:`사제가 교회 문서를 검토해 ${claimName(rid)}에 대한 교회법적 주장을 찾아냈습니다.\n「고문서에 선대의 헌납 기록이 있습니다, 전하.」`,
+      opts:[{t:'잘 했다'}]});
+  } else {
+    const o=ownerOf(rid); if(o) chOp(o,p,-20);
+    state.prestige=Math.max(0,state.prestige-10);
+    popup({title:'명분 위조 발각', sub:'사제의 보고',
+      body:`${claimName(rid)}에 대한 교회법 명분 위조가 발각됐습니다.\n위신 -10`,
+      opts:[{t:'어쩔 수 없다', f:()=>addStress(p,10,'위조 발각')}]});
   }
 }
 
@@ -3257,16 +3662,7 @@ function renderCourt(){
   const fam=Object.values(chars).filter(c=>!c.dead&&(c.id===p.id||c.spouse===p.id||c.father===p.id||c.mother===p.id||c.courtOf===p.region));
   const reg=REGIONS[p.region]; const rn=reg?reg.n:'—';
 
-  // ── 자문회 섹션
-  // 보직별 현재 보너스 계산
-  const roleBonus={
-    chancellor: cid=>{ const sk=stat(chars[cid],'dip'); return `위신 +${Math.round(sk*0.4)}/월 · 명분 위조`; },
-    marshal:    cid=>{ const sk=stat(chars[cid],'mar'); return `병력 +${Math.round(sk*1.5)}/월`; },
-    steward:    cid=>{ const sk=stat(chars[cid],'stew'); return `금 +${Math.round(sk*1.2)}/월`; },
-    spymaster:  cid=>{ const sk=stat(chars[cid],'intr'); return `모략 방어 +${sk*2}`; },
-    chaplain:   cid=>{ const sk=stat(chars[cid],'learn'); return `민심 +${(sk*0.15).toFixed(1)}/월 · 위신 +${Math.round(sk*0.25)}/월 · 명분 조작`; },
-  };
-  let html=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line)">자문회 임명</div>`;
+  let html=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line)">자문회</div>`;
 
   for(const role in COUNCIL_ROLES){
     const rinfo=COUNCIL_ROLES[role];
@@ -3274,47 +3670,68 @@ function renderCourt(){
     const councilor=cid&&chars[cid]&&!chars[cid].dead?chars[cid]:null;
     if(!councilor&&cid) state.council[role]=null;
 
-    // 해당 궁정 소속 + 성인 + 다른 보직 미배정
+    const curTask = state.councilTasks[role]||Object.keys(rinfo.tasks)[0];
+    const taskInfo = rinfo.tasks[curTask];
     const assignedIds=Object.values(state.council).filter(Boolean);
-    const candidates=fam.filter(c=>
-      c.id!==p.id && c.courtOf===p.region && age(c)>=16 &&
-      !assignedIds.includes(c.id)
-    );
+    const candidates=fam.filter(c=>c.id!==p.id&&c.courtOf===p.region&&age(c)>=16&&!assignedIds.includes(c.id));
 
-    html+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dotted #2c2316">
-      <span style="font-size:1.1rem;width:22px;text-align:center">${rinfo.icon}</span>
-      <div style="flex:1">
-        <div style="font-size:.82rem;color:var(--parch)">${rinfo.n}</div>
-        <div style="font-size:.72rem;color:var(--parch-dim)">${rinfo.desc}</div>
-      </div>
-      <div style="text-align:right">`;
+    html+=`<div style="padding:7px 0;border-bottom:1px dotted #2c2316">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:1.1rem;width:22px;text-align:center">${rinfo.icon}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.82rem;color:var(--parch);font-weight:600">${rinfo.n}</div>`;
 
     if(councilor){
-      const bonusTxt=roleBonus[role]?roleBonus[role](councilor.id):'';
-      html+=`<div style="font-size:.8rem;color:var(--gold)">${councilor.name}</div>
-        <div style="font-size:.7rem;color:var(--parch-dim)">${rinfo.icon}스킬 ${stat(councilor,rinfo.skill)}</div>
-        <div style="font-size:.68rem;color:#7a9a6a;margin:1px 0">현재: ${bonusTxt}</div>
-        <button class="p-action" style="margin:3px 0 0;padding:3px 8px;font-size:.7rem" onclick="appointCouncilor('${role}',null)">해임</button>`;
+      const sk=stat(councilor,rinfo.skill);
+      const op=opinion(councilor,p);
+      const opColor=op>=0?'#7a9a6a':'#9e5a5a';
+      html+=`<div style="font-size:.75rem;color:var(--gold);margin-top:1px">${councilor.name}
+        <span style="color:var(--parch-dim);font-size:.68rem"> ${rinfo.skill.toUpperCase()}${sk}</span>
+        <span style="color:${opColor};font-size:.65rem"> 호감 ${op>0?'+':''}${op}</span></div>`;
+
+      /* 태스크 드롭다운 */
+      html+=`<div style="margin-top:4px;display:flex;align-items:center;gap:4px">
+        <span style="font-size:.65rem;color:var(--parch-dim)">임무:</span>
+        <select style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.68rem;padding:1px 3px;flex:1;max-width:150px"
+          onchange="setCouncilTask('${role}',this.value)">`;
+      for(const tk in rinfo.tasks){
+        html+=`<option value="${tk}"${tk===curTask?' selected':''}>${rinfo.tasks[tk].n}</option>`;
+      }
+      html+=`</select></div>`;
+
+      /* 현재 임무 설명 */
+      html+=`<div style="font-size:.65rem;color:#7aaa8a;margin-top:2px">▶ ${taskInfo.desc}</div>`;
+
+      /* 진행형 태스크 프로그레스 바 */
+      if(taskInfo.progressive){
+        const prog=Math.round(state.councilProgress[role]||0);
+        html+=`<div style="margin-top:3px;background:#1a140a;border-radius:2px;height:5px;width:100%;overflow:hidden">
+          <div style="background:var(--gold);height:100%;width:${prog}%"></div></div>
+          <div style="font-size:.62rem;color:var(--parch-dim);text-align:right">${prog}%</div>`;
+      }
+
+      html+=`<button class="p-action" style="margin-top:4px;padding:2px 8px;font-size:.68rem" onclick="appointCouncilor('${role}',null)">해임</button>`;
     } else {
-      html+=`<div style="font-size:.75rem;color:var(--parch-dim);margin-bottom:3px">공석</div>`;
+      html+=`<div style="font-size:.72rem;color:var(--parch-dim);margin-top:2px">공석 — ${rinfo.desc}</div>`;
       if(candidates.length){
-        html+=`<select style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.72rem;padding:2px 4px;max-width:120px" onchange="if(this.value)appointCouncilor('${role}',this.value)">
+        html+=`<select style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.7rem;padding:2px 4px;max-width:160px;margin-top:4px"
+          onchange="if(this.value)appointCouncilor('${role}',this.value)">
           <option value="">임명...</option>`;
         candidates.sort((a,b)=>stat(b,rinfo.skill)-stat(a,rinfo.skill)).forEach(c=>{
           html+=`<option value="${c.id}">${c.name} (${rinfo.skill.slice(0,1).toUpperCase()}${stat(c,rinfo.skill)})</option>`;
         });
         html+=`</select>`;
       } else {
-        html+=`<div style="font-size:.7rem;color:#5a4a3a">임명 가능한 인물 없음</div>`;
+        html+=`<div style="font-size:.68rem;color:#5a4a3a;margin-top:3px">임명 가능한 인물 없음</div>`;
       }
     }
-    html+=`</div></div>`;
+    html+=`</div></div></div>`;
   }
 
-  // ── 봉신 목록
+  /* 봉신 목록 */
   const myVassals=vassalsOf(p.id);
   if(myVassals.length>0){
-    html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--line)">봉신 목록 (${myVassals.length}명)</div>`;
+    html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin:10px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--line)">봉신 (${myVassals.length}명)</div>`;
     for(const v of myVassals){
       const vcids=directCountiesOf(v.id);
       const vOp=opinion(v,p);
@@ -3324,15 +3741,15 @@ function renderCourt(){
         <span style="color:${opColor}">호감 ${vOp>0?'+':''}${vOp}</span>
       </div>`;
     }
-    html+=`<div style="height:10px"></div>`;
+    html+=`<div style="height:8px"></div>`;
   }
 
-  // ── 직할령 현황
+  /* 직할령 현황 */
   const dLim=domainLimit(p), dDir=directCountiesOf(p.id).length;
   html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line)">직할 백작령 ${dDir}/${dLim}${dDir>dLim?' ⚠ 한도 초과':''}</div>`;
-  html+=`<div style="font-size:.74rem;color:var(--parch-dim);padding:4px 0 10px;border-bottom:1px solid var(--line)">🗺 건물 건설은 지도에서 내 백작령을 클릭하세요.</div>`;
+  html+=`<div style="font-size:.72rem;color:var(--parch-dim);padding:3px 0 8px;border-bottom:1px solid var(--line)">🗺 건물 건설은 지도에서 내 백작령을 클릭하세요.</div>`;
 
-  // ── 궁정 인물 목록
+  /* 궁정 인물 목록 */
   html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin:12px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)">${rn} 궁정의 사람들</div>
     <table style="width:100%;border-collapse:collapse;font-size:.82rem">`;
   for(const c of fam){
@@ -3347,8 +3764,7 @@ function renderCourt(){
         <small style="color:var(--parch-dim)">${rel}${c.pregnant>0?' · 임신중':''}</small>
       </td>
       <td style="padding:6px 4px;font-size:.76rem;color:var(--parch-dim)">
-        ${traitTxt}<br>
-        <small style="color:#5a6a8a">${eduTxt}</small>
+        ${traitTxt}<br><small style="color:#5a6a8a">${eduTxt}</small>
       </td>
       <td style="padding:6px 0 6px 4px;font-size:.74rem;text-align:right;white-space:nowrap">
         외${stat(c,'dip')} 무${stat(c,'mar')}<br>내${stat(c,'stew')} 음${stat(c,'intr')} 학${stat(c,'learn')}
@@ -3394,6 +3810,7 @@ function renderDec(){
 
   // ── 연회/행사 ──────────────────────
   addDec('연회를 연다',`금 60 · 군주 관계 +8 · 스트레스 -20`, REGIONS[p.region].gold>=60, ()=>{
+    playSynthSFX('gold');
     REGIONS[p.region].gold-=60; addStress(p,-20,'연회의 즐거움');
     for(const rid in REGIONS){const r=ownerOf(rid); if(r&&r.id!==p.id) chOp(r,p,8);}
     if(p.traits.includes('gregarious'))addStress(p,-8,'사교적인 자의 기쁨');
@@ -3401,10 +3818,12 @@ function renderDec(){
     log('성대한 연회가 열렸습니다.','good'); renderDec();
   });
   addDec('클론맥노이즈 순례',`금 30 · 스트레스 -25 · 위신 +10`, REGIONS[p.region].gold>=30, ()=>{
+    playSynthSFX('gold');
     REGIONS[p.region].gold-=30; addStress(p,-25,'순례의 평안'); state.prestige+=10;
     log('섀넌 강가의 수도원에서 기도를 올렸습니다.','fam'); renderDec();
   });
   addDec('병력 소집',`금 80 · 병력 +200`, BARONIES[p.region]?.gold>=80, ()=>{
+    playSynthSFX('gold');
     REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
     log('창병 200이 소집됐습니다.','war'); renderDec();
   });
@@ -3468,11 +3887,47 @@ function renderDec(){
     }
   }
 
+  // 건물 건설 결단
+  {
+    const p2=playerChar(); // 재사용 방지용 shadow
+    const ownedBids=regionsOf(p2.id);
+    if(ownedBids.length>0){
+      addDec('건물 건설',`남작령에 건물 건설 — 병력·금·민심 향상`,
+        BARONIES[p2.region]?.gold>=40, ()=>{
+        // 건설 가능한 (남작령, 슬롯 있음) 목록
+        const buildable=ownedBids.filter(bid=>{
+          const b=BARONIES[bid];
+          return b&&b.buildings.length<BUILDING_SLOTS;
+        }).slice(0,6);
+        if(!buildable.length){ log('모든 남작령 슬롯이 가득 찼습니다.'); return; }
+        // 남작령 선택 → 건물 선택 2단계 UI
+        const bOpts=buildable.map(bid=>({
+          t:`${BARONIES[bid].n} (슬롯 ${BARONIES[bid].buildings.length}/${BUILDING_SLOTS})`,
+          d:`건물: ${BARONIES[bid].buildings.filter(s=>s.done).map(s=>BUILDINGS[s.type].n).join(', ')||'없음'}`,
+          f:()=>{
+            const existTypes=BARONIES[bid].buildings.map(s=>s.type);
+            const avail=Object.entries(BUILDINGS).filter(([t])=>!existTypes.includes(t));
+            const cOpts=avail.map(([t,bp])=>({
+              t:`${bp.icon} ${bp.n}`,
+              d:`금 ${bp.cost} · ${bp.time}개월 · ${bp.desc}`,
+              f:()=>{ startBuilding(bid,t); renderDec(); }
+            }));
+            cOpts.push({t:'취소'});
+            showModal({title:`${BARONIES[bid].n} — 건물 선택`, sub:'건설', body:'', opts:cOpts});
+          }
+        }));
+        bOpts.push({t:'취소'});
+        showModal({title:'건물 건설', sub:'남작령 선택', body:'', opts:bOpts});
+      });
+    }
+  }
+
   // 인재 모집 — 궁정 인원 부족 시
   const courtSize=Object.values(chars).filter(c=>!c.dead&&c.courtOf===p.region&&c.id!==p.id).length;
   const vacancies=Object.values(state.council).filter(v=>!v).length;
   if(vacancies>0||courtSize<3){
     addDec('인재 모집',`금 80 · 궁정에 새 인재 1명 영입`, REGIONS[p.region].gold>=80, ()=>{
+      playSynthSFX('gold');
       REGIONS[p.region].gold-=80;
       const roleNames=['dip','mar','stew','intr','learn'];
       // 부족한 역할 스킬 위주로 생성
@@ -3556,7 +4011,7 @@ function renderDec(){
           <span style="color:var(--parch-dim)">위신 ${cb.cost}</span>
         </div>`;
       }).join('') + '<div style="height:10px"></div>'
-    : '<div style="font-size:.76rem;color:var(--parch-dim);margin-bottom:10px">명분 없음 — 재상에게 명분 위조를 맡기세요</div>';
+    : '<div style="font-size:.76rem;color:var(--parch-dim);margin-bottom:10px">명분 없음 — 사제에게 교회법 명분 위조를 맡기세요</div>';
   let html = claimHtml + `<p style="font-size:.74rem;color:var(--parch-dim);margin-bottom:12px;letter-spacing:.05em">지배 왕국 ${n}/7</p>`;
   if(!items.length){ html+='<p style="color:var(--parch-dim);font-size:.84rem">조건이 충족된 결단이 없습니다.</p>'; }
   items.forEach(it=>{
@@ -3587,7 +4042,10 @@ function renderHeader(){
 }
 function renderChar(){
   const c=playerChar();
-  document.getElementById('portrait').textContent=c.name[0];
+  const portrait=document.getElementById('portrait');
+  portrait.textContent=c.name[0];
+  portrait.style.cursor='pointer';
+  portrait.onclick=()=>{ initAudio(); openProfile(c); };
   document.getElementById('cNm').textContent=c.name;
   const ttl=state.kingdomFormed?'아일랜드 왕':`${COUNTIES[countyOf(c.region)]?.n||BARONIES[c.region]?.n||''} 소왕`;
   document.getElementById('cTtl').textContent=`${ttl} · ${age(c)}세 · ${c.dyn} 가문`;
