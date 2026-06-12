@@ -399,6 +399,55 @@ const BUILDING_TYPES = {
 /* 호환성: REGIONS = BARONIES (c.region은 이제 seat barony id) */
 const REGIONS = BARONIES;
 
+/* ─── 자문회 보직 정의 (CK3 위키 기반) ─── */
+const COUNCIL_ROLES = {
+  chancellor:{
+    n:'재상', skill:'dip', icon:'⚖',
+    desc:'외교·봉신 관리',
+    tasks:{
+      foreign_affairs:  { n:'외교 담당',    desc:'위신 +0.05/스킬/월 · 독립군주 호감 +0.5/스킬/월' },
+      domestic_affairs: { n:'내정 담당',    desc:'봉신 호감 +0.5/스킬/월 · 폭정 감소 +1%/스킬' },
+      bestow_favor:     { n:'왕실 은총',    desc:'봉신 위신 +0.5/월 · 봉신 호감 +0.5/스킬/월' },
+    },
+  },
+  marshal:{
+    n:'원수', skill:'mar', icon:'⚔',
+    desc:'군사 훈련·병력 강화',
+    tasks:{
+      organize_army:    { n:'군대 조직',    desc:'유지비 -1%/스킬 · 레비 보충 +2%/스킬 · 수비대 +2%/스킬' },
+      train_commanders: { n:'지휘관 훈련',  desc:'기사 효율 +1%/스킬/월 · 병사 공격력·방어력 +1%/스킬/월' },
+      increase_control: { n:'영지 통제',    desc:'부패 제거 +0.2%/스킬/월 · 영지 통제 저하 방지' },
+    },
+  },
+  steward:{
+    n:'재무관', skill:'stew', icon:'💰',
+    desc:'세금 징수·영지 개발',
+    tasks:{
+      collect_taxes:       { n:'세금 징수',  desc:'직할 세금 +0.5%/스킬/월' },
+      increase_development:{ n:'영지 개발',  desc:'건설시간 -1.25%/스킬 · 개발도 +0.175/스킬/월', progressive:true },
+      promote_culture:     { n:'문화 진흥',  desc:'진행 0.25+스킬÷20%/월 → 100% 시 문화 전환', progressive:true },
+    },
+  },
+  spymaster:{
+    n:'첩보관', skill:'intr', icon:'🗡',
+    desc:'모략 방어·비밀 탐색',
+    tasks:{
+      disrupt_schemes: { n:'모략 방해',   desc:'적 모략 지속 +5일+0.5일/스킬 · 발각률 +1%/스킬' },
+      support_schemes: { n:'공작 지원',   desc:'아군 모략 단축 -1일/스킬 · 성공률 +5%+0.5%/스킬' },
+      find_secrets:    { n:'비밀 탐문',   desc:'궁정 비밀 발견 확률 +5%/스킬' },
+    },
+  },
+  chaplain:{
+    n:'사제', skill:'learn', icon:'✝',
+    desc:'경건·민심·신앙 개종·명분 위조',
+    tasks:{
+      religious_relations:{ n:'종교 관계',       desc:'경건 +0.05/스킬/월 · 동일신앙 군주 호감 +0.5/스킬/월' },
+      fabricate_claim:    { n:'교회법 명분 위조', desc:'진행 3+스킬÷5%/월 → 100% 시 미행사 명분 획득', progressive:true },
+      convert_faith:      { n:'신앙 개종',        desc:'진행 0.5+스킬÷10%/월 → 100% 시 지역 신앙 전환', progressive:true },
+    },
+  },
+};
+
 /* ADJ: 남작령 id → 인접 백작령 수도 남작령 ids */
 const ADJ = {};
 (()=>{
@@ -3323,54 +3372,6 @@ function openDeclareWar(defId){
    Spymaster  : Disrupt Schemes / Support Schemes / Find Secrets
    Chaplain   : Religious Relations / Fabricate Claim / Convert Faith
    ═══════════════════════════════════════════════════════════ */
-const COUNCIL_ROLES = {
-  chancellor:{
-    n:'재상', skill:'dip', icon:'⚖',
-    desc:'외교·봉신 관리',
-    tasks:{
-      foreign_affairs:  { n:'외교 담당',    desc:'위신 +0.05/스킬/월 · 독립군주 호감 +0.5/스킬/월' },
-      domestic_affairs: { n:'내정 담당',    desc:'봉신 호감 +0.5/스킬/월 · 폭정 감소 +1%/스킬' },
-      bestow_favor:     { n:'왕실 은총',    desc:'봉신 위신 +0.5/월 · 봉신 호감 +0.5/스킬/월' },
-    },
-  },
-  marshal:{
-    n:'원수', skill:'mar', icon:'⚔',
-    desc:'군사 훈련·병력 강화',
-    tasks:{
-      organize_army:    { n:'군대 조직',    desc:'유지비 -1%/스킬 · 레비 보충 +2%/스킬 · 수비대 +2%/스킬' },
-      train_commanders: { n:'지휘관 훈련',  desc:'기사 효율 +1%/스킬/월 · 병사 공격력·방어력 +1%/스킬/월' },
-      increase_control: { n:'영지 통제',    desc:'부패 제거 +0.2%/스킬/월 · 영지 통제 저하 방지' },
-    },
-  },
-  steward:{
-    n:'재무관', skill:'stew', icon:'💰',
-    desc:'세금 징수·영지 개발',
-    tasks:{
-      collect_taxes:       { n:'세금 징수',  desc:'직할 세금 +0.5%/스킬/월' },
-      increase_development:{ n:'영지 개발',  desc:'건설시간 -1.25%/스킬 · 개발도 +0.175/스킬/월', progressive:true },
-      promote_culture:     { n:'문화 진흥',  desc:'진행 0.25+스킬÷20%/월 → 100% 시 문화 전환', progressive:true },
-    },
-  },
-  spymaster:{
-    n:'첩보관', skill:'intr', icon:'🗡',
-    desc:'모략 방어·비밀 탐색',
-    tasks:{
-      disrupt_schemes: { n:'모략 방해',   desc:'적 모략 지속 +5일+0.5일/스킬 · 발각률 +1%/스킬' },
-      support_schemes: { n:'공작 지원',   desc:'아군 모략 단축 -1일/스킬 · 성공률 +5%+0.5%/스킬' },
-      find_secrets:    { n:'비밀 탐문',   desc:'궁정 비밀 발견 확률 +5%/스킬' },
-    },
-  },
-  chaplain:{
-    n:'사제', skill:'learn', icon:'✝',
-    desc:'경건·민심·신앙 개종·명분 위조',
-    tasks:{
-      religious_relations:{ n:'종교 관계',       desc:'경건 +0.05/스킬/월 · 동일신앙 군주 호감 +0.5/스킬/월' },
-      fabricate_claim:    { n:'교회법 명분 위조', desc:'진행 3+스킬÷5%/월 → 100% 시 미행사 명분 획득', progressive:true },
-      convert_faith:      { n:'신앙 개종',        desc:'진행 0.5+스킬÷10%/월 → 100% 시 지역 신앙 전환', progressive:true },
-    },
-  },
-};
-
 /* 태스크 변경 — 진행형이면 진행도 리셋 */
 function setCouncilTask(role, taskKey){
   const prev = state.councilTasks[role];
