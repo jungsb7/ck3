@@ -23,8 +23,12 @@ body{
 #hdr .res span b{color:var(--gold); font-weight:normal; margin-right:5px}
 /* ===== 본문 ===== */
 #main{flex:1 1 auto; display:flex; min-height:0}
-#mapWrap{flex:1; border-right:none; position:relative; background:
-  radial-gradient(ellipse at 50% 40%, #1c1812 0%, #14100c 75%)}
+#mapWrap {
+  flex:1; 
+  border-right:none; 
+  position:relative; 
+  background:radial-gradient(ellipse at 50% 40%, #1c1812 0%, #14100c 75%);
+}
 #mapWrap h3{
   font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
   padding:8px 14px; border-bottom:1px solid var(--line); font-weight:normal;
@@ -63,14 +67,12 @@ body{
 .chip.edu{border-color:var(--steel)} .chip.life{border-color:var(--violet)}
 #stats{display:flex; gap:14px; font-size:.8rem; margin-top:4px; color:var(--parch-dim)}
 #stats b{color:var(--parch); font-weight:normal}
-#stressBox{flex:0 0 240px; padding:10px 16px; border-left:1px solid var(--line)}
+#stressBox{flex:1; padding:10px 16px;}
 #stressBox .lbl{font-size:.7rem; letter-spacing:.2em; color:var(--parch-dim); display:flex; justify-content:space-between}
 #stressTrack{height:13px; background:#0c0906; border:1px solid var(--line); margin-top:6px; position:relative}
 #stressFill{height:100%; background:linear-gradient(90deg,#6e5a2c,#a03c34); width:0%}
 .smark{position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--gold-dim)}
 #stressLvl{font-size:.72rem; margin-top:5px; color:var(--parch-dim)}
-#btnCol{flex:0 0 auto; display:flex; flex-direction:column; border-left:1px solid var(--line)}
-#btnCol button{flex:1; min-width:96px}
 /* ===== 푸터 ===== */
 #ftr{
   flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:14px;
@@ -110,7 +112,7 @@ button:disabled{opacity:.35; cursor:default}
 ::-webkit-scrollbar{width:9px}::-webkit-scrollbar-track{background:#100b07}
 ::-webkit-scrollbar-thumb{background:#3a2e1d}
 
-/* ===== 모바일 전용 ===== */
+/* ===== 모바일 전용 수정 쿼리 ===== */
 #logTab  { display:flex; align-items:center; justify-content:center }
 #logClose{ display:none }
 .panel-tab{ display:flex; align-items:center; justify-content:center }
@@ -145,14 +147,6 @@ button:disabled{opacity:.35; cursor:default}
   #stressBox{
     flex:1; border-left:none;
     padding:7px 10px;
-  }
-  #btnCol{
-    flex:0 0 auto; flex-direction:row;
-    border-left:1px solid var(--line);
-  }
-  #btnCol button{
-    flex:0 0 auto; min-width:54px;
-    padding:6px 10px; font-size:.78rem;
   }
 }
 
@@ -221,5 +215,4 @@ button:disabled{opacity:.35; cursor:default}
 @media (min-width:769px){
   .panel-tab{ display:flex }
   .side-panel{ width:360px }
-  #btnCol{ display:none } 
 }
