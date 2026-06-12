@@ -2777,6 +2777,242 @@ function openCounty(cid){
   }
   openRegion(COUNTIES[cid]?.capital, cid);
 }
+/* ═══════════════════════════════════════════════════════
+   내 백작령 상세 창 — 남작령 목록 + 건물 건설
+   지도에서 내 영지 클릭 시 호출
+   ═══════════════════════════════════════════════════════ */
+function openMyCounty(cid, dispName){
+  const p = playerChar(); if(!p) return;
+  const cnt = COUNTIES[cid];
+  const bids = cnt ? cnt.baronies : [p.region];
+  const totalTroops = bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0), 0);
+  const seatGold = Math.round(BARONIES[p.region]?.gold||0);
+  const duchy = cnt ? DUCHIES[cnt.duchy]?.n||'' : '';
+
+  /* 남작령 카드 HTML */
+  let baroniesHtml = '';
+  for(const bid of bids){
+    const b = BARONIES[bid]; if(!b) continue;
+    const done = (b.buildings||[]).filter(x=>x.done);
+    const inProg = (b.buildings||[]).find(x=>!x.done);
+    const slotsUsed = done.length + (inProg?1:0);
+    const canBuild = slotsUsed < BUILDING_SLOTS && !inProg;
+
+    const doneList = done.length
+      ? done.map(x=>`${BUILDINGS[x.type]?.icon||''}${BUILDINGS[x.type]?.n||x.type}`).join(' · ')
+      : '없음';
+    const wipTxt = inProg
+      ? `<span class="barony-wip">⏳ ${BUILDINGS[inProg.type]?.icon||''}${BUILDINGS[inProg.type]?.n||''} 건설중</span>`
+      : '';
+
+    const buildBtn = canBuild
+      ? `<button class="build-btn" onclick="initAudio();openBuildMenu('${bid}')">🔨 건설하기</button>`
+      : slotsUsed >= BUILDING_SLOTS
+        ? `<span style="font-size:.7rem;color:var(--parch-dim)">슬롯 가득 참</span>`
+        : `<span style="font-size:.7rem;color:#c8a24a">건설 중...</span>`;
+
+    baroniesHtml += `
+      <div class="barony-card">
+        <div class="barony-head">
+          <b>${b.n}</b>
+          <span class="barony-slots">슬롯 ${slotsUsed}/${BUILDING_SLOTS} · 병력 ${b.troops||0}</span>
+        </div>
+        <div class="barony-blds">
+          <div>완공: ${doneList} ${wipTxt}</div>
+          <div style="margin-top:4px">${buildBtn}</div>
+        </div>
+      </div>`;
+  }
+
+  showModal({
+    title: dispName||cnt?.n||'내 영지',
+    sub: `${duchy}${duchy?' · ':''}남작령 ${bids.length}개`,
+    body:'',
+    html:`
+      <div style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap">
+        <div class="kv" style="flex:1;min-width:100px"><span>총 병력</span><span>${totalTroops}</span></div>
+        <div class="kv" style="flex:1;min-width:100px"><span>금고</span><span>${seatGold}</span></div>
+      </div>
+      <div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:8px">남작령 건물 관리</div>
+      ${baroniesHtml}`,
+    opts:[{t:'닫기'}]
+  });
+}
+
+/* ═══════════════════════════════════════════════════════
+   프로필 모달 시스템
+   portrait 클릭 시 열리는 CK3 스타일 캐릭터 창
+   ═══════════════════════════════════════════════════════ */
+
+/* 스킬 등급 레이블 (CK3 위키 Attributes 수치 기준) */
+function skillGrade(v){
+  if(v<=4)  return ['최하','#d08a82'];
+  if(v<=8)  return ['하',  '#b89060'];
+  if(v<=12) return ['중',  '#a89878'];
+  if(v<=16) return ['상',  '#8fbf8f'];
+  return              ['최상','#6adf9a'];
+}
+
+/* 스킬 바 색상 */
+function skillColor(k){
+  return {dip:'#5a8aaa', mar:'#aa5a5a', stew:'#8aaa5a', intr:'#8a5aaa', learn:'#aa9a5a', prow:'#c87a3a'}[k]||'#8a8a8a';
+}
+
+/* 프로필 HTML 조립 */
+function buildProfileHTML(c){
+  const p = playerChar();
+  const isPlayer = c.id === p.id;
+  const charAge = age(c);
+  const ttl = (isPlayer&&state.kingdomFormed)?'아일랜드 왕'
+    : `${COUNTIES[countyOf(c.region)]?.n||BARONIES[c.region]?.n||''} ${c.ruler?'소왕':'궁정인'}`;
+
+  /* ── 섹션 A: 기본 정보 ── */
+  const stressLv = stressLvl(c);
+  const stressColor = ['var(--parch-dim)','#c8a24a','#c87a4a','#d05a4a'][stressLv];
+  const stressLabel = ['평온','불안','위험','임계'][stressLv];
+  const warNow = state.wars.filter(w=>w.atk===c.id||w.def===c.id);
+  const allyList = state.alliances
+    .filter(k=>k.includes(c.id))
+    .map(k=>{ const oid=k.replace(c.id,'').replace('|',''); return chars[oid]?.name||''; })
+    .filter(Boolean);
+
+  const secA = `
+    <div class="pm-sec-title">인물</div>
+    <div class="pm-kv"><span>가문</span><span>${c.dyn||'—'}</span></div>
+    <div class="pm-kv"><span>나이</span><span>${charAge}세 (${c.byear}년생)</span></div>
+    <div class="pm-kv"><span>성별</span><span>${c.sex==='m'?'남':'여'}</span></div>
+    <div class="pm-kv"><span>칭호</span><span>${ttl}</span></div>
+    ${isPlayer?`<div class="pm-kv"><span>위신</span><span style="color:var(--gold)">${state.prestige}</span></div>`:''}
+    ${isPlayer?`<div class="pm-kv"><span>상속법</span><span>${{partition:'분할상속',primogeniture:'장자상속',elective:'선출제'}[state.successionLaw]}</span></div>`:''}
+    <div class="pm-kv" style="margin-top:6px"><span>스트레스</span><span style="color:${stressColor}">${c.stress}/150 (${stressLabel})</span></div>
+    <div style="height:6px;background:#0c0906;border:1px solid #2a2014;border-radius:2px;overflow:hidden;margin:4px 0 8px">
+      <div style="width:${Math.min(100,c.stress/1.5)}%;height:100%;background:linear-gradient(90deg,#6e5a2c,${stressColor});border-radius:2px"></div>
+    </div>
+    ${warNow.length?`<div class="pm-kv"><span>전쟁</span><span style="color:#d05a4a">⚔ ${warNow.length}건 진행 중</span></div>`:''}
+    ${allyList.length?`<div class="pm-kv"><span>동맹</span><span>${allyList.join(', ')}</span></div>`:''}
+    ${c.spouse&&chars[c.spouse]?`<div class="pm-kv"><span>배우자</span><span>${chars[c.spouse].name}</span></div>`:''}`;
+
+  /* ── 섹션 B: 스킬 + 특성 ── */
+  const SKILL_FULL = {dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문',prow:'용맹'};
+  let skillsHtml = '';
+  for(const [k,n] of Object.entries(SKILL_FULL)){
+    const v = stat(c,k);
+    const pct = Math.min(100, v/20*100);
+    const [grade,gColor] = skillGrade(v);
+    skillsHtml += `
+      <div class="skill-row">
+        <span class="skill-name">${n.slice(0,2)}</span>
+        <div class="skill-bar-wrap">
+          <div class="skill-bar-fill" style="width:${pct}%;background:${skillColor(k)}"></div>
+        </div>
+        <span class="skill-val">${v}</span>
+        <span class="skill-grade" style="color:${gColor}">${grade}</span>
+      </div>`;
+  }
+
+  const traitChips = c.traits.map(t=>{
+    const tn = TRAITS[t]?.n||t;
+    const neg = ['craven','wrathful','lazy','greedy','deceitful','arbitrary','cruel','impatient','gluttonous','shy','vengeful','lustful'].includes(t);
+    return `<span class="pm-chip${neg?' neg':''}">${tn}</span>`;
+  }).join('');
+
+  const childTrait = c.childTrait ? `<span class="pm-chip">${CHILD_TRAITS[c.childTrait].n}</span>` : '';
+  const eduChip = c.edu!==null ? `<span class="pm-chip edu">${EDU_NAMES[c.eduFocus]?.[c.edu]||''}</span>` : '';
+  const lifeChip = c.lifestyle ? `<span class="pm-chip life">${SKILLS[c.lifestyle]}의 길 · ${c.lifeXP}xp</span>` : '';
+
+  const secB = `
+    <div class="pm-sec-title">능력</div>
+    ${skillsHtml}
+    <div style="margin-top:10px;font-size:.68rem;color:var(--gold-dim);letter-spacing:.15em;margin-bottom:5px">특성</div>
+    <div>${traitChips||childTrait||'<span style="color:var(--parch-dim);font-size:.75rem">없음</span>'}</div>
+    <div style="margin-top:6px">${eduChip}${lifeChip}</div>`;
+
+  /* ── 섹션 C: 가족 + 영지 ── */
+  const kids = Object.values(chars).filter(k=>!k.dead&&(k.father===c.id||k.mother===c.id));
+  const kidsHtml = kids.length
+    ? kids.map(k=>`<div class="pm-kv"><span>${k.sex==='m'?'아들':'딸'} ${k.name}</span><span>${age(k)}세</span></div>`).join('')
+    : '<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>';
+
+  const myCounties = directCountiesOf(c.id);
+  const countiesHtml = myCounties.length
+    ? myCounties.map(cid2=>{
+        const totalT = COUNTIES[cid2]?.baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0)||0;
+        return `<div class="pm-kv"><span>${COUNTIES[cid2]?.n||cid2}</span><span>⚔${totalT}</span></div>`;
+      }).join('')
+    : '<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>';
+
+  const vassals = vassalsOf(c.id);
+  const claimsHtml = isPlayer && state.claims.length
+    ? state.claims.map(cl=>{
+        const cb = CB_TYPES[cl.type];
+        return `<div class="pm-kv"><span>${cb.icon} ${claimName(cl.rid)}</span><span style="color:${cb.color}">${cb.n}</span></div>`;
+      }).join('')
+    : '';
+
+  /* 자문회 현황 */
+  const councilSrc = isPlayer ? state.council : c.council;
+  const councilHtml = Object.entries(COUNCIL_ROLES).map(([role,info])=>{
+    const cid2 = councilSrc[role];
+    const name = cid2&&chars[cid2]&&!chars[cid2].dead ? chars[cid2].name.split(' ')[0] : '공석';
+    const color = cid2&&chars[cid2]&&!chars[cid2].dead ? 'var(--parch)' : 'var(--parch-dim)';
+    return `<div class="pm-kv"><span>${info.icon} ${info.n}</span><span style="color:${color}">${name}</span></div>`;
+  }).join('');
+
+  const secC = `
+    <div class="pm-sec-title">자녀</div>
+    ${kidsHtml}
+    <div class="pm-sec-title" style="margin-top:12px">직할 백작령</div>
+    ${countiesHtml}
+    ${vassals.length?`<div class="pm-kv" style="margin-top:4px"><span>봉신</span><span>${vassals.length}명</span></div>`:''}
+    ${claimsHtml?`<div class="pm-sec-title" style="margin-top:12px">보유 명분</div>${claimsHtml}`:''}
+    <div class="pm-sec-title" style="margin-top:12px">자문회</div>
+    ${councilHtml}`;
+
+  /* 헤더 SVG — 간이 초상화 */
+  const portraitSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 86 108" width="86" height="108">
+    <rect width="86" height="108" fill="radial-gradient(#2c2113,#181009)"/>
+    <text x="43" y="65" text-anchor="middle" font-size="2.4rem" fill="#c8a24a"
+      font-family="Georgia,serif" style="text-shadow:0 0 18px rgba(200,162,74,.6)">${c.name[0]}</text>
+  </svg>`;
+
+  return `
+    <div class="pm-header">
+      <div class="pm-portrait">${portraitSVG}</div>
+      <div class="pm-title">
+        <h2>${c.name}</h2>
+        <div class="pm-sub">${ttl} · ${c.dyn} 가문 · ${charAge}세</div>
+      </div>
+      <button class="pm-close" onclick="closeProfile()">✕</button>
+    </div>
+    <div class="pm-body">
+      <div class="pm-section">${secA}</div>
+      <div class="pm-section">${secB}</div>
+      <div class="pm-section">${secC}</div>
+    </div>`;
+}
+
+function openProfile(c){
+  if(!c) c = playerChar();
+  const shade = document.getElementById('profileShade');
+  const modal = document.getElementById('profileModal');
+  if(!shade||!modal) return;
+  modal.innerHTML = buildProfileHTML(c);
+  shade.classList.add('show');
+  if(!state.paused) { state._profileAutoResume=true; pause(); }
+}
+
+function closeProfile(){
+  const shade = document.getElementById('profileShade');
+  if(shade) shade.classList.remove('show');
+  if(state._profileAutoResume){ state._profileAutoResume=false; resume(); }
+}
+
+/* ── profileShade 배경 클릭으로 닫기 (모달 바깥 클릭) ── */
+document.addEventListener('DOMContentLoaded', ()=>{
+  const shade = document.getElementById('profileShade');
+  if(shade) shade.addEventListener('click', e=>{ if(e.target===shade) closeProfile(); });
+});
+
 function openRegion(rid, cid_hint){
   const p=playerChar(); if(!p) return;
   // 이름 결정: 백작령 > 남작령 순
@@ -2784,21 +3020,9 @@ function openRegion(rid, cid_hint){
   const c=ownerOf(rid);
   if(!c) return;
 
-  // ── 내 영토 클릭: 영지 상세 표시
+  // ── 내 영토 클릭: 백작령 상세 + 남작령별 건물 건설
   if(c.id===p.id){
-    const cid=cid_hint||countyOf(rid);
-    const cnt=COUNTIES[cid];
-    const totalTroops=cnt?cnt.baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0):(BARONIES[rid]?.troops||0);
-    const totalGold=Math.round(BARONIES[rid]?.gold||0);
-    const bldgs=cnt?cnt.baronies.flatMap(b=>BARONIES[b]?.buildings?.filter(x=>x.done).map(x=>BUILDINGS[x.type]?.n)||[]).join('·')||'없음':'없음';
-    showModal({title:dispName, sub:'내 영지',
-      body:'',
-      html:`<div class="kv"><span>백작령</span><span>${cnt?.n||dispName}</span></div>
-            <div class="kv"><span>총 병력</span><span>${totalTroops}</span></div>
-            <div class="kv"><span>금고</span><span>${totalGold}</span></div>
-            <div class="kv"><span>완공 건물</span><span>${bldgs}</span></div>
-            <div class="kv"><span>남작령 수</span><span>${cnt?.baronies.length||1}</span></div>`,
-      opts:[{t:'닫기'}]});
+    openMyCounty(cid_hint||countyOf(rid), dispName);
     return;
   }
 
@@ -3608,171 +3832,13 @@ function renderHeader(){
   const totalTroops=playerRegions().reduce((s,rid)=>s+(REGIONS[rid].troops||0),0);
   document.getElementById('troopTxt').textContent=totalTroops.toLocaleString();
 }
-/* ─── SVG 초상화 생성 ───────────────────────────────────────────
-   성별·특성에 따라 외모(머리색·눈빛·표정·장식)가 달라지는
-   중세풍 인물 아이콘. 외부 파일 없이 인라인 SVG로 완결.
-─────────────────────────────────────────────────────────────── */
-function makePortraitSVG(c){
-  const male = c.sex !== 'f';
-
-  /* ── 특성 기반 색상 팔레트 ── */
-  const hasBrave    = c.traits.includes('brave');
-  const hasCalm     = c.traits.includes('calm');
-  const hasGreedy   = c.traits.includes('greedy');
-  const hasCruel    = c.traits.includes('cruel');
-  const hasKind     = c.traits.includes('kind');
-  const hasAmbitious= c.traits.includes('ambitious');
-  const hasJust     = c.traits.includes('just');
-
-  /* 피부 */
-  const skin = '#c8956a';
-  const skinShadow = '#a5724a';
-
-  /* 머리카락 — 특성으로 결정 */
-  const hairColor = hasGreedy ? '#c8a02a'
-                  : hasBrave  ? '#5a3010'
-                  : hasCruel  ? '#1a1208'
-                  : hasCalm   ? '#8a6a3a'
-                  : '#6a4820';
-
-  /* 눈빛 — 기질 반영 */
-  const eyeColor = hasAmbitious ? '#3a7a9a'
-                 : hasJust      ? '#5a8a5a'
-                 : hasCruel     ? '#7a2a2a'
-                 : '#4a6a3a';
-
-  /* 옷/갑옷 색 */
-  const robe = hasBrave || c.traits.includes('wrathful') ? '#5a3020'
-             : hasCalm || hasKind ? '#2a4a5a'
-             : '#3a3020';
-
-  /* 나이에 따른 수염/주름 */
-  const charAge = age(c);
-  const aged = charAge > 45;
-  const youngFace = charAge < 25;
-
-  /* 표정: 입 꼬리 방향 */
-  const smileD = hasKind || hasCalm   ? 'M 33 62 Q 43 67 53 62'   // 미소
-               : hasCruel || c.traits.includes('wrathful')
-                                       ? 'M 33 65 Q 43 61 53 65'   // 험상
-               : 'M 35 63 Q 43 66 51 63';                           // 중립
-
-  /* 왕관/투구 장식 */
-  const crownColor = '#c8a24a';
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 86 108" width="86" height="108">
-  <defs>
-    <radialGradient id="bgG" cx="50%" cy="35%" r="70%">
-      <stop offset="0%" stop-color="#2c2113"/>
-      <stop offset="100%" stop-color="#181009"/>
-    </radialGradient>
-    <radialGradient id="skinG" cx="50%" cy="40%" r="60%">
-      <stop offset="0%" stop-color="${skin}"/>
-      <stop offset="100%" stop-color="${skinShadow}"/>
-    </radialGradient>
-    <radialGradient id="eyeG" cx="40%" cy="35%" r="70%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
-      <stop offset="100%" stop-color="#ddccbb" stop-opacity="0.7"/>
-    </radialGradient>
-  </defs>
-
-  <!-- 배경 -->
-  <rect width="86" height="108" fill="url(#bgG)"/>
-
-  <!-- 어깨/몸통 -->
-  <ellipse cx="43" cy="105" rx="32" ry="20" fill="${robe}"/>
-  <rect x="11" y="90" width="64" height="22" fill="${robe}" rx="4"/>
-  <!-- 옷깃 장식 -->
-  <polygon points="43,88 35,100 51,100" fill="${hairColor}" opacity="0.6"/>
-  <line x1="43" y1="88" x2="43" y2="108" stroke="${crownColor}" stroke-width="1" opacity="0.5"/>
-
-  <!-- 목 -->
-  <rect x="37" y="74" width="12" height="14" fill="url(#skinG)" rx="3"/>
-
-  <!-- 머리카락 (뒷배경) -->
-  ${male
-    ? `<ellipse cx="43" cy="42" rx="23" ry="26" fill="${hairColor}"/>`
-    : `<ellipse cx="43" cy="44" rx="25" ry="28" fill="${hairColor}"/>
-       <ellipse cx="20" cy="58" rx="9" ry="18" fill="${hairColor}"/>
-       <ellipse cx="66" cy="58" rx="9" ry="18" fill="${hairColor}"/>`
-  }
-
-  <!-- 얼굴 -->
-  <ellipse cx="43" cy="50" rx="19" ry="22" fill="url(#skinG)"/>
-
-  <!-- 귀 -->
-  <ellipse cx="24" cy="50" rx="4" ry="5" fill="${skin}"/>
-  <ellipse cx="62" cy="50" rx="4" ry="5" fill="${skin}"/>
-
-  <!-- 눈썹 -->
-  <path d="M 31 41 Q 36 ${hasAmbitious?38:hasCruel?37:39} 38 41"
-        stroke="${hairColor}" stroke-width="1.8" fill="none" stroke-linecap="round"
-        opacity="${aged?1:0.85}"/>
-  <path d="M 48 41 Q 50 ${hasAmbitious?38:hasCruel?37:39} 55 41"
-        stroke="${hairColor}" stroke-width="1.8" fill="none" stroke-linecap="round"
-        opacity="${aged?1:0.85}"/>
-
-  <!-- 흰자위 -->
-  <ellipse cx="36" cy="47" rx="5" ry="4" fill="url(#eyeG)"/>
-  <ellipse cx="50" cy="47" rx="5" ry="4" fill="url(#eyeG)"/>
-  <!-- 동공 -->
-  <circle cx="36" cy="47" r="2.5" fill="${eyeColor}"/>
-  <circle cx="50" cy="47" r="2.5" fill="${eyeColor}"/>
-  <!-- 하이라이트 -->
-  <circle cx="37" cy="46" r="1" fill="white" opacity="0.7"/>
-  <circle cx="51" cy="46" r="1" fill="white" opacity="0.7"/>
-
-  <!-- 코 -->
-  <path d="M 43 49 L 40 57 Q 43 59 46 57 L 43 49"
-        fill="${skinShadow}" opacity="0.4"/>
-
-  <!-- 표정(입) -->
-  <path d="${smileD}" stroke="${skinShadow}" stroke-width="1.5"
-        fill="none" stroke-linecap="round"/>
-
-  <!-- 수염 (성인 남성) -->
-  ${male && charAge >= 20
-    ? aged
-      ? `<path d="M 34 65 Q 43 75 52 65 Q 50 72 43 76 Q 36 72 34 65"
-               fill="${hairColor}" opacity="0.7"/>
-         <path d="M 36 62 Q 40 66 36 70" stroke="${hairColor}" stroke-width="1" fill="none" opacity="0.5"/>
-         <path d="M 50 62 Q 46 66 50 70" stroke="${hairColor}" stroke-width="1" fill="none" opacity="0.5"/>`
-      : `<path d="M 36 64 Q 43 70 50 64 Q 49 68 43 71 Q 37 68 36 64"
-               fill="${hairColor}" opacity="0.55"/>`
-    : ''
-  }
-
-  <!-- 주름 (노년) -->
-  ${aged
-    ? `<path d="M 26 46 Q 28 50 27 54" stroke="${skinShadow}" stroke-width="0.8" fill="none" opacity="0.4"/>
-       <path d="M 60 46 Q 58 50 59 54" stroke="${skinShadow}" stroke-width="0.8" fill="none" opacity="0.4"/>
-       <path d="M 35 57 Q 33 60 35 62" stroke="${skinShadow}" stroke-width="0.7" fill="none" opacity="0.35"/>
-       <path d="M 51 57 Q 53 60 51 62" stroke="${skinShadow}" stroke-width="0.7" fill="none" opacity="0.35"/>`
-    : ''
-  }
-
-  <!-- 왕관/머리띠 -->
-  <rect x="22" y="26" width="42" height="6" fill="${crownColor}" rx="2" opacity="0.9"/>
-  <polygon points="27,26 30,18 33,26" fill="${crownColor}" opacity="0.9"/>
-  <polygon points="40,26 43,16 46,26" fill="${crownColor}" opacity="0.9"/>
-  <polygon points="53,26 56,18 59,26" fill="${crownColor}" opacity="0.9"/>
-  <!-- 왕관 보석 -->
-  <circle cx="43" cy="19" r="2" fill="#c04040" opacity="0.9"/>
-  <circle cx="30" cy="21" r="1.5" fill="#4060c0" opacity="0.8"/>
-  <circle cx="56" cy="21" r="1.5" fill="#40a060" opacity="0.8"/>
-
-  <!-- 프레임 테두리 -->
-  <rect width="86" height="108" fill="none"
-        stroke="${crownColor}" stroke-width="1.5" opacity="0.35"/>
-</svg>`;
-
-  return svg;
-}
-
 function renderChar(){
   const c=playerChar();
-  /* SVG 초상화 삽입 */
-  document.getElementById('portrait').innerHTML = makePortraitSVG(c);
+  /* 초상화 — 클릭 시 프로필 모달 */
+  const portrait=document.getElementById('portrait');
+  portrait.textContent=c.name[0];
+  portrait.style.cursor='pointer';
+  portrait.onclick=()=>{ initAudio(); openProfile(c); };
   document.getElementById('cNm').textContent=c.name;
   const ttl=state.kingdomFormed?'아일랜드 왕':`${COUNTIES[countyOf(c.region)]?.n||BARONIES[c.region]?.n||''} 소왕`;
   document.getElementById('cTtl').textContent=`${ttl} · ${age(c)}세 · ${c.dyn} 가문`;
