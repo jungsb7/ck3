@@ -613,7 +613,6 @@ function countiesOf(charId){ const cs=new Set(); for(const bid of regionsOf(char
 function duchiesOf(charId){ const ds=new Set(); for(const bid of regionsOf(charId)) ds.add(duchyOf(bid)); return [...ds].filter(Boolean); }
 function seatCounty(c){ return countyOf(c.region)||null; }
 function seatDuchy(c){ return duchyOf(c.region)||null; }
-function ownerOf(rid){ return rulerOf(rid); }
 function playerChar(){ return chars[state.player]; }
 
 /* ---------- 게임 상태 ---------- */
@@ -2961,6 +2960,99 @@ function skillColor(k){
   return {dip:'#5a8aaa',mar:'#aa5a5a',stew:'#8aaa5a',intr:'#8a5aaa',learn:'#aa9a5a',prow:'#c87a3a'}[k]||'#8a8a8a';
 }
 
+/* ══════════════════════════════════════════════════════
+   SVG 초상화 생성 — 외부 파일 불필요, 특성 기반 외모 변화
+   w, h: 출력 크기 (기본 86×108)
+   ══════════════════════════════════════════════════════ */
+function makePortraitSVG(c, w, h){
+  w = w||86; h = h||108;
+  const male = c.sex !== 'f';
+  const charAge = age(c);
+  const aged = charAge > 45;
+
+  /* 특성 기반 색상 */
+  const hairColor = c.traits.includes('greedy')  ? '#c8a02a'
+                  : c.traits.includes('brave')    ? '#4a2808'
+                  : c.traits.includes('cruel')    ? '#1a1208'
+                  : '#7a5228';
+  const eyeColor  = c.traits.includes('ambitious')? '#2a6a9a'
+                  : c.traits.includes('just')     ? '#3a7a4a'
+                  : c.traits.includes('cruel')    ? '#8a2a2a'
+                  : '#4a6a3a';
+  const robeColor = c.traits.includes('brave')||c.traits.includes('wrathful') ? '#5a2818'
+                  : c.traits.includes('calm')||c.traits.includes('kind')       ? '#1e3a4a'
+                  : '#2e2818';
+  const skin  = '#c8906a';
+  const skinS = '#a56848';
+
+  /* 미소 방향 */
+  const smileD = c.traits.includes('kind')||c.traits.includes('calm')
+    ? `M ${w*.33} ${h*.56} Q ${w*.5} ${h*.62} ${w*.67} ${h*.56}`
+    : c.traits.includes('cruel')||c.traits.includes('wrathful')
+    ? `M ${w*.33} ${h*.60} Q ${w*.5} ${h*.55} ${w*.67} ${h*.60}`
+    : `M ${w*.34} ${h*.58} Q ${w*.5} ${h*.62} ${w*.66} ${h*.58}`;
+
+  const cx = w/2, cy = h*0.46;
+  const s = v => v * (w/86); /* 기준 86px 대비 스케일 */
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
+  <rect width="${w}" height="${h}" fill="#181009"/>
+  <!-- 의복 -->
+  <ellipse cx="${cx}" cy="${h*.88}" rx="${s(30)}" ry="${s(18)}" fill="${robeColor}"/>
+  <rect x="${cx-s(13)}" y="${h*.73}" width="${s(26)}" height="${s(18)}" fill="${robeColor}" rx="${s(3)}"/>
+  <rect x="${cx-s(5)}" y="${h*.66}" width="${s(10)}" height="${s(12)}" fill="${skin}" rx="${s(3)}"/>
+  <!-- 머리카락 -->
+  ${male
+    ? `<ellipse cx="${cx}" cy="${cy}" rx="${s(19)}" ry="${s(22)}" fill="${hairColor}"/>`
+    : `<ellipse cx="${cx}" cy="${cy}" rx="${s(21)}" ry="${s(24)}" fill="${hairColor}"/>
+       <ellipse cx="${cx-s(18)}" cy="${cy+s(10)}" rx="${s(8)}" ry="${s(14)}" fill="${hairColor}"/>
+       <ellipse cx="${cx+s(18)}" cy="${cy+s(10)}" rx="${s(8)}" ry="${s(14)}" fill="${hairColor}"/>`}
+  <!-- 얼굴 -->
+  <ellipse cx="${cx}" cy="${cy}" rx="${s(16)}" ry="${s(19)}" fill="${skin}"/>
+  <ellipse cx="${cx-s(17)}" cy="${cy}" rx="${s(3.5)}" ry="${s(4.5)}" fill="${skin}"/>
+  <ellipse cx="${cx+s(17)}" cy="${cy}" rx="${s(3.5)}" ry="${s(4.5)}" fill="${skin}"/>
+  <!-- 눈썹 -->
+  <path d="M ${cx-s(11)} ${cy-s(8)} Q ${cx-s(7)} ${cy-s(10.5)} ${cx-s(3)} ${cy-s(8)}"
+    stroke="${hairColor}" stroke-width="${s(1.6)}" fill="none" stroke-linecap="round"/>
+  <path d="M ${cx+s(3)} ${cy-s(8)} Q ${cx+s(7)} ${cy-s(10.5)} ${cx+s(11)} ${cy-s(8)}"
+    stroke="${hairColor}" stroke-width="${s(1.6)}" fill="none" stroke-linecap="round"/>
+  <!-- 눈 -->
+  <ellipse cx="${cx-s(7)}" cy="${cy-s(3.5)}" rx="${s(4.5)}" ry="${s(3.5)}" fill="#ece8e0" opacity=".9"/>
+  <ellipse cx="${cx+s(7)}" cy="${cy-s(3.5)}" rx="${s(4.5)}" ry="${s(3.5)}" fill="#ece8e0" opacity=".9"/>
+  <circle cx="${cx-s(7)}" cy="${cy-s(3.5)}" r="${s(2.5)}" fill="${eyeColor}"/>
+  <circle cx="${cx+s(7)}" cy="${cy-s(3.5)}" r="${s(2.5)}" fill="${eyeColor}"/>
+  <circle cx="${cx-s(6)}" cy="${cy-s(4.5)}" r="${s(.9)}" fill="white" opacity=".7"/>
+  <circle cx="${cx+s(8)}" cy="${cy-s(4.5)}" r="${s(.9)}" fill="white" opacity=".7"/>
+  <!-- 코 -->
+  <path d="M ${cx} ${cy+s(1)} L ${cx-s(2.5)} ${cy+s(7)} Q ${cx} ${cy+s(9)} ${cx+s(2.5)} ${cy+s(7)} Z"
+    fill="${skinS}" opacity=".35"/>
+  <!-- 입 -->
+  <path d="${smileD}" stroke="${skinS}" stroke-width="${s(1.5)}" fill="none" stroke-linecap="round"/>
+  <!-- 수염 (남성 20세+) -->
+  ${male && charAge >= 20
+    ? `<path d="M ${cx-s(8)} ${cy+s(10)} Q ${cx} ${cy+s(18)} ${cx+s(8)} ${cy+s(10)} Q ${cx+s(7)} ${cy+s(14)} ${cx} ${cy+s(16)} Q ${cx-s(7)} ${cy+s(14)} Z"
+        fill="${hairColor}" opacity="${aged ? .75 : .45}"/>`
+    : ''}
+  <!-- 주름 (45세+) -->
+  ${aged
+    ? `<path d="M ${cx-s(14)} ${cy-s(2)} Q ${cx-s(12)} ${cy+s(2)} ${cx-s(13)} ${cy+s(5)}"
+        stroke="${skinS}" stroke-width="${s(.8)}" fill="none" opacity=".45"/>
+       <path d="M ${cx+s(14)} ${cy-s(2)} Q ${cx+s(12)} ${cy+s(2)} ${cx+s(13)} ${cy+s(5)}"
+        stroke="${skinS}" stroke-width="${s(.8)}" fill="none" opacity=".45"/>`
+    : ''}
+  <!-- 왕관 -->
+  <rect x="${cx-s(20)}" y="${h*.18}" width="${s(40)}" height="${s(5)}" fill="#c8a24a" rx="${s(2)}"/>
+  <polygon points="${cx},${h*.18} ${cx-s(3)},${h*.09} ${cx+s(3)},${h*.18}" fill="#c8a24a"/>
+  <polygon points="${cx-s(10)},${h*.18} ${cx-s(13)},${h*.10} ${cx-s(7)},${h*.18}" fill="#c8a24a"/>
+  <polygon points="${cx+s(10)},${h*.18} ${cx+s(13)},${h*.10} ${cx+s(7)},${h*.18}" fill="#c8a24a"/>
+  <circle cx="${cx}" cy="${h*.11}" r="${s(1.8)}" fill="#c04040"/>
+  <circle cx="${cx-s(11)}" cy="${h*.125}" r="${s(1.4)}" fill="#4060c0"/>
+  <circle cx="${cx+s(11)}" cy="${h*.125}" r="${s(1.4)}" fill="#40a060"/>
+  <!-- 테두리 -->
+  <rect width="${w}" height="${h}" fill="none" stroke="#c8a24a" stroke-width="${s(1.2)}" opacity=".3"/>
+</svg>`;
+}
+
 function buildProfileHTML(c){
   const p=playerChar();
   const isPlayer=c.id===p.id;
@@ -3053,13 +3145,7 @@ function buildProfileHTML(c){
 
   return `
     <div class="pm-header">
-      <div class="pm-portrait">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 86 108" width="86" height="108">
-          <rect width="86" height="108" fill="#1e1508"/>
-          <text x="43" y="68" text-anchor="middle" font-size="38" fill="#c8a24a"
-            font-family="Georgia,serif">${c.name[0]}</text>
-        </svg>
-      </div>
+      <div class="pm-portrait">${makePortraitSVG(c, 86, 108)}</div>
       <div class="pm-title">
         <h2>${c.name}</h2>
         <div class="pm-sub">${ttl} · ${c.dyn} 가문 · ${charAge}세</div>
@@ -3888,41 +3974,6 @@ function renderDec(){
     }
   }
 
-  // 건물 건설 결단
-  {
-    const p2=playerChar(); // 재사용 방지용 shadow
-    const ownedBids=regionsOf(p2.id);
-    if(ownedBids.length>0){
-      addDec('건물 건설',`남작령에 건물 건설 — 병력·금·민심 향상`,
-        BARONIES[p2.region]?.gold>=40, ()=>{
-        // 건설 가능한 (남작령, 슬롯 있음) 목록
-        const buildable=ownedBids.filter(bid=>{
-          const b=BARONIES[bid];
-          return b&&b.buildings.length<BUILDING_SLOTS;
-        }).slice(0,6);
-        if(!buildable.length){ log('모든 남작령 슬롯이 가득 찼습니다.'); return; }
-        // 남작령 선택 → 건물 선택 2단계 UI
-        const bOpts=buildable.map(bid=>({
-          t:`${BARONIES[bid].n} (슬롯 ${BARONIES[bid].buildings.length}/${BUILDING_SLOTS})`,
-          d:`건물: ${BARONIES[bid].buildings.filter(s=>s.done).map(s=>BUILDINGS[s.type].n).join(', ')||'없음'}`,
-          f:()=>{
-            const existTypes=BARONIES[bid].buildings.map(s=>s.type);
-            const avail=Object.entries(BUILDINGS).filter(([t])=>!existTypes.includes(t));
-            const cOpts=avail.map(([t,bp])=>({
-              t:`${bp.icon} ${bp.n}`,
-              d:`금 ${bp.cost} · ${bp.time}개월 · ${bp.desc}`,
-              f:()=>{ startBuilding(bid,t); renderDec(); }
-            }));
-            cOpts.push({t:'취소'});
-            showModal({title:`${BARONIES[bid].n} — 건물 선택`, sub:'건설', body:'', opts:cOpts});
-          }
-        }));
-        bOpts.push({t:'취소'});
-        showModal({title:'건물 건설', sub:'남작령 선택', body:'', opts:bOpts});
-      });
-    }
-  }
-
   // 인재 모집 — 궁정 인원 부족 시
   const courtSize=Object.values(chars).filter(c=>!c.dead&&c.courtOf===p.region&&c.id!==p.id).length;
   const vacancies=Object.values(state.council).filter(v=>!v).length;
@@ -4044,7 +4095,7 @@ function renderHeader(){
 function renderChar(){
   const c=playerChar();
   const portrait=document.getElementById('portrait');
-  portrait.textContent=c.name[0];
+  portrait.innerHTML = makePortraitSVG(c, 86, 108);
   portrait.style.cursor='pointer';
   portrait.onclick=()=>{ initAudio(); openProfile(c); };
   document.getElementById('cNm').textContent=c.name;
