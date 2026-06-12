@@ -23,20 +23,20 @@
     <svg id="map" viewBox="0 0 420 470" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
   <div id="logWrap" class="side-panel">
-    <button class="panel-tab" id="logTab" onclick="togglePanel('log')">연대기</button>
-    <div class="panel-head">연대기<button class="panel-close" onclick="togglePanel('log')">✕</button></div>
+    <button class="panel-tab" id="logTab" onclick="initAudio();togglePanel('log')">연대기</button>
+    <div class="panel-head">연대기<button class="panel-close" onclick="initAudio();togglePanel('log')">✕</button></div>
     <div id="log"></div>
   </div>
 </div>
 
 <div id="courtWrap" class="side-panel">
-  <button class="panel-tab" id="courtTab" onclick="togglePanel('court')">궁정</button>
-  <div class="panel-head">궁정<button class="panel-close" onclick="closePanel('court')">✕</button></div>
+  <button class="panel-tab" id="courtTab" onclick="initAudio();togglePanel('court')">궁정</button>
+  <div class="panel-head">궁정<button class="panel-close" onclick="initAudio();closePanel('court')">✕</button></div>
   <div id="courtContent" class="panel-body"></div>
 </div>
 <div id="decWrap" class="side-panel">
-  <button class="panel-tab" id="decTab" onclick="togglePanel('dec')">결단</button>
-  <div class="panel-head">결단<button class="panel-close" onclick="closePanel('dec')">✕</button></div>
+  <button class="panel-tab" id="decTab" onclick="initAudio();togglePanel('dec')">결단</button>
+  <div class="panel-head">결단<button class="panel-close" onclick="initAudio();closePanel('dec')">✕</button></div>
   <div id="decContent" class="panel-body"></div>
 </div>
 
@@ -60,24 +60,17 @@
       </div>
       <div id="stressLvl">0단계 — 평온함</div>
     </div>
-    <div id="btnCol">
-      <button onclick="openCourt()">궁정</button>
-      <button onclick="openDecisions()">결단</button>
-    </div>
   </div>
 </div>
 
 <div id="ftr">
-  <button id="pauseBtn" onclick="togglePause()">▶ 진행</button>
-  <button class="spd" data-s="1" onclick="setSpeed(1)">1배속</button>
-  <button class="spd" data-s="2" onclick="setSpeed(2)">2배속</button>
-  <button class="spd" data-s="3" onclick="setSpeed(3)">3배속</button>
+  <button id="pauseBtn" onclick="initAudio();togglePause()">▶ 진행</button>
+  <button class="spd" data-s="1" onclick="initAudio();setSpeed(1)">1배속</button>
+  <button class="spd" data-s="2" onclick="initAudio();setSpeed(2)">2배속</button>
+  <button class="spd" data-s="3" onclick="initAudio();setSpeed(3)">3배속</button>
 </div>
 
 <div id="shade"><div class="modal" id="modalBox"></div></div>
-<div id="profileShade">
-  <div id="profileModal"></div>
-</div>
 
 <script src="script.js"></script>
 </body>
