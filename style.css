@@ -23,12 +23,8 @@ body{
 #hdr .res span b{color:var(--gold); font-weight:normal; margin-right:5px}
 /* ===== 본문 ===== */
 #main{flex:1 1 auto; display:flex; min-height:0}
-#mapWrap {
-  flex:1; 
-  border-right:none; 
-  position:relative; 
-  background:radial-gradient(ellipse at 50% 40%, #1c1812 0%, #14100c 75%);
-}
+#mapWrap{flex:1; border-right:none; position:relative; background:
+  radial-gradient(ellipse at 50% 40%, #1c1812 0%, #14100c 75%)}
 #mapWrap h3{
   font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
   padding:8px 14px; border-bottom:1px solid var(--line); font-weight:normal;
@@ -67,12 +63,13 @@ body{
 .chip.edu{border-color:var(--steel)} .chip.life{border-color:var(--violet)}
 #stats{display:flex; gap:14px; font-size:.8rem; margin-top:4px; color:var(--parch-dim)}
 #stats b{color:var(--parch); font-weight:normal}
-#stressBox{flex:1; padding:10px 16px;}
+#stressBox{flex:1; padding:10px 16px;} /* 무중복 구조 배치 균형 확장 */
 #stressBox .lbl{font-size:.7rem; letter-spacing:.2em; color:var(--parch-dim); display:flex; justify-content:space-between}
 #stressTrack{height:13px; background:#0c0906; border:1px solid var(--line); margin-top:6px; position:relative}
 #stressFill{height:100%; background:linear-gradient(90deg,#6e5a2c,#a03c34); width:0%}
 .smark{position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--gold-dim)}
 #stressLvl{font-size:.72rem; margin-top:5px; color:var(--parch-dim)}
+
 /* ===== 푸터 ===== */
 #ftr{
   flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:14px;
@@ -112,7 +109,7 @@ button:disabled{opacity:.35; cursor:default}
 ::-webkit-scrollbar{width:9px}::-webkit-scrollbar-track{background:#100b07}
 ::-webkit-scrollbar-thumb{background:#3a2e1d}
 
-/* ===== 모바일 전용 수정 쿼리 ===== */
+/* ===== 모바일 전용 ===== */
 #logTab  { display:flex; align-items:center; justify-content:center }
 #logClose{ display:none }
 .panel-tab{ display:flex; align-items:center; justify-content:center }
@@ -175,7 +172,7 @@ button:disabled{opacity:.35; cursor:default}
   display:flex; align-items:center; justify-content:center;
   gap:0;
 }
-.panel-tab:hover{ color:var(--gold-bright,#ecd27a); background:linear-gradient(#382a1a,#231a0e) }
+.panel-tab:hover{ color:#ecd27a; background:linear-gradient(#382a1a,#231a0e) }
 
 #logTab   { top:200px; height:62px; }
 #courtTab { top:266px; height:52px; }
