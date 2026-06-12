@@ -118,18 +118,22 @@ button:disabled{opacity:.35; cursor:default}
 #charBot { display:contents }
 
 @media (max-width:768px){
+  /* 헤더 폰트 40% 축소 */
   #hdr{ padding:6px 10px }
   #hdr .date{ font-size:.69rem }
   #hdr .date small{ font-size:.47rem }
   #hdr .res{ font-size:.57rem; gap:10px }
   #hdr .res span b{ margin-right:2px }
 
+  /* 메인: 지도 전체 폭, 로그 제거 */
   #main{ position:relative }
   #mapWrap{ flex:1; border-right:none }
   #map{ height:calc(100% - 33px) }
 
+  /* 캐릭터 바 — 2층 구조 */
   #charBar{ flex-direction:column }
 
+  /* 1층: 초상화 + 캐릭터 정보 */
   #charTop{
     display:flex; flex-direction:row;
     border-bottom:1px solid var(--line);
@@ -142,6 +146,7 @@ button:disabled{opacity:.35; cursor:default}
   .chips{ gap:3px }
   .chip{ font-size:.63rem; padding:1px 5px }
 
+  /* 2층: 스트레스 + 버튼 */
   #charBot{
     display:flex; flex-direction:row;
     align-items:center; gap:0;
@@ -173,6 +178,7 @@ button:disabled{opacity:.35; cursor:default}
   overflow:visible;
 }
 .side-panel.open{ transform:translateX(0) }
+/* 탭: 패널 왼쪽 바깥에 붙어서 같이 이동 */
 .panel-tab{
   position:absolute; left:-36px; width:36px;
   background:linear-gradient(#2e2214,#1c1408);
@@ -187,6 +193,7 @@ button:disabled{opacity:.35; cursor:default}
 }
 .panel-tab:hover{ color:var(--gold-bright,#ecd27a); background:linear-gradient(#382a1a,#231a0e) }
 
+/* 세 탭 각각 독립 책갈피, 4px 간격으로 붙여 배치 */
 #logTab   { top:200px; height:62px; }
 #courtTab { top:266px; height:52px; }
 #decTab   { top:322px; height:52px; }
@@ -221,9 +228,10 @@ button:disabled{opacity:.35; cursor:default}
 .p-row .k{ color:var(--parch-dim) }
 .p-sep{ font-size:.65rem; letter-spacing:.25em; color:var(--gold-dim);
   padding:8px 0 4px; margin-top:4px; border-top:1px solid var(--line); }
-
+/* 데스크탑: 모든 패널 탭 표시, 너비 확대 */
 @media (min-width:769px){
   .panel-tab{ display:flex }
   .side-panel{ width:360px }
-  #btnCol{ display:none }
+  /* 모바일 전용 charBar 버튼 컬럼 유지 */
+  #btnCol{ display:none } /* 탭으로 대체 */
 }
