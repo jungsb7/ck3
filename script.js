@@ -1,10 +1,5 @@
 'use strict';
-/* =====================================================================
-   에이레 1066 — CK3 스타일 텍스트 시뮬레이션 MVP
-   수치 출처: CK3 위키 (수태력 ×4.75, 교육 공식, 스트레스 단계 등)
-===================================================================== */
 
-/* ---------- 성격 특성 ---------- */
 const TRAITS = {
   brave:     {n:'용감',   opp:'craven',    mod:{mar:2,prow:3}, ai:{bold:2}},
   craven:    {n:'비겁',   opp:'brave',     mod:{mar:-2,intr:2}, ai:{bold:-2}},
@@ -35,7 +30,6 @@ const TRAITS = {
 };
 const PERSONALITY_KEYS = Object.keys(TRAITS);
 
-/* ---------- 어린시절 특성 ---------- */
 const CHILD_TRAITS = {
   curious:   {n:'호기심',     foci:['dip','learn']},
   energetic: {n:'활기참',     foci:['mar','stew']},
@@ -45,7 +39,6 @@ const CHILD_TRAITS = {
   rowdy:     {n:'거칠음',     foci:['mar','intr']},
 };
 
-/* ---------- 교육 특성 ---------- */
 const SKILLS = {dip:'외교', mar:'무예', stew:'내정', intr:'음모', learn:'학문'};
 const EDU_NAMES = {
   dip:['서툰 협상가','수습 외교관','노련한 협상가','카리스마적 협상가'],
@@ -54,11 +47,9 @@ const EDU_NAMES = {
   intr:['아둔한 음모가','의심 많은 모사꾼','계략의 직조자','은밀한 그림자'],
   learn:['미숙한 학생','순진한 호사가','박식한 사색가','명민한 지성인'],
 };
-const EDU_BONUS = [1,2,3,5]; 
+const EDU_BONUS = [1,2,3,5];
 
-/* ---------- 지역 데이터 ---------- */
 const BARONIES = {
-  /* ── 먼스터 (d_munster) ────────────────────────── */
   b_limerick:  {n:'리머릭',   county:'c_thomond', troops:340, gold:100, pop:65, cap:340, owner:null},
   b_nenagh:    {n:'네나',     county:'c_thomond', troops:220, gold: 55, pop:60, cap:220, owner:null},
   b_roscrea:   {n:'로스크리아',county:'c_thomond', troops:200, gold: 50, pop:58, cap:200, owner:null},
@@ -72,8 +63,6 @@ const BARONIES = {
   b_cork:      {n:'코크',     county:'c_desmond', troops:260, gold: 75, pop:62, cap:260, owner:null},
   b_kinsale:   {n:'킨세일',   county:'c_desmond', troops:180, gold: 50, pop:55, cap:180, owner:null},
   b_baltimore: {n:'볼티모어', county:'c_desmond', troops:160, gold: 40, pop:52, cap:160, owner:null},
-
-  /* ── 레인스터 (d_leinster) ────────────────────── */
   b_wexford:   {n:'웩스퍼드', county:'c_leinster',troops:290, gold: 80, pop:58, cap:290, owner:null},
   b_enniscorthy:{n:'에니스코시',county:'c_leinster',troops:200, gold:50, pop:55, cap:200, owner:null},
   b_ferns:     {n:'퍼언스',   county:'c_leinster',troops:180, gold: 45, pop:55, cap:180, owner:null},
@@ -82,21 +71,15 @@ const BARONIES = {
   b_kilkenny:  {n:'킬케니',   county:'c_ossory',  troops:240, gold: 65, pop:58, cap:240, owner:null},
   b_athy:      {n:'에이시',   county:'c_ossory',  troops:180, gold: 45, pop:55, cap:180, owner:null},
   b_carrick:   {n:'캐릭',     county:'c_ossory',  troops:170, gold: 42, pop:54, cap:170, owner:null},
-
-  /* ── 더블린 (d_dublin) ─────────────────────────── */
   b_dublin:    {n:'더블린',   county:'c_dublin',  troops:380, gold:130, pop:65, cap:380, owner:null},
   b_wicklow:   {n:'위클로',   county:'c_dublin',  troops:200, gold: 55, pop:58, cap:200, owner:null},
   b_kildare:   {n:'킬데어',   county:'c_dublin',  troops:220, gold: 60, pop:58, cap:220, owner:null},
-
-  /* ── 미드 (d_meath) ────────────────────────────── */
   b_trim:      {n:'트림',     county:'c_meath',   troops:260, gold: 70, pop:60, cap:260, owner:null},
   b_drogheda:  {n:'드로이다', county:'c_meath',   troops:220, gold: 65, pop:60, cap:220, owner:null},
   b_kells:     {n:'켈스',     county:'c_meath',   troops:190, gold: 50, pop:57, cap:190, owner:null},
   b_athlone:   {n:'애슬론',   county:'c_athlone', troops:250, gold: 65, pop:58, cap:250, owner:null},
   b_birr:      {n:'버',       county:'c_athlone', troops:190, gold: 48, pop:55, cap:190, owner:null},
   b_uisneach:  {n:'위슈낙',   county:'c_athlone', troops:160, gold: 40, pop:52, cap:160, owner:null},
-
-  /* ── 코노트 (d_connacht) ───────────────────────── */
   b_galway:    {n:'골웨이',   county:'c_connacht',troops:310, gold: 80, pop:62, cap:310, owner:null},
   b_athenry:   {n:'애슨리',   county:'c_connacht',troops:210, gold: 55, pop:58, cap:210, owner:null},
   b_tuam:      {n:'투암',     county:'c_connacht',troops:200, gold: 52, pop:57, cap:200, owner:null},
@@ -105,15 +88,11 @@ const BARONIES = {
   b_castlebar: {n:'캐슬바',   county:'c_mayo',    troops:210, gold: 52, pop:56, cap:210, owner:null},
   b_sligo:     {n:'슬라이고', county:'c_mayo',    troops:230, gold: 58, pop:57, cap:230, owner:null},
   b_killala:   {n:'킬랄라',   county:'c_mayo',    troops:175, gold: 42, pop:53, cap:175, owner:null},
-
-  /* ── 브레프네 (d_breifne) ──────────────────────── */
   b_dromahair: {n:'드로마헤르',county:'c_breifne', troops:230, gold: 58, pop:57, cap:230, owner:null},
   b_belcoo:    {n:'벨쿠',     county:'c_breifne', troops:180, gold: 42, pop:53, cap:180, owner:null},
   b_longford:  {n:'롱퍼드',   county:'c_breifne', troops:190, gold: 48, pop:55, cap:190, owner:null},
   b_cavan:     {n:'캐번',     county:'c_breifne', troops:200, gold: 50, pop:56, cap:200, owner:null},
   b_adragh:    {n:'아드라그', county:'c_breifne', troops:160, gold: 38, pop:52, cap:160, owner:null},
-
-  /* ── 얼스터 (d_ulster) ─────────────────────────── */
   b_downpatrick:{n:'다운패트릭',county:'c_ulster', troops:280, gold: 72, pop:60, cap:280, owner:null},
   b_slemish:   {n:'슬레미시', county:'c_ulster',  troops:200, gold: 50, pop:57, cap:200, owner:null},
   b_carrickfergus:{n:'캐릭퍼거스',county:'c_ulster',troops:240, gold:65, pop:60, cap:240, owner:null},
@@ -157,7 +136,6 @@ const DUCHIES = {
   d_ulster:  {n:'얼스터 공작령',  counties:['c_ulster','c_oriel','c_ailech'],               color:'#8a4a3c'},
 };
 
-/* ===== 건물 시스템 ===== */
 const BUILDINGS = {
   barracks:   { n:'병영',     icon:'⚔', cost:80,  time:6,  cat:'mil', effect:{ troops_cap:+150, troops_regen:+2 }, desc:'병력 상한 +150, 매달 회복 +2' },
   watchtower: { n:'망루',     icon:'🗼', cost:60,  time:4,  cat:'mil', effect:{ troops_cap:+80,  war_score_def:+5 }, desc:'병력 상한 +80, 방어 전황 +5' },
@@ -167,7 +145,7 @@ const BUILDINGS = {
   fortify:    { n:'성벽 강화', icon:'🏰', cost:100, time:8, cat:'def', effect:{ troops_cap:+200, siege_defense:+15 }, desc:'병력 상한 +200, 공성 방어 +15%' },
   farmstead:  { n:'농장',     icon:'🌾', cost:40,  time:3,  cat:'eco', effect:{ gold_income:+1, pop_growth:+3 }, desc:'매달 금 +1, 민심 +3' },
 };
-const BUILDING_SLOTS = 2; 
+const BUILDING_SLOTS = 2;
 
 const BUILDING_TYPES = {
   barracks: { n:'병영', icon:'⚔', cost:80, buildMonths:6, desc:'병력 상한 +150, 병력 회복 +3/월', onComplete: (b)=>{ b.cap+=150; b.troops=Math.min(b.cap,b.troops+50); }, monthly: (b)=>{ b.troops=Math.min(b.cap,b.troops+3); } },
@@ -178,53 +156,12 @@ const BUILDING_TYPES = {
   mill: { n:'제분소', icon:'⚙', cost:55, buildMonths:5, desc:'병력 회복 +2/월, 세금 수입 +5/월', monthly: (b,seatB)=>{ b.troops=Math.min(b.cap,b.troops+2); if(seatB) seatB.gold=Math.min(3500,seatB.gold+5); } },
 };
 
-/* 남작령 초기 설정 */
-(()=>{ 
-  for(const bid in BARONIES) {
-    if(!BARONIES[bid].buildings) BARONIES[bid].buildings=[]; 
-    if(!BARONIES[bid].building_queue) BARONIES[bid].building_queue=null;
-    if(!BARONIES[bid].slots) BARONIES[bid].slots=2;
-  } 
-})();
-
-function startBuilding(bid, btype){
-  const b=BARONIES[bid]; const p=playerChar();
-  if(!b||b.owner!==p.id) return false;
-  if(b.buildings.length>=BUILDING_SLOTS){ log('건물 슬롯이 가득 찼습니다.'); return false; }
-  if(b.buildings.some(x=>x.type===btype)){ log('이미 건설된 건물입니다.'); return false; }
-  const bp=BUILDINGS[btype]; if(!bp) return false;
-  const seat=BARONIES[p.region]; if(!seat) return false;
-  if(seat.gold<bp.cost){ log(`금이 부족합니다. (필요: ${bp.cost})`,'dip'); return false; }
-  seat.gold-=bp.cost;
-  b.buildings.push({type:btype, progress:0, done:false});
-  log(`${b.n}에 ${bp.n} 건설을 시작했습니다. (${bp.time}개월 소요)`,'good');
-  return true;
-}
-
-function buildingPulse(){
-  for(const bid in BARONIES){
-    const b=BARONIES[bid];
-    if(!b.buildings?.length) continue;
-    for(const slot of b.buildings){
-      if(slot.done) continue;
-      slot.progress++;
-      const bp=BUILDINGS[slot.type]; if(!bp) continue;
-      if(slot.progress>=bp.time){
-        slot.done=true;
-        if(bp.effect.troops_cap) b.cap=(b.cap||b.troops)+bp.effect.troops_cap;
-        if(bid===playerChar().region||b.owner===state.player){
-          log(`${b.n}의 <b>${bp.n}</b>이(가) 완공됐습니다! ${bp.desc}`,'good');
-        }
-      }
-    }
-  }
-}
-
-function buildingBonus(bid, key){
-  const b=BARONIES[bid]; if(!b?.buildings) return 0;
-  return b.buildings.filter(s=>s.done).reduce((sum,s)=>{
-    const bp=BUILDINGS[s.type]; return bp?.effect?.[key]?sum+(bp.effect[key]||0):sum;
-  },0);
+/* 데이터 딕셔너리 확장 */
+for(const bid in BARONIES){
+  const b=BARONIES[bid];
+  if(!b.buildings) b.buildings=[];
+  if(!b.building_queue) b.building_queue=null;
+  if(!b.slots) b.slots=2;
 }
 
 const COUNTY_ADJ = {
@@ -247,13 +184,11 @@ const COUNTY_ADJ = {
 
 const REGIONS = BARONIES;
 const ADJ = {};
-(()=>{
-  for(const bid in BARONIES){
-    const cid = BARONIES[bid].county;
-    const adjCids = COUNTY_ADJ[cid] || [];
-    ADJ[bid] = adjCids.map(ac => COUNTIES[ac].capital).filter(Boolean);
-  }
-})();
+for(const bid in BARONIES){
+  const cid = BARONIES[bid].county;
+  const adjCids = COUNTY_ADJ[cid] || [];
+  ADJ[bid] = adjCids.map(ac => COUNTIES[ac].capital).filter(Boolean);
+}
 
 const DUCHY_COLOR = {};
 for(const did in DUCHIES){
@@ -262,7 +197,6 @@ for(const did in DUCHIES){
   }
 }
 
-/* ---------- 캐릭터 서브시스템 ---------- */
 let CID = 0;
 const chars = {};
 function mk(o){
@@ -274,7 +208,7 @@ function mk(o){
     stress:0, copings:0, lastBreakY:0,
     region:null, ruler:false, spouse:null, mother:null, father:null,
     pregnant:0, births:0, dead:false, courtOf:null,
-    liege:null, op:{}, 
+    liege:null, op:{},
     council:{chancellor:null,marshal:null,steward:null,spymaster:null,chaplain:null},
     claims:[], lastActivity:0,
   }, o);
@@ -318,10 +252,9 @@ function opinion(a,b){
   if(b.id===state.player) v += Math.round((state.prestige-120)/15);
   return Math.max(-100, Math.min(100, v));
 }
-
 function chOp(a,b,d){ a.op[b.id]=(a.op[b.id]||0)+d; }
 
-/* ---------- 월드 스폰 및 초기화 ---------- */
+/* ---------- 월드 세팅 생성 ---------- */
 const murchad = mk({name:'무르하드 막 돈하드', dyn:'우어 브리언', byear:1027, bmonth:3, bday:10, traits:['temperate','gregarious','impatient'], base:{dip:6,mar:8,stew:6,intr:8,learn:6,prow:8}, edu:2, eduFocus:'mar', region:'b_limerick', ruler:true});
 const wife = mk({name:'두브 에사', dyn:'우어 켈러허', sex:'f', byear:1033, bmonth:6, bday:2, traits:['kind','patient','chaste'], base:{dip:7,mar:2,stew:6,intr:4,learn:5,prow:1}, edu:1, eduFocus:'dip', spouse:murchad.id, courtOf:'b_limerick'});
 murchad.spouse = wife.id;
@@ -379,17 +312,16 @@ seizeDuchy(kUls.id,    'd_ulster');
   });
 });
 
-/* ---------- 글로벌 게임 상태 ---------- */
+/* ---------- 게임 글로벌 구동 컨텍스트 ---------- */
 const state = {
   year:1066, month:9, day:15, paused:true, speed:1, timer:null, player:murchad.id,
   schemes:[], wars:[], truces:{}, npcAlliances:[], alliances:[], prestige:120, successionLaw:'partition',
   council:{ chancellor:null, marshal:null, steward:null, spymaster:null, chaplain:null },
-  claims:[], popupQ:[], modalOpen:false, over:false, victory:false, introDone:false,
+  claims:[], popupQ:[], modalOpen:false, over:false, victory:false,
 };
 const MDAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
 const SEASONS=['겨울','겨울','봄','봄','봄','여름','여름','여름','가을','가을','가을','겨울'];
 
-/* ---------- 시스템 이벤트 인터페이스 ---------- */
 function log(msg, cls){
   const p=document.createElement('p'); if(cls)p.className=cls;
   p.innerHTML=`<span class="d">${state.year}년 ${state.month}월 ${state.day}일</span>${msg}`;
@@ -435,7 +367,46 @@ function closeModal(){
   document.getElementById('shade').classList.remove('show');
 }
 
-/* ---------- 스트레스 계산식 ---------- */
+function startBuilding(bid, btype){
+  const b=BARONIES[bid]; const p=playerChar();
+  if(!b||b.owner!==p.id) return false;
+  if(b.buildings.length>=BUILDING_SLOTS){ log('건물 슬롯이 가득 찼습니다.'); return false; }
+  if(b.buildings.some(x=>x.type===btype)){ log('이미 건설된 건물입니다.'); return false; }
+  const bp=BUILDINGS[btype]; if(!bp) return false;
+  const seat=BARONIES[p.region]; if(!seat) return false;
+  if(seat.gold<bp.cost){ log(`금이 부족합니다. (필요: ${bp.cost})`,'dip'); return false; }
+  seat.gold-=bp.cost;
+  b.buildings.push({type:btype, progress:0, done:false});
+  log(`${b.n}에 ${bp.n} 건설을 시작했습니다. (${bp.time}개월 소요)`,'good');
+  return true;
+}
+
+function buildingPulse(){
+  for(const bid in BARONIES){
+    const b=BARONIES[bid];
+    if(!b.buildings?.length) continue;
+    for(const slot of b.buildings){
+      if(slot.done) continue;
+      slot.progress++;
+      const bp=BUILDINGS[slot.type]; if(!bp) continue;
+      if(slot.progress>=bp.time){
+        slot.done=true;
+        if(bp.effect.troops_cap) b.cap=(b.cap||b.troops)+bp.effect.troops_cap;
+        if(bid===playerChar().region||b.owner===state.player){
+          log(`${b.n}의 <b>${bp.n}</b>이(가) 완공됐습니다! ${bp.desc}`,'good');
+        }
+      }
+    }
+  }
+}
+
+function buildingBonus(bid, key){
+  const b=BARONIES[bid]; if(!b?.buildings) return 0;
+  return b.buildings.filter(s=>s.done).reduce((sum,s)=>{
+    const bp=BUILDINGS[s.type]; return bp?.effect?.[key]?sum+(bp.effect[key]||0):sum;
+  },0);
+}
+
 function addStress(c,amt,why){
   if(c.dead) return;
   let g=amt;
@@ -465,7 +436,6 @@ function stressDeath(c){
   } else kill(c,'스트레스');
 }
 
-/* ---------- 데스 플래그 및 계승 ---------- */
 function kill(c, cause){
   if(c.dead) return;
   c.dead=true;
@@ -485,7 +455,7 @@ function kill(c, cause){
       }
       state.player=mainHid;
       const seatName=COUNTIES[countyOf(mainH.region)]?.n||BARONIES[mainH.region]?.n||'?';
-      const splitMsg=Object.keys(dist).length>1 ? `\n\n분할 상속:\n`+Object.entries(dist).map(([hid,cids])=>`${chars[hid].name}: ${cids.map(cid=>COUNTIES[cid]?.n||cid).join('·')}`).join('\n'):'';
+      const splitMsg=Object.keys(dist).length>1 ? `\n\n분할 상속:\n`+Object.entries(dist).map(([hid,cids])=>`${chars[hid].name}: ${cids.map(cid=>COUNTIES[cid]?.n||cid).join('·')}`).join('\n'): '';
       log(`<b>${mainH.name}</b>이(가) ${seatName}의 칭호를 계승했습니다.`,'fam');
       popup({title:'왕은 죽었다', sub:'계승', body:`${c.name}의 시대가 끝났습니다. (${cause})\n이제 <b>${mainH.name}</b>(${age(mainH)}세)이(가) ${seatName}을(를) 다스립니다.${splitMsg}`, opts:[{t:'왕은 만세하리라'}]});
     } else {
@@ -587,7 +557,6 @@ function gameOver(msg){
   popup({title:'가문의 종언', sub:'게임 오버', body:msg+'\n\n에이레의 연대기는 다른 가문의 이름으로 쓰일 것입니다.', opts:[{t:'다시 시작', f:()=>location.reload()}]});
 }
 
-/* ---------- 이벤트 풀 시스템 ---------- */
 const WORLD_EVENTS = [
   { id:'norman_shadow', triggerYear:1066, maxYear:1075, chance:0.6, fired:false, run:(p)=>popup({title:'노르만의 그림자', sub:'세계 소식', body:`잉글랜드에서 충격적인 소식이 전해집니다. 노르만 공작 윌리엄이 해럴드 왕을 헤이스팅스에서 꺾고 왕좌를 차지했습니다. 에이레 서쪽에 새로운 강자가 등장했습니다.`, opts:[
     {t:'경계를 강화한다', d:'병력 +100, 스트레스 +8', f:()=>{BARONIES[p.region].troops+=100; addStress(p,8,'강대국의 위협');}},
@@ -627,7 +596,6 @@ function worldEventPulse(){
   }
 }
 
-/* ---------- 레이아웃 인터랙션 및 시간 관리 ---------- */
 const PANELS={
   log:  {wrap:'logWrap',   render:null},
   court:{wrap:'courtWrap', render:'renderCourt'},
@@ -712,7 +680,6 @@ function tick(){
   if(state.popupQ.length) flushPopups();
 }
 
-/* ---------- 수명주기 시스템 ---------- */
 function dailyBirthdays(){
   for(const id in chars){
     const c=chars[id]; if(c.dead) continue;
@@ -760,7 +727,6 @@ function comeOfAge(c){
   if(c.id===state.player) askLifestyle(c); else c.lifestyle=randKey(SKILLS);
 }
 
-/* ---------- 인터랙티브 이벤트 팝업 ---------- */
 function askEducation(c){
   const ct=CHILD_TRAITS[c.childTrait||'curious'];
   const courtAdults=Object.values(chars).filter(k=>!k.dead&&age(k)>=16&&(k.courtOf===playerChar().region||k.id===state.player));
@@ -806,7 +772,6 @@ function askLifestyle(c){
   popup({title:'인생관', sub:'삶의 방향', body:`${c.name}은(는) 앞으로 어떤 통치자가 되려 합니까?`, opts});
 }
 
-/* ---------- 매월 작동 주기 및 시스템 펄스 ---------- */
 function monthlyPulse(){
   for(const id in chars){
     const c=chars[id]; if(c.dead) continue;
@@ -822,7 +787,6 @@ function monthlyPulse(){
   renderMap();
 }
 
-/* ---------- 봉신 및 직할령 지배 체계 ---------- */
 function directCountiesOf(charId){ return Object.keys(COUNTIES).filter(cid=>BARONIES[COUNTIES[cid].capital]?.owner===charId); }
 function vassalsOf(liegeId){ return Object.values(chars).filter(c=>!c.dead&&c.liege===liegeId&&c.ruler); }
 function domainLimit(c){ const d=duchiesOf(c.id).length; const ct=directCountiesOf(c.id).length; const base = d>=1?6 : ct>=3?4 : 2; return base + Math.floor(stat(c,'stew')*0.12); }
@@ -915,7 +879,6 @@ function babyStats(m,f){
   const r={}; for(const k of ['dip','mar','stew','intr','learn','prow']){ const mv=m?m.base[k]:5, fv=f?f.base[k]:5; r[k]=Math.max(0,Math.min(10,Math.round((mv+fv)/2 + (Math.random()*4-2)))); } return r;
 }
 
-/* ---------- 모략(암살) 엔진 ---------- */
 function startScheme(plotter,target){
   if(state.schemes.some(s=>s.plotter===plotter.id&&s.target===target.id)) return false;
   state.schemes.push({plotter:plotter.id,target:target.id,months:0});
@@ -948,10 +911,9 @@ function schemePulse(){
   });
 }
 
-/* ---------- 공성전 및 전쟁 관리 ---------- */
 function declareWar(atk,def,targetRid){
   if(truceBetween(atk.id,def.id)) return false;
-  if(state.wars.some(w=>(w.atk===atk.id&&w.def===def.id)||(w.atk===def.id&&w.def===atk.id))) return false;
+  if(state.wars.some(w=>w.atk===atk.id&&w.def===def.id)||(w.atk===def.id&&w.def===atk.id)) return false;
   if(isAllied(atk.id,def.id)){ if(atk.id===state.player) log('동맹국에는 선전포고할 수 없습니다. 먼저 동맹을 파기하세요.','dip'); return false; }
   let tRid = targetRid || def.region || regionsOf(def.id)[0]; let tCid = null;
   if(COUNTIES[tRid]){ tCid=tRid; tRid=COUNTIES[tRid].capital; } else if(BARONIES[tRid]){ tCid=BARONIES[tRid].county; }
@@ -1056,7 +1018,7 @@ function conquerTarget(a, d, targetCid){
   log(`<b>${a.name}</b>이(가) <b>${COUNTIES[cid].n}</b>을(를) 정복했습니다!`,'war'); setTruce(a.id,d.id,5);
   const bids = COUNTIES[cid].baronies; const aSeat = BARONIES[a.region];
   bids.forEach(bid=>{ const b=BARONIES[bid]; if(!b) return; if(aSeat) aSeat.gold+=Math.round(b.gold*0.3); b.gold=Math.round(b.gold*0.7); b.owner=a.id; });
-  if(countyOf(d.region)==='cid'){ const remaining=regionsOf(d.id).filter(bid=>BARONIES[bid]?.county!==cid); if(remaining.length){ d.region=remaining[0]; } else { d.ruler=false; d.region=null; d.courtOf=a.region; } }
+  if(countyOf(d.region)===cid){ const remaining=regionsOf(d.id).filter(bid=>BARONIES[bid]?.county!==cid); if(remaining.length){ d.region=remaining[0]; } else { d.ruler=false; d.region=null; d.courtOf=a.region; } }
   if(a.id===state.player){
     addStress(a,-15,'정복의 영광'); const remCnt=countiesOf(d.id).length; const canVassal=remCnt>0&&!d.dead;
     popup({title:'정복', sub:COUNTIES[cid].n, body:`<b>${COUNTIES[cid].n}</b>이(가) 당신의 깃발 아래 들어왔습니다!${remCnt>0?`\n${d.name}에게는 아직 ${remCnt}개 백작령이 남아있습니다.`:'\n'+d.name+'은(는) 당신의 궁정에 무릎 꿇었습니다.'}`, opts:[
@@ -1070,7 +1032,6 @@ function conquerTarget(a, d, targetCid){
 function playerRegions(){ return regionsOf(state.player); }
 function checkVictoryHint(){ const n=playerRegions().length; if(n>=4&&n<7) log(`현재 ${n}개 왕국을 지배 중입니다. [결단] 메뉴를 확인하세요.`,'good'); }
 
-/* ---------- AI 행동 의사결정 나무 ---------- */
 function courtMembersOf(ruler){ return Object.values(chars).filter(c=> !c.dead && age(c)>=16 && c.id!==ruler.id && c.courtOf===ruler.region); }
 function councilAssignedIds(ruler){ return Object.values(ruler.council).filter(Boolean); }
 function buildNpcCouncil(ruler){
@@ -1084,7 +1045,7 @@ function buildNpcCouncil(ruler){
 }
 function appointCouncilor(role, charId){
   if(charId){
-    for(const r in state.council){ if(r!===role && state.council[r]===charId){ log(`${chars[charId].name}은(는) 이미 ${COUNCIL_ROLES[r].n} 보직을 맡고 있습니다.`,'dip'); renderCourt(); return; } }
+    for(const r in state.council){ if(r!==role && state.council[r]===charId){ log(`${chars[charId].name}은(는) 이미 ${COUNCIL_ROLES[r].n} 보직을 맡고 있습니다.`,'dip'); renderCourt(); return; } }
   }
   const prev = state.council[role]; if(prev && chars[prev]) chOp(chars[prev], playerChar(), -10); state.council[role] = charId || null;
   if(charId && chars[charId]){ chOp(chars[charId], playerChar(), 20); log(`<b>${chars[charId].name}</b>이(가) ${COUNCIL_ROLES[role].n}(으)로 임명되었습니다.`, 'good'); }
@@ -1167,7 +1128,7 @@ function rebellionEvent(rid){
 function npcDiplomacyToPlayer(r){
   const p=playerChar(); const op=opinion(r,p); const kind=Math.random();
   if(kind<0.4&&op>-20){ popup({title:`${REGIONS[r.region].n}의 사절`, sub:'외교 — 동맹 제안', body:`${r.name}이(가) 사절을 보냈습니다.\n"에이레의 평화를 위해 손을 잡읍시다. 동맹을 제안합니다."`, opts:[{t:'수락한다', d:'상호 관계 +25', f:()=>{chOp(p,r,25);chOp(r,p,25); log(`<b>${r.name}</b>과(와) 동맹을 맺었습니다.`,'dip');}}, {t:'거절한다', d:'관계 -10', f:()=>{chOp(r,p,-10); log(`${r.name}의 동맹 제안을 거절했습니다.`,'dip');}}]}); }
-  else if(kind<0.7){ popup({title:`${REGIONS[r.region].n}의 선물`, sub:'외교', body:`${r.name}이(가) 우호의 표시로 은제 술잔과 사냥개를 보냈습니다.`, opts:[{t:'받아들인다', d:'관계 +15', f:()=>{chOp(p,r,15);chOp(r,p,10);}}, {t:'돌려보낸다', d:'관계 -15', f:()=>{chOp(r,p,-15);}}]}); }
+  else if(kind<0.7){ popup({title:`${REGIONS[r.region].n}의 선물`, sub:'외교', body:`${r.name}이(가) 우호의 표시로 은제 술잔 and 사냥개를 보냈습니다.`, opts:[{t:'받아들인다', d:'관계 +15', f:()=>{chOp(p,r,15);chOp(p,r,10);}}, {t:'돌려보낸다', d:'관계 -15', f:()=>{chOp(r,p,-15);}}]}); }
   else {
     const myKids=Object.values(chars).filter(k=>!k.dead&&(k.father===p.id||k.mother===p.id)&&!k.spouse&&age(k)>=12); if(!myKids.length){ chOp(r,p,3); return; } const kid=myKids[0];
     popup({title:`혼담`, sub:`외교 — ${REGIONS[r.region].n}`, body:`${r.name}이(가) 가문 간 혼인을 제안합니다.\n대상: 당신의 ${kid.sex==='m'?'아들':'딸'} <b>${kid.name}</b>(${age(kid)}세)\n\n혼인은 두 가문을 묶는 가장 단단한 사슬입니다.`, opts:[
@@ -1177,7 +1138,6 @@ function npcDiplomacyToPlayer(r){
   }
 }
 
-/* ---------- 난수 인카운터 풀 (중략본 결합) ---------- */
 const EVENTS=[
   {cond:c=>true, w:3, run:c=>popup({title:'흉작의 소문', sub:'영지', body:'올해 보리 수확이 시원치 않다는 보고가 올라왔습니다. 농민들이 동요하고 있습니다.', opts:[{t:'곡식 창고를 연다', d:'금 -40, 민심 +10, 스트레스 +10', f:()=>{REGIONS[c.region].gold-=40; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+10); addStress(c,10,'무거운 책임감'); if(c.traits.includes('greedy'))addStress(c,20,'탐욕스러운 자의 베풂');}}, {t:'버티라고 한다', d:'민심 -15, 스트레스 +5', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-15); addStress(c,5,'민심 악화를 외면함'); if(c.traits.includes('just'))addStress(c,15,'공정한 자의 냉혹함');}}]})},
   {cond:c=>true, w:2, run:c=>popup({title:'전염병 소식', sub:'영지', body:'인근 마을에서 발병이 시작됐습니다. 아직 성 안까지는 들어오지 않았지만, 농민들이 도망치고 있습니다.', opts:[{t:'의원을 보내고 격리한다', d:'금 -60, 민심 +8, 병력 -50', f:()=>{REGIONS[c.region].gold-=60; REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+8); REGIONS[c.region].troops=Math.max(100,REGIONS[c.region].troops-50); log('전염병을 조기에 막았습니다.','good');}}, {t:'방치한다', d:'민심 -20, 병력 -100', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-20); REGIONS[c.region].troops=Math.max(100,REGIONS[c.region].troops-100); addStress(c,15,'퍼진 전염병'); log('전염병이 번졌습니다.','war');}}]})},
@@ -1198,7 +1158,6 @@ function randomEventPulse(){
   }
 }
 
-/* ---------- 샌드박스 플레이어 커맨드 조작 ---------- */
 function openBuildMenu(bid){
   const b=BARONIES[bid]; if(!b) return; const existing=b.buildings||[]; const seatGold=BARONIES[playerChar().region]?.gold||0;
   const opts=Object.entries(BUILDING_TYPES).filter(([type])=>!existing.includes(type)&&(b.buildings||[]).length+(b.building_queue?1:0)<b.slots).map(([type,bt])=>({
@@ -1242,22 +1201,16 @@ function tryMarriage(c){
   const p=playerChar(); const candidates=[]; if(!p.spouse) candidates.push({...p, _label:'본인'});
   Object.values(chars).filter(k=>!k.dead&&(k.father===p.id||k.mother===p.id)&&!k.spouse&&age(k)>=6).forEach(k=>candidates.push(k));
   if(!candidates.length){ log('혼인시킬 미혼 가족이 없습니다.'); return; }
-  const opts=candidates.map(kid=>({ t:kid.id===p.id ? `${kid.name} (본인 · ${age(kid)}세)` : `${kid.name} (${kid.sex==='m'?'아들':'딸'} · ${age(kid)}세)`, d:age(kid)<16?'성인이 되면 혼인 — 지금은 혼약':'즉시 혼인', f:()=>doMarriage(kid.id===p.id?p:kid, C) }));
+  const opts=candidates.map(kid=>({ t:kid.id===p.id ? `${kid.name} (본인 · ${age(kid)}세)` : `${kid.name} (${kid.sex==='m'?'아들':'딸'} · ${age(kid)}세)`, d:age(kid)<16?'성인이 되면 혼인 — 지금은 혼약':'즉시 혼인', f:()=>doMarriage(kid.id===p.id?p:kid, c) }));
   opts.push({t:'그만둔다'}); showModal({title:'혼인 교섭', sub:`${c.dyn} 가문과의 혼담`, body:'누구의 혼처를 알아보시겠습니까?', opts});
 }
 function doMarriage(candidate, c){
   const p=playerChar(); if(Math.random()*100<(40+opinion(c,p)+aiW(c,'soc')*4+Math.round((state.prestige-120)/12))){
     const sp=mk({name:c.dyn+' 가문의 '+(candidate.sex==='m'?'규수':'자제'), dyn:c.dyn, sex:candidate.sex==='m'?'f':'m', byear:candidate.byear, bmonth:2, bday:2, traits:randTraits(2), base:randStats(), edu:1, eduFocus:'dip', courtOf:p.region});
-    if(age(candidate)>=16){ candidate.spouse=sp.id; sp.spouse=candidate.id; } chOp(c,p,30); chOp(p,c,30); log(`<b>${candidate.name}</b>(본인/가족)과(와) ${c.dyn} 가문의 혼약 성사 — 두 가문이 맺어졌습니다.`,'good');
+    if(age(candidate)>=16){ candidate.spouse=sp.id; sp.spouse=candidate.id; } chOp(c,p,30); chOp(p,c,30); log(`<b>${candidate.name}</b>과(와) ${c.dyn} 가문의 혼약 성사 — 두 가문이 맺어졌습니다.`,'good');
   } else { chOp(c,p,-5); log(`${c.name}이(가) 혼담을 정중히 물렸습니다.`,'dip'); }
 }
 
-/* ---------- 명분 전쟁 설계 메커니즘 ---------- */
-const CB_TYPES = {
-  pressed:   { n:'확정 주장',   icon:'⚔',  cost:50,  desc:'전쟁으로 확정된 영토 주장', color:'#c9a227' },
-  unpressed: { n:'미확정 주장', icon:'📜', cost:100, desc:'위조되거나 약한 영토 주장',  color:'#8a9a6a' },
-  revenge:   { n:'복수 선포',   icon:'🩸', cost:0,   desc:'침략당한 영지 탈환 명분',    color:'#9e3535' },
-};
 function hasClaim(rid){ return state.claims.find(c=>c.rid===rid); }
 function claimsForRegion(def){ const defCids = countiesOf(def.id); return state.claims.filter(c=>defCids.includes(c.rid)); }
 function claimName(rid){ return COUNTIES[rid]?.n||BARONIES[rid]?.n||rid; }
@@ -1310,7 +1263,6 @@ function councilPulse(){
   }
 }
 
-/* ---------- 렌더러 커스텀 바인딩 파트 ---------- */
 function renderCourt(){
   const p=playerChar(); if(!p) return; const fam=Object.values(chars).filter(c=>!c.dead&&(c.id===p.id||c.spouse===p.id||c.father===p.id||c.mother===p.id||c.courtOf===p.region)); const reg=REGIONS[p.region]; const rn=reg?reg.n:'—';
   const roleBonus={ chancellor: cid=>`위신 +${Math.round(stat(chars[cid],'dip')*0.4)}/월`, marshal: cid=>`병력 +${Math.round(stat(chars[cid],'mar')*1.5)}/월`, steward: cid=>`금 +${Math.round(stat(chars[cid],'stew')*1.2)}/월`, spymaster: cid=>`방어 +${stat(chars[cid],'intr')*2}`, chaplain: cid=>`민심 보정` };
@@ -1349,7 +1301,7 @@ function renderDec(){
   if(playerDuchies().length>=7){ addDec('☀ 하이킹에 등극한다','에이레 전토 통일 완료', true, ()=>{ closePanel('dec'); victory(); }); }
   addDec('연회를 개최한다',`금 60 · 호감도 +8 · 스트레스 -20`, BARONIES[p.region]?.gold>=60, ()=>{ BARONIES[p.region].gold-=60; addStress(p,-20,'연회'); Object.values(chars).forEach(r=>{if(r.ruler&&r.id!==p.id)chOp(r,p,8);}); log('성대한 연회를 열었습니다.','good'); renderDec(); });
   addDec('클론맥노이즈 순례',`금 30 · 스트레스 -25`, BARONIES[p.region]?.gold>=30, ()=>{ BARONIES[p.region].gold-=30; addStress(p,-25,'순례'); state.prestige+=10; log('수도원에서 기도를 올렸습니다.','fam'); renderDec(); });
-  addDec('징집병 소집',`금 80 · 병력 +200`, BARONIES[p.region]?.gold>=80, ()=>{ BARONIES[p.region].gold-=80; BARONIES[p.region].troops+=200; log('징집병 200명이 충원됐습니다.','war'); renderDec(); });
+  addDec('<b>징집병 소집</b>',`금 80 · 병력 +200`, BARONIES[p.region]?.gold>=80, ()=>{ BARONIES[p.region].gold-=80; BARONIES[p.region].troops+=200; log('징집병 200명이 충원됐습니다.','war'); renderDec(); });
 
   let html=state.claims.length > 0 ? '<div style="font-size:.7rem;color:var(--gold-dim)">보유 명분</div>'+state.claims.map(cl=>`<div class="p-row"><span>${claimName(cl.rid)}</span><span>${CB_TYPES[cl.type].n}</span></div>`).join(''):'<div style="font-size:.76rem;color:var(--parch-dim)">보유 명분 없음</div>';
   html+=`<p style="font-size:.74rem;color:var(--parch-dim);margin:6px 0 12px">영지 통치 점유율: ${n}/7</p>`;
@@ -1359,7 +1311,6 @@ function renderDec(){
 function openDecisions(){ togglePanel('dec'); }
 function victory(){ state.victory=true; state.over=true; pause(); popup({title:'에이레의 하이킹', sub:'승리', body:`타라 언덕에서 전 국토의 군주들이 지켜보는 가운데, 에이레 전토가 당신의 깃발 아래 통일되었습니다.`, opts:[{t:'다시 시작', f:()=>location.reload()}]}); }
 
-/* ---------- 렌더러 파이프라인 ---------- */
 function renderHeader(){
   document.getElementById('dateTxt').textContent=`${state.year}년 ${state.month}월 ${state.day}일`;
   document.getElementById('seasonTxt').textContent=`${SEASONS[state.month-1]} · ${COUNTIES[countyOf(playerChar().region)]?.n||BARONIES[playerChar().region]?.n||'—'}`;
@@ -1390,14 +1341,13 @@ function renderMap(){
   }
   for(const cid in COUNTIES){
     const C=COUNTIES[cid]; const holder=countyHolder(cid); const mine=holder&&holder.id===p.id; const isVassalOf=holder&&holder.liege===p.id;
-    const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':(DUCHIES[C.duchy]?.color||'#555'); const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':'#6a5836';
+    const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':(DUCHIES[C.duchy]?.color||#555); const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':'#6a5836';
     const totalT=C.baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0); const avgPop=Math.round(C.baronies.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/C.baronies.length); const rad=mine?22:18;
     const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
     h+=`<g class="node" onclick="openCounty('${cid}')"><circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${col}" stroke="${underSiege?'#c83030':stroke}"/>${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:''}<text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text><text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${holder?holder.name.split(' ')[0]:'—'}</text><text class="owner" x="${C.x}" y="${C.y+36}" style="font-size:7.5px;fill:#7a6848">⚔${totalT} 민${avgPop}</text></g>`;
   }
   svg.innerHTML=h;
 }
-function ownerOf(rid){ return rulerOf(rid); }
 function renderAll(){ renderHeader(); renderChar(); renderMap(); }
 
 /* ---------- 라이프사이클 엔트리 포인트 ---------- */
@@ -1419,7 +1369,6 @@ function intro(){
   });
 }
 
-// 초기화 구동
 setSpeed(1);
 renderAll();
 log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니다.', 'good');
