@@ -49,11 +49,11 @@ body{
   border-top:2px solid var(--gold-dim);
 }
 #portrait{
-  width:86px; min-height:108px; display:flex; align-items:stretch; justify-content:center;
-  border-right:1px solid var(--line); overflow:hidden; flex-shrink:0;
+  width:86px; min-height:108px; display:flex; align-items:center; justify-content:center;
+  font-size:2.2rem; color:var(--gold); border-right:1px solid var(--line);
   background:radial-gradient(circle at 50% 35%, #2c2113, #181009);
+  text-shadow:0 0 18px rgba(200,162,74,.4);
 }
-#portrait svg{ display:block; width:86px; height:108px; }
 #charInfo{flex:1; padding:9px 16px}
 #charInfo .nm{font-size:1.05rem; color:var(--gold)}
 #charInfo .ttl{font-size:.78rem; color:var(--parch-dim); letter-spacing:.1em; margin-bottom:5px}
@@ -236,4 +236,118 @@ button:disabled{opacity:.35; cursor:default}
   .side-panel{ width:360px }
   /* 모바일 전용 charBar 버튼 컬럼 유지 */
   #btnCol{ display:none } /* 탭으로 대체 */
+}
+/* ===== 프로필 모달 ===== */
+#profileShade{
+  position:fixed; inset:0; background:rgba(5,3,1,.78);
+  display:none; align-items:center; justify-content:center;
+  z-index:60;
+}
+#profileShade.show{ display:flex }
+#profileModal{
+  width:min(780px,96vw); max-height:90vh; overflow-y:auto;
+  background:linear-gradient(160deg,#251c12,#1a130b);
+  border:1px solid var(--gold);
+  box-shadow:0 0 80px rgba(0,0,0,.9);
+}
+.pm-header{
+  display:flex; align-items:stretch; gap:0;
+  border-bottom:2px solid var(--gold-dim);
+  background:linear-gradient(#2a1f12,#1e1509);
+}
+.pm-portrait{
+  width:86px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  border-right:1px solid var(--line);
+  background:radial-gradient(circle at 50% 35%,#2c2113,#181009);
+}
+.pm-portrait svg{ display:block }
+.pm-title{
+  flex:1; padding:14px 18px;
+  display:flex; flex-direction:column; justify-content:center;
+}
+.pm-title h2{
+  font-size:1.15rem; color:var(--gold); font-weight:normal;
+  letter-spacing:.06em; margin-bottom:3px;
+}
+.pm-title .pm-sub{
+  font-size:.75rem; color:var(--parch-dim); letter-spacing:.15em;
+}
+.pm-close{
+  background:none; border:none; color:var(--parch-dim);
+  font-size:1.3rem; padding:14px 18px; cursor:pointer; letter-spacing:0;
+  align-self:flex-start;
+}
+.pm-close:hover{ color:var(--gold) }
+.pm-body{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:0;
+}
+.pm-section{
+  padding:16px 18px;
+  border-right:1px solid var(--line);
+}
+.pm-section:last-child{ border-right:none }
+.pm-sec-title{
+  font-size:.65rem; letter-spacing:.3em; color:var(--gold-dim);
+  margin-bottom:10px; padding-bottom:6px;
+  border-bottom:1px solid var(--line);
+}
+.skill-row{
+  display:flex; align-items:center; gap:6px;
+  margin-bottom:6px; font-size:.8rem;
+}
+.skill-name{ width:26px; color:var(--parch-dim); flex-shrink:0; font-size:.72rem }
+.skill-bar-wrap{
+  flex:1; height:7px; background:#0c0906;
+  border:1px solid #2a2014; border-radius:2px; overflow:hidden;
+}
+.skill-bar-fill{ height:100%; border-radius:2px }
+.skill-val{ width:16px; text-align:right; color:var(--parch); font-size:.72rem; flex-shrink:0 }
+.skill-grade{ width:42px; font-size:.6rem; color:var(--parch-dim); flex-shrink:0 }
+.pm-chip{
+  display:inline-block; font-size:.68rem;
+  border:1px solid var(--gold-dim); border-radius:2px;
+  padding:1px 6px; color:var(--parch); background:#241b10;
+  margin:2px 2px 2px 0;
+}
+.pm-chip.edu{ border-color:var(--steel) }
+.pm-chip.life{ border-color:var(--violet) }
+.pm-chip.neg{ border-color:var(--blood); color:#d08a82 }
+.pm-kv{
+  display:flex; justify-content:space-between;
+  font-size:.78rem; padding:3px 0;
+  border-bottom:1px dotted #2c2316;
+}
+.pm-kv span:first-child{ color:var(--parch-dim) }
+/* ===== 백작령 상세: 남작령 카드 ===== */
+.barony-card{
+  border:1px solid var(--line); border-radius:3px;
+  margin-bottom:8px; overflow:hidden;
+}
+.barony-head{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:6px 10px; background:#1a130c; font-size:.8rem;
+}
+.barony-head b{ color:var(--gold) }
+.barony-slots{ font-size:.7rem; color:var(--parch-dim) }
+.barony-blds{
+  padding:6px 10px; font-size:.75rem; color:var(--parch-dim);
+  border-top:1px solid var(--line);
+}
+.barony-wip{ color:#c8a24a; font-size:.72rem }
+.build-btn{
+  display:inline-block; margin:4px 0 0;
+  padding:3px 10px; font-size:.72rem;
+  background:#241b10; border:1px solid var(--gold-dim);
+  color:var(--parch); cursor:pointer; font-family:inherit;
+  border-radius:2px;
+}
+.build-btn:hover{ border-color:var(--gold); color:var(--gold) }
+@media (max-width:768px){
+  .pm-body{ grid-template-columns:1fr }
+  .pm-section{ border-right:none; border-bottom:1px solid var(--line) }
+  .pm-section:last-child{ border-bottom:none }
+  #profileModal{ max-height:88vh }
 }
