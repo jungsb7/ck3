@@ -49,11 +49,14 @@ body{
   border-top:2px solid var(--gold-dim);
 }
 #portrait{
-  width:86px; min-height:108px; display:flex; align-items:center; justify-content:center;
-  font-size:2.2rem; color:var(--gold); border-right:1px solid var(--line);
-  background:radial-gradient(circle at 50% 35%, #2c2113, #181009);
-  text-shadow:0 0 18px rgba(200,162,74,.4);
+  width:86px; min-height:108px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  border-right:1px solid var(--line); cursor:pointer;
+  background:radial-gradient(circle at 50% 35%,#2c2113,#181009);
+  overflow:hidden;
 }
+#portrait:hover{ filter:brightness(1.12) }
+#portrait svg{ display:block }
 #charInfo{flex:1; padding:9px 16px}
 #charInfo .nm{font-size:1.05rem; color:var(--gold)}
 #charInfo .ttl{font-size:.78rem; color:var(--parch-dim); letter-spacing:.1em; margin-bottom:5px}
@@ -138,7 +141,8 @@ button:disabled{opacity:.35; cursor:default}
     display:flex; flex-direction:row;
     border-bottom:1px solid var(--line);
   }
-  #portrait{ width:58px; min-height:68px; font-size:1.5rem }
+  #portrait{ width:58px; min-height:72px }
+  #portrait svg{ width:58px; height:72px }
   #charInfo{ padding:6px 10px }
   #charInfo .nm{ font-size:.88rem }
   #charInfo .ttl{ font-size:.68rem }
