@@ -4,92 +4,6 @@
    수치 출처: CK3 위키 (수태력 ×4.75, 교육 공식, 스트레스 단계 등)
 ===================================================================== */
 
-/* =====================================================================
-   오디오 엔진 — Web Audio API 순수 주파수 합성
-   외부 .mp3/.wav 불필요. GitHub Pages 배포 환경 완전 호환.
-   브라우저 자동재생 정책: 첫 사용자 인터랙션 시 1회 활성화.
-===================================================================== */
-let _audioCtx = null;
-
-function initAudio(){
-  if(_audioCtx) return;
-  try{
-    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }catch(e){ _audioCtx = null; }
-}
-
-function playSynthSFX(type){
-  if(!_audioCtx){ initAudio(); if(!_audioCtx) return; }
-  if(_audioCtx.state === 'suspended'){
-    _audioCtx.resume().then(()=>_doSynth(type));
-    return;
-  }
-  _doSynth(type);
-}
-
-function _doSynth(type){
-  const ctx = _audioCtx;
-  const t = ctx.currentTime;
-
-  if(type === 'event'){
-    /* 가벼운 클릭/양피지 음 — triangle 880→440Hz */
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.type = 'triangle';
-    o.frequency.setValueAtTime(880, t);
-    o.frequency.exponentialRampToValueAtTime(440, t + 0.08);
-    g.gain.setValueAtTime(0.18, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    o.start(t); o.stop(t + 0.2);
-  }
-  else if(type === 'gold'){
-    /* 주화 짤랑 — 3개 사인파 아르페지오 */
-    [1318, 1568, 2093].forEach((freq, i) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      const s = t + i * 0.045;
-      o.type = 'sine';
-      o.frequency.setValueAtTime(freq, s);
-      g.gain.setValueAtTime(0.0, s);
-      g.gain.linearRampToValueAtTime(0.22, s + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.001, s + 0.22);
-      o.start(s); o.stop(s + 0.25);
-    });
-  }
-  else if(type === 'war'){
-    /* 뿔나팔 — sawtooth 저주파 + 배음 */
-    [1, 2, 3].forEach((h, i) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.type = i === 0 ? 'sawtooth' : 'square';
-      o.frequency.setValueAtTime(110 * h, t);
-      o.frequency.linearRampToValueAtTime(110 * h * 1.05, t + 0.25);
-      o.frequency.linearRampToValueAtTime(110 * h, t + 0.7);
-      const v = i === 0 ? 0.28 : 0.09 / h;
-      g.gain.setValueAtTime(0.0, t);
-      g.gain.linearRampToValueAtTime(v, t + 0.05);
-      g.gain.setValueAtTime(v, t + 0.55);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
-      o.start(t); o.stop(t + 0.9);
-    });
-  }
-  else if(type === 'death'){
-    /* 장송 종 — 저주파 사인 + 비정수 배음, 3타 */
-    [[130, 0.0, 0.32], [110, 0.85, 0.25], [98, 1.65, 0.18]].forEach(([freq, delay, vol]) => {
-      [1, 2.76].forEach(mult => {
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.type = 'sine';
-        o.frequency.setValueAtTime(freq * mult, t + delay);
-        g.gain.setValueAtTime(0.0, t + delay);
-        g.gain.linearRampToValueAtTime(vol / mult, t + delay + 0.01);
-        g.gain.exponentialRampToValueAtTime(0.001, t + delay + 2.8);
-        o.start(t + delay); o.stop(t + delay + 3.0);
-      });
-    });
-  }
-}
-
 /* ---------- 성격 특성 ---------- */
 const TRAITS = {
   brave:     {n:'용감',   opp:'craven',    mod:{mar:2,prow:3}, ai:{bold:2}},
@@ -313,7 +227,6 @@ function startBuilding(bid, btype){
   const seat=BARONIES[p.region]; if(!seat) return false;
   if(seat.gold<bp.cost){ log(`금이 부족합니다. (필요: ${bp.cost})`,'dip'); return false; }
   seat.gold-=bp.cost;
-  playSynthSFX('gold');
   b.buildings.push({type:btype, progress:0, done:false});
   log(`${b.n}에 ${bp.n} 건설을 시작했습니다. (${bp.time}개월 소요)`,'good');
   return true;
@@ -627,7 +540,6 @@ function flushPopups(){
 }
 function showModal(p){
   state.modalOpen=true;
-  playSynthSFX('event');
   const box=document.getElementById('modalBox');
   let h=`<h2>${p.title}</h2><div class="sub">${p.sub||'이벤트'}</div><div class="body">${p.body||''}</div>`;
   if(p.html) h+=p.html;
@@ -694,7 +606,6 @@ function stressDeath(c){
 function kill(c, cause){
   if(c.dead) return;
   c.dead=true;
-  if(c.ruler || c.id===state.player) playSynthSFX('death');
   // 배우자 해제
   if(c.spouse&&chars[c.spouse]){ chars[c.spouse].spouse=null; addStress(chars[c.spouse],40,'배우자의 죽음'); }
   // 자녀 스트레스
@@ -969,7 +880,6 @@ function togglePanel(id){
     if(k!==id) document.getElementById(PANELS[k].wrap).classList.remove('open');
   });
   if(opening){
-    playSynthSFX('event');
     if(info.render) window[info.render]();
     el.classList.add('open');
     if(id!=='log') pause();
@@ -1475,7 +1385,6 @@ function declareWar(atk,def,targetRid){
   chOp(def,atk,-40);
   log(`<b>${atk.name}</b>이(가) <b>${tCid?COUNTIES[tCid]?.n:BARONIES[tRid]?.n||tRid}</b>을(를) 목표로 선전포고했습니다!`,'war');
   if(atk.id===state.player){
-    playSynthSFX('war');
     if(atk.traits.includes('calm')) addStress(atk,15,'침착한 자의 개전');
     if(atk.traits.includes('content')) addStress(atk,15,'만족하는 자의 개전');
   }
@@ -2875,21 +2784,56 @@ function openRegion(rid, cid_hint){
   const c=ownerOf(rid);
   if(!c) return;
 
-  // ── 내 영토 클릭: 영지 상세 표시
+  // ── 내 영토 클릭: 백작령 상세 + 소속 남작령 건물 건설
   if(c.id===p.id){
-    const cid=cid_hint||countyOf(rid);
-    const cnt=COUNTIES[cid];
-    const totalTroops=cnt?cnt.baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0):(BARONIES[rid]?.troops||0);
-    const totalGold=Math.round(BARONIES[rid]?.gold||0);
-    const bldgs=cnt?cnt.baronies.flatMap(b=>BARONIES[b]?.buildings?.filter(x=>x.done).map(x=>BUILDINGS[x.type]?.n)||[]).join('·')||'없음':'없음';
-    showModal({title:dispName, sub:'내 영지',
+    const cid = cid_hint||countyOf(rid);
+    const cnt = COUNTIES[cid];
+    const bids = cnt ? cnt.baronies : [rid];
+    const totalTroops = bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0), 0);
+    const seatGold = Math.round(BARONIES[p.region]?.gold||0);
+
+    // 남작령별 선택지 생성
+    const opts = [];
+    for(const bid of bids){
+      const b = BARONIES[bid]; if(!b) continue;
+      const done = (b.buildings||[]).filter(x=>x.done);
+      const inProg = (b.buildings||[]).find(x=>!x.done);
+      const slotsUsed = done.length + (inProg ? 1 : 0);
+      const canBuild = slotsUsed < BUILDING_SLOTS && !inProg;
+
+      const doneNames = done.length
+        ? done.map(x=>`${BUILDINGS[x.type]?.icon||''}${BUILDINGS[x.type]?.n||x.type}`).join(' ')
+        : '없음';
+      const wipText = inProg
+        ? ` | ⏳${BUILDINGS[inProg.type]?.n||''} 건설중`
+        : '';
+      const slotText = `슬롯 ${slotsUsed}/${BUILDING_SLOTS}`;
+
+      if(canBuild){
+        opts.push({
+          t:`🔨 ${b.n} — 건설하기`,
+          d:`${slotText} · 완공: ${doneNames}${wipText}`,
+          f:()=>openBuildMenu(bid)
+        });
+      } else {
+        opts.push({
+          t:`${b.n}`,
+          d:`${slotText} · 완공: ${doneNames}${wipText}${slotsUsed>=BUILDING_SLOTS?' · 슬롯 가득 참':''}`,
+          f:()=>{}
+        });
+      }
+    }
+    opts.push({t:'닫기'});
+
+    showModal({
+      title: cnt?.n||dispName,
+      sub: `${DUCHIES[cnt?.duchy]?.n||''}${DUCHIES[cnt?.duchy]?' · ':''}남작령 ${bids.length}개`,
       body:'',
-      html:`<div class="kv"><span>백작령</span><span>${cnt?.n||dispName}</span></div>
-            <div class="kv"><span>총 병력</span><span>${totalTroops}</span></div>
-            <div class="kv"><span>금고</span><span>${totalGold}</span></div>
-            <div class="kv"><span>완공 건물</span><span>${bldgs}</span></div>
-            <div class="kv"><span>남작령 수</span><span>${cnt?.baronies.length||1}</span></div>`,
-      opts:[{t:'닫기'}]});
+      html:`<div class="kv"><span>총 병력</span><span>${totalTroops}</span></div>
+            <div class="kv"><span>금고</span><span>${seatGold}</span></div>
+            <div style="margin:10px 0 4px;font-size:.72rem;letter-spacing:.2em;color:var(--gold-dim)">남작령 건물</div>`,
+      opts
+    });
     return;
   }
 
@@ -2917,7 +2861,6 @@ function openRegion(rid, cid_hint){
   if(!atWar){
     opts.push({t:'선물 보내기', d:'금 50 — 관계 +15', f:()=>{
       const seatB=BARONIES[p.region]; if(!seatB||seatB.gold<50){log('금이 부족합니다.');return;}
-      playSynthSFX('gold');
       seatB.gold-=50; chOp(c,p,15);
       log(`<b>${c.name}</b>에게 선물을 보냈습니다.`,'dip');
       if(p.traits.includes('greedy'))addStress(p,10,'탐욕스러운 자의 선물');
@@ -3387,23 +3330,7 @@ function renderCourt(){
   // ── 직할령 현황
   const dLim=domainLimit(p), dDir=directCountiesOf(p.id).length;
   html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line)">직할 백작령 ${dDir}/${dLim}${dDir>dLim?' ⚠ 한도 초과':''}</div>`;
-
-  // ── 내 영지 건물 현황
-  html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)">건물 관리</div>`;
-  const myBids=regionsOf(p.id);
-  myBids.forEach(bid=>{
-    const b=BARONIES[bid]; if(!b) return;
-    const cid=b.county; const cname=COUNTIES[cid]?.n||'';
-    const bldTxt=(b.buildings||[]).map(t=>BUILDING_TYPES[t]?.icon+BUILDING_TYPES[t]?.n).join(' ');
-    const qTxt=b.building_queue?`⏳${BUILDING_TYPES[b.building_queue.type]?.n} ${b.building_queue.monthsLeft}개월`:'';
-    const slotLeft=b.slots-(b.buildings||[]).length-(b.building_queue?1:0);
-    html+=`<div style="font-size:.78rem;padding:5px 0;border-bottom:1px dotted #2c2316">
-      <span style="color:var(--gold)">${cname} · ${b.n}</span>
-      <span style="color:var(--parch-dim);font-size:.72rem"> 슬롯 ${slotLeft}/${b.slots}</span><br>
-      <span>${bldTxt||'건물 없음'} ${qTxt}</span>
-      ${slotLeft>0&&!b.building_queue?`<button class="p-action" style="margin:3px 0 0;padding:2px 8px;font-size:.7rem" onclick="openBuildMenu('${bid}')">건설</button>`:''}
-    </div>`;
-  });
+  html+=`<div style="font-size:.74rem;color:var(--parch-dim);padding:4px 0 10px;border-bottom:1px solid var(--line)">🗺 건물 건설은 지도에서 내 백작령을 클릭하세요.</div>`;
 
   // ── 궁정 인물 목록
   html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin:12px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)">${rn} 궁정의 사람들</div>
@@ -3467,7 +3394,6 @@ function renderDec(){
 
   // ── 연회/행사 ──────────────────────
   addDec('연회를 연다',`금 60 · 군주 관계 +8 · 스트레스 -20`, REGIONS[p.region].gold>=60, ()=>{
-    playSynthSFX('gold');
     REGIONS[p.region].gold-=60; addStress(p,-20,'연회의 즐거움');
     for(const rid in REGIONS){const r=ownerOf(rid); if(r&&r.id!==p.id) chOp(r,p,8);}
     if(p.traits.includes('gregarious'))addStress(p,-8,'사교적인 자의 기쁨');
@@ -3475,19 +3401,10 @@ function renderDec(){
     log('성대한 연회가 열렸습니다.','good'); renderDec();
   });
   addDec('클론맥노이즈 순례',`금 30 · 스트레스 -25 · 위신 +10`, REGIONS[p.region].gold>=30, ()=>{
-    playSynthSFX('gold');
     REGIONS[p.region].gold-=30; addStress(p,-25,'순례의 평안'); state.prestige+=10;
     log('섀넌 강가의 수도원에서 기도를 올렸습니다.','fam'); renderDec();
   });
-  // 건물 건설 (seat 남작령에 슬롯 있을 때)
-  const seatB2=BARONIES[p.region];
-  if(seatB2&&!seatB2.building_queue&&(seatB2.buildings||[]).length<seatB2.slots){
-    addDec('남작령 건설',`${p.region ? BARONIES[p.region].n : ''} 건물 건설`, true, ()=>{
-      openBuildMenu(p.region); closePanel('dec');
-    });
-  }
   addDec('병력 소집',`금 80 · 병력 +200`, BARONIES[p.region]?.gold>=80, ()=>{
-    playSynthSFX('gold');
     REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
     log('창병 200이 소집됐습니다.','war'); renderDec();
   });
@@ -3551,47 +3468,11 @@ function renderDec(){
     }
   }
 
-  // 건물 건설 결단
-  {
-    const p2=playerChar(); // 재사용 방지용 shadow
-    const ownedBids=regionsOf(p2.id);
-    if(ownedBids.length>0){
-      addDec('건물 건설',`남작령에 건물 건설 — 병력·금·민심 향상`,
-        BARONIES[p2.region]?.gold>=40, ()=>{
-        // 건설 가능한 (남작령, 슬롯 있음) 목록
-        const buildable=ownedBids.filter(bid=>{
-          const b=BARONIES[bid];
-          return b&&b.buildings.length<BUILDING_SLOTS;
-        }).slice(0,6);
-        if(!buildable.length){ log('모든 남작령 슬롯이 가득 찼습니다.'); return; }
-        // 남작령 선택 → 건물 선택 2단계 UI
-        const bOpts=buildable.map(bid=>({
-          t:`${BARONIES[bid].n} (슬롯 ${BARONIES[bid].buildings.length}/${BUILDING_SLOTS})`,
-          d:`건물: ${BARONIES[bid].buildings.filter(s=>s.done).map(s=>BUILDINGS[s.type].n).join(', ')||'없음'}`,
-          f:()=>{
-            const existTypes=BARONIES[bid].buildings.map(s=>s.type);
-            const avail=Object.entries(BUILDINGS).filter(([t])=>!existTypes.includes(t));
-            const cOpts=avail.map(([t,bp])=>({
-              t:`${bp.icon} ${bp.n}`,
-              d:`금 ${bp.cost} · ${bp.time}개월 · ${bp.desc}`,
-              f:()=>{ startBuilding(bid,t); renderDec(); }
-            }));
-            cOpts.push({t:'취소'});
-            showModal({title:`${BARONIES[bid].n} — 건물 선택`, sub:'건설', body:'', opts:cOpts});
-          }
-        }));
-        bOpts.push({t:'취소'});
-        showModal({title:'건물 건설', sub:'남작령 선택', body:'', opts:bOpts});
-      });
-    }
-  }
-
   // 인재 모집 — 궁정 인원 부족 시
   const courtSize=Object.values(chars).filter(c=>!c.dead&&c.courtOf===p.region&&c.id!==p.id).length;
   const vacancies=Object.values(state.council).filter(v=>!v).length;
   if(vacancies>0||courtSize<3){
     addDec('인재 모집',`금 80 · 궁정에 새 인재 1명 영입`, REGIONS[p.region].gold>=80, ()=>{
-      playSynthSFX('gold');
       REGIONS[p.region].gold-=80;
       const roleNames=['dip','mar','stew','intr','learn'];
       // 부족한 역할 스킬 위주로 생성
@@ -3761,7 +3642,7 @@ function renderMap(){
     // 공성중 표시
     const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
     const siegedBy=underSiege?state.wars.find(w=>w.targetRid===cid):'';
-    h+=`<g class="node" onclick="initAudio();openCounty('${cid}')">
+    h+=`<g class="node" onclick="openCounty('${cid}')">
       <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${col}" stroke="${underSiege?'#c83030':stroke}"/>
       ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
       ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
