@@ -5196,131 +5196,47 @@ function renderChar(){
   el.textContent=lvTxt;
   el.style.color=lv===0?'var(--parch-dim)':lv===1?'#c8a24a':lv===2?'#c87a4a':'#d05a4a';
 }
-/* ════════════════════════════════════════════════
-   지도 렌더링 — polygon 기반 실지형 지도
-   ════════════════════════════════════════════════ */
-
-/* 아일랜드 섬 외곽선 (시계방향, 근사) */
-const IRELAND_OUTLINE = '30,40 95,30 150,42 225,30 300,38 330,58 305,88 330,58 348,145 385,208 388,268 378,358 365,300 340,372 305,368 282,342 252,358 222,338 198,358 172,342 155,392 148,358 138,438 98,468 52,468 52,428 30,415 30,200 30,95';
-
-/* 공작령 기본 색상 (polygon fill 기반) */
-const DUCHY_BASE = {
-  d_munster:  '#2d4a32',
-  d_leinster: '#3a4a28',
-  d_dublin:   '#2a3d4f',
-  d_meath:    '#3d3a28',
-  d_connacht: '#3a2d4a',
-  d_breifne:  '#4a3228',
-  d_ulster:   '#284a3a',
-};
-
 function renderMap(){
-  const svg = document.getElementById('map');
-  const p = playerChar();
-  let h = '';
-
-  /* ── 레이어 0: 바다 배경 */
-  h += `<rect width="420" height="500" fill="#1a2d3d"/>`;
-
-  /* ── 레이어 1: 섬 전체 육지 기본색 (외곽선 아래) */
-  h += `<polygon points="${IRELAND_OUTLINE}" fill="#2a2018" stroke="none"/>`;
-
-  /* ── 레이어 2: county polygon */
+  const svg=document.getElementById('map');
+  const p=playerChar();
+  let h='';
+  // 백작령 간 인접선
+  const drawn=new Set();
+  for(const cid in COUNTY_ADJ){
+    for(const nb of (COUNTY_ADJ[cid]||[])){
+      const k=[cid,nb].sort().join('|');
+      if(drawn.has(k)) continue; drawn.add(k);
+      const A=COUNTIES[cid],B=COUNTIES[nb]; if(!A||!B) continue;
+      const inWar=state.wars.some(w=>{
+        const aH=countyHolder(cid),bH=countyHolder(nb);
+        return aH&&bH&&((chars[w.atk]?.id===aH.id&&chars[w.def]?.id===bH.id)||(chars[w.atk]?.id===bH.id&&chars[w.def]?.id===aH.id));
+      });
+      h+=`<line class="edge${inWar?' warEdge':''}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
+    }
+  }
+  // 백작령 노드 (15개)
   for(const cid in COUNTIES){
-    const C = COUNTIES[cid];
-    if(!C.poly) continue;
-    const holder = countyHolder(cid);
-    const mine = holder && holder.id === p.id;
-    const isVassal = holder && holder.liege === p.id;
-    const atWar = state.wars.some(w => {
-      const h1=countyHolder(cid);
-      return h1 && (w.atk===h1.id||w.def===h1.id);
-    });
-    const underSiege = state.wars.some(w => w.targetRid===cid && w.occupied?.length>0);
-    const hasClaim = state.claims.some(cl => cl.rid===cid);
-
-    /* fill 결정 */
-    let fill;
-    if(mine)          fill = '#3a6644';
-    else if(isVassal) fill = '#2e5438';
-    else              fill = DUCHY_BASE[C.duchy] || '#2d3028';
-
-    /* stroke 결정 */
-    let stroke = '#1a1508', strokeW = '1';
-    if(mine)          { stroke='#c8a24a'; strokeW='2'; }
-    else if(isVassal) { stroke='#6aaa7a'; strokeW='1.5'; }
-    else if(atWar)    { stroke='#c83030'; strokeW='1.5'; }
-
-    h += `<g class="county-region" onclick="openCounty('${cid}')">
-      <polygon
-        points="${C.poly}"
-        fill="${fill}"
-        stroke="${stroke}"
-        stroke-width="${strokeW}"
-        stroke-linejoin="round"
-      />`;
-
-    /* 공성 pulse 오버레이 */
-    if(underSiege){
-      h += `<polygon points="${C.poly}" fill="none"
-        stroke="#c83030" stroke-width="2.5" stroke-dasharray="4 3"
-        class="siege-pulse"/>`;
-    }
-    /* 명분 보유 표시 — 옅은 금색 점선 */
-    if(hasClaim && !mine){
-      h += `<polygon points="${C.poly}" fill="rgba(200,162,74,0.08)"
-        stroke="#c8a24a" stroke-width="1" stroke-dasharray="3 4"/>`;
-    }
-
-    /* 지명 텍스트 */
-    const cx = C.x, cy = C.y;
-    const bids = C.baronies;
-    const totalT = bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
-    const avgPop = Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
-    const holderShort = holder ? holder.name.split(' ')[0] : '—';
-
-    h += `
-      <text x="${cx}" y="${cy-6}"
-        style="font-size:8.5px;fill:#e6d9be;text-anchor:middle;pointer-events:none;
-               font-family:Georgia,serif;font-weight:bold;
-               text-shadow:0 0 4px #000;letter-spacing:.03em"
-        paint-order="stroke" stroke="#0a0806" stroke-width="2.5">${C.n}</text>
-      <text x="${cx}" y="${cy+5}"
-        style="font-size:7px;fill:#b0a080;text-anchor:middle;pointer-events:none;
-               font-family:Georgia,serif"
-        paint-order="stroke" stroke="#0a0806" stroke-width="2">${holderShort}</text>
-      <text x="${cx}" y="${cy+15}"
-        style="font-size:6.5px;fill:#8a7858;text-anchor:middle;pointer-events:none"
-        paint-order="stroke" stroke="#0a0806" stroke-width="1.5">⚔${totalT} ·${avgPop}</text>`;
-
-    /* 내 영지 표시 — 왕관 아이콘 */
-    if(mine){
-      h += `<text x="${cx}" y="${cy-17}"
-        style="font-size:9px;text-anchor:middle;pointer-events:none">👑</text>`;
-    }
-
-    h += `</g>`;
+    const C=COUNTIES[cid];
+    const holder=countyHolder(cid);
+    const mine=holder&&holder.id===p.id;
+    const isVassalOf=holder&&holder.liege===p.id;
+    const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':(DUCHIES[C.duchy]?.color||'#555');
+    const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':'#6a5836';
+    const bids=C.baronies;
+    const totalT=bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
+    const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
+    const rad=mine?22:18;
+    const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
+    h+=`<g class="node" onclick="openCounty('${cid}')">
+      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${col}" stroke="${underSiege?'#c83030':stroke}"/>
+      ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
+      ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
+      <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
+      <text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${holder?holder.name.split(' ')[0]:'—'}</text>
+      <text class="owner" x="${C.x}" y="${C.y+36}" style="font-size:7.5px;fill:#7a6848">⚔${totalT} 민${avgPop}</text>
+    </g>`;
   }
-
-  /* ── 레이어 3: 섬 외곽선 테두리 (위에 덮어 자연스럽게) */
-  h += `<polygon points="${IRELAND_OUTLINE}"
-    fill="none" stroke="#4a3c28" stroke-width="2" stroke-linejoin="round"/>`;
-
-  /* ── 레이어 4: 전쟁 중 교전선 표시 */
-  for(const w of state.wars){
-    const aC = chars[w.atk], dC = chars[w.def];
-    if(!aC||!dC) continue;
-    const aCid = countyOf(aC.region), dCid = countyOf(dC.region);
-    if(!aCid||!dCid||!COUNTIES[aCid]||!COUNTIES[dCid]) continue;
-    const ax=COUNTIES[aCid].x, ay=COUNTIES[aCid].y;
-    const dx=COUNTIES[dCid].x, dy=COUNTIES[dCid].y;
-    h += `<line x1="${ax}" y1="${ay}" x2="${dx}" y2="${dy}"
-      stroke="#c83030" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.7"/>
-    <text x="${(ax+dx)/2}" y="${(ay+dy)/2-4}"
-      style="font-size:7px;fill:#c83030;text-anchor:middle" paint-order="stroke" stroke="#000" stroke-width="2">⚔</text>`;
-  }
-
-  svg.innerHTML = h;
+  svg.innerHTML=h;
 }
 function ownerRegionOf(c){ return c.region || regionsOf(c.id)[0] || null; }
 function renderAll(){ renderHeader(); renderChar(); renderMap(); }
