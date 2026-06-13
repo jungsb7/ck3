@@ -94,8 +94,11 @@ const TRAITS = {
   gluttonous:{n:'탐식',   opp:'temperate', mod:{stew:-2}, hp:-0.25},
   gregarious:{n:'사교적', opp:'shy',       mod:{dip:2}, ai:{soc:2}},
   shy:       {n:'내성적', opp:'gregarious',mod:{dip:-2,learn:1}, ai:{soc:-2}},
+  /* 전투 부상 특성 (CK3 Health Traits — 전투 이벤트로만 부여) */
+  wounded:   {n:'부상',   mod:{mar:-1,prow:-3}, ai:{bold:-1}},
+  maimed:    {n:'중상',   mod:{mar:-2,prow:-5,dip:-1}, ai:{bold:-2}},
 };
-const PERSONALITY_KEYS = Object.keys(TRAITS);
+const PERSONALITY_KEYS = Object.keys(TRAITS).filter(k=>!['wounded','maimed'].includes(k));
 
 /* ---------- 어린시절 특성 ---------- */
 const CHILD_TRAITS = {
@@ -214,21 +217,21 @@ const BARONIES = {
 
 /* 백작령: 남작령들의 집합. capital = 수도 남작령 */
 const COUNTIES = {
-  c_thomond: {n:'톰몬드',   duchy:'d_munster',  capital:'b_limerick',  baronies:['b_limerick','b_nenagh','b_roscrea','b_kilmallock'], x:118, y:368},
-  c_ennis:   {n:'에니스',   duchy:'d_munster',  capital:'b_ennis',     baronies:['b_ennis','b_kincora'],                              x: 82, y:398},
-  c_ormond:  {n:'오몬드',   duchy:'d_munster',  capital:'b_waterford', baronies:['b_waterford','b_emly','b_clonmel'],                 x:182, y:380},
-  c_desmond: {n:'데스몬드', duchy:'d_munster',  capital:'b_cork',      baronies:['b_tralee','b_cork','b_kinsale','b_baltimore'],      x:125, y:425},
-  c_leinster:{n:'레인스터', duchy:'d_leinster', capital:'b_wexford',   baronies:['b_wexford','b_enniscorthy','b_ferns','b_carlow'],   x:282, y:332},
-  c_ossory:  {n:'오서리',   duchy:'d_leinster', capital:'b_gowran',    baronies:['b_gowran','b_kilkenny','b_athy','b_carrick'],       x:258, y:368},
-  c_dublin:  {n:'더블린',   duchy:'d_dublin',   capital:'b_dublin',    baronies:['b_dublin','b_wicklow','b_kildare'],                 x:318, y:248},
-  c_meath:   {n:'미드',     duchy:'d_meath',    capital:'b_trim',      baronies:['b_trim','b_drogheda','b_kells'],                    x:255, y:192},
-  c_athlone: {n:'애슬론',   duchy:'d_meath',    capital:'b_athlone',   baronies:['b_athlone','b_birr','b_uisneach'],                  x:198, y:238},
-  c_connacht:{n:'코노트',   duchy:'d_connacht', capital:'b_galway',    baronies:['b_galway','b_athenry','b_tuam','b_da_chainoc'],     x:102, y:238},
-  c_mayo:    {n:'마요',     duchy:'d_connacht', capital:'b_sligo',     baronies:['b_cruachu','b_castlebar','b_sligo','b_killala'],    x: 68, y:192},
-  c_breifne: {n:'브레프네', duchy:'d_breifne',  capital:'b_dromahair', baronies:['b_dromahair','b_belcoo','b_longford','b_cavan','b_adragh'], x:168, y:168},
-  c_ulster:  {n:'얼스터',   duchy:'d_ulster',   capital:'b_downpatrick',baronies:['b_downpatrick','b_slemish','b_carrickfergus','b_bangor'], x:262, y:78},
-  c_oriel:   {n:'오리얼',   duchy:'d_ulster',   capital:'b_armagh',    baronies:['b_dundalk','b_armagh','b_ardee','b_clogher','b_dungannon'], x:238, y:115},
-  c_ailech:  {n:'애일라흐', duchy:'d_ulster',   capital:'b_donegal',   baronies:['b_donegal','b_raphoe','b_fahan','b_derry'],         x:185, y:55},
+  c_thomond: {n:'톰몬드',   duchy:'d_munster',  capital:'b_limerick',  baronies:['b_limerick','b_nenagh','b_roscrea','b_kilmallock'], x:104, y:318, poly:'72,262 118,268 162,278 168,322 148,358 118,378 85,372 58,350 48,312 58,278'},
+  c_ennis:   {n:'에니스',   duchy:'d_munster',  capital:'b_ennis',     baronies:['b_ennis','b_kincora'],                              x: 49, y:314, poly:'30,200 48,215 48,240 58,278 48,312 58,350 72,390 52,428 30,415'},
+  c_ormond:  {n:'오몬드',   duchy:'d_munster',  capital:'b_waterford', baronies:['b_waterford','b_emly','b_clonmel'],                 x:210, y:302, poly:'198,288 238,282 262,252 228,272 212,308 222,338 198,358 172,342 162,278'},
+  c_desmond: {n:'데스몬드', duchy:'d_munster',  capital:'b_cork',      baronies:['b_tralee','b_cork','b_kinsale','b_baltimore'],      x: 98, y:404, poly:'52,428 72,390 58,350 85,372 118,378 148,358 155,392 138,438 98,468 52,468'},
+  c_leinster:{n:'레인스터', duchy:'d_leinster', capital:'b_wexford',   baronies:['b_wexford','b_enniscorthy','b_ferns','b_carlow'],   x:321, y:326, poly:'298,268 330,292 365,300 378,358 340,372 305,368 282,342 272,308'},
+  c_ossory:  {n:'오서리',   duchy:'d_leinster', capital:'b_gowran',    baronies:['b_gowran','b_kilkenny','b_athy','b_carrick'],       x:254, y:306, poly:'262,252 298,268 272,308 282,342 252,358 222,338 212,308 228,272'},
+  c_dublin:  {n:'더블린',   duchy:'d_dublin',   capital:'b_dublin',    baronies:['b_dublin','b_wicklow','b_kildare'],                 x:341, y:246, poly:'285,228 322,215 352,190 385,208 388,268 365,300 330,292 298,268'},
+  c_meath:   {n:'미드',     duchy:'d_meath',    capital:'b_trim',      baronies:['b_trim','b_drogheda','b_kells'],                    x:292, y:180, poly:'240,158 278,152 312,128 348,145 352,190 322,215 285,228 252,215 238,192'},
+  c_athlone: {n:'애슬론',   duchy:'d_meath',    capital:'b_athlone',   baronies:['b_athlone','b_birr','b_uisneach'],                  x:206, y:237, poly:'155,255 168,198 182,198 210,210 238,192 252,215 262,252 238,282 198,288 162,278'},
+  c_connacht:{n:'코노트',   duchy:'d_connacht', capital:'b_galway',    baronies:['b_galway','b_athenry','b_tuam','b_da_chainoc'],     x:108, y:208, poly:'48,215 80,198 108,168 132,132 155,145 168,198 155,255 118,268 72,262 48,240'},
+  c_mayo:    {n:'마요',     duchy:'d_connacht', capital:'b_sligo',     baronies:['b_cruachu','b_castlebar','b_sligo','b_killala'],    x: 76, y:152, poly:'30,95 72,110 112,100 132,132 108,168 80,198 48,215 30,200'},
+  c_breifne: {n:'브레프네', duchy:'d_breifne',  capital:'b_dromahair', baronies:['b_dromahair','b_belcoo','b_longford','b_cavan','b_adragh'], x:178, y:153, poly:'112,100 148,88 168,120 205,140 240,158 238,192 210,210 182,198 168,198 155,145 132,132'},
+  c_ulster:  {n:'얼스터',   duchy:'d_ulster',   capital:'b_downpatrick',baronies:['b_downpatrick','b_slemish','b_carrickfergus','b_bangor'], x:247, y: 66, poly:'150,42 225,30 300,38 330,58 305,88 270,100 225,110 168,62'},
+  c_oriel:   {n:'오리얼',   duchy:'d_ulster',   capital:'b_armagh',    baronies:['b_dundalk','b_armagh','b_ardee','b_clogher','b_dungannon'], x:232, y:115, poly:'168,62 225,110 270,100 305,88 312,128 278,152 240,158 205,140 168,120 148,88'},
+  c_ailech:  {n:'애일라흐', duchy:'d_ulster',   capital:'b_donegal',   baronies:['b_donegal','b_raphoe','b_fahan','b_derry'],         x:101, y: 71, poly:'30,40 95,30 150,42 168,62 148,88 112,100 72,110 30,95'},
 };
 
 /* 공작령: 백작령들의 집합 */
@@ -399,15 +402,16 @@ const BUILDING_TYPES = {
 /* 호환성: REGIONS = BARONIES (c.region은 이제 seat barony id) */
 const REGIONS = BARONIES;
 
-/* ─── 자문회 보직 정의 (CK3 위키 기반) ─── */
+/* ─── 자문회 보직 정의 (CK3 위키 v1.19 수치 기반) ─── */
+/* 출처: https://ck3.paradoxwikis.com/Council */
 const COUNCIL_ROLES = {
   chancellor:{
     n:'재상', skill:'dip', icon:'⚖',
     desc:'외교·봉신 관리',
     tasks:{
-      foreign_affairs:  { n:'외교 담당',    desc:'위신 +0.05/스킬/월 · 독립군주 호감 +0.5/스킬/월' },
-      domestic_affairs: { n:'내정 담당',    desc:'봉신 호감 +0.5/스킬/월 · 폭정 감소 +1%/스킬' },
-      bestow_favor:     { n:'왕실 은총',    desc:'봉신 위신 +0.5/월 · 봉신 호감 +0.5/스킬/월' },
+      foreign_affairs:  { n:'외교 담당',    desc:'위신 +0.05×스킬/월 · 독립군주 호감 +0.5×스킬/월' },
+      domestic_affairs: { n:'내정 담당',    desc:'봉신 호감 +0.5×스킬/월(월 +0.2 상한) · 폭정 감소 +1%/스킬' },
+      bestow_favor:     { n:'왕실 은총',    desc:'위신 +0.02×스킬/월 · 봉신 호감 +0.5×스킬/월' },
     },
   },
   marshal:{
@@ -415,35 +419,35 @@ const COUNCIL_ROLES = {
     desc:'군사 훈련·병력 강화',
     tasks:{
       organize_army:    { n:'군대 조직',    desc:'유지비 -1%/스킬 · 레비 보충 +2%/스킬 · 수비대 +2%/스킬' },
-      train_commanders: { n:'지휘관 훈련',  desc:'기사 효율 +1%/스킬/월 · 병사 공격력·방어력 +1%/스킬/월' },
-      increase_control: { n:'영지 통제',    desc:'부패 제거 +0.2%/스킬/월 · 영지 통제 저하 방지' },
+      train_commanders: { n:'지휘관 훈련',  desc:'기사 효율 +1%/스킬/월 · 병사 공격력·방어력 +1%/스킬/월 · 지휘관 발견 +0.5%/스킬/월' },
+      increase_control: { n:'영지 통제',    desc:'부패 제거 +0.2%/스킬/월 · 영지 부패 증가 방지' },
     },
   },
   steward:{
     n:'재무관', skill:'stew', icon:'💰',
     desc:'세금 징수·영지 개발',
     tasks:{
-      collect_taxes:       { n:'세금 징수',  desc:'직할 세금 +0.5%/스킬/월' },
-      increase_development:{ n:'영지 개발',  desc:'건설시간 -1.25%/스킬 · 개발도 +0.175/스킬/월', progressive:true },
-      promote_culture:     { n:'문화 진흥',  desc:'진행 0.25+스킬÷20%/월 → 100% 시 문화 전환', progressive:true },
+      collect_taxes:       { n:'세금 징수',  desc:'직할 세금 +0.5%×스킬/월' },
+      increase_development:{ n:'영지 개발',  desc:'건설시간 -1%/스킬 · 개발도 +0.175×스킬/월 → 100%: 개발도 +1', progressive:true },
+      promote_culture:     { n:'문화 진흥',  desc:'진행 (0.25+스킬÷20)%/월 → 100%: 문화 전환', progressive:true },
     },
   },
   spymaster:{
     n:'첩보관', skill:'intr', icon:'🗡',
     desc:'모략 방어·비밀 탐색',
     tasks:{
-      disrupt_schemes: { n:'모략 방해',   desc:'적 모략 지속 +5일+0.5일/스킬 · 발각률 +1%/스킬' },
-      support_schemes: { n:'공작 지원',   desc:'아군 모략 단축 -1일/스킬 · 성공률 +5%+0.5%/스킬' },
-      find_secrets:    { n:'비밀 탐문',   desc:'궁정 비밀 발견 확률 +5%/스킬' },
+      disrupt_schemes: { n:'모략 방해',   desc:'적 모략 단계 +5일(기본)+0.5일/스킬 · 발각률 +1%/스킬' },
+      support_schemes: { n:'공작 지원',   desc:'아군 모략 단계 -1일/스킬 · 성공률 +5%(기본)+0.5%/스킬' },
+      find_secrets:    { n:'비밀 탐문',   desc:'궁정 비밀 발견 확률 +5%×스킬' },
     },
   },
   chaplain:{
     n:'사제', skill:'learn', icon:'✝',
     desc:'경건·민심·신앙 개종·명분 위조',
     tasks:{
-      religious_relations:{ n:'종교 관계',       desc:'경건 +0.05/스킬/월 · 동일신앙 군주 호감 +0.5/스킬/월' },
-      fabricate_claim:    { n:'교회법 명분 위조', desc:'진행 3+스킬÷5%/월 → 100% 시 미행사 명분 획득', progressive:true },
-      convert_faith:      { n:'신앙 개종',        desc:'진행 0.5+스킬÷10%/월 → 100% 시 지역 신앙 전환', progressive:true },
+      religious_relations:{ n:'종교 관계',       desc:'경건 +0.05×스킬/월 · 동일신앙 군주 호감 +0.5×스킬/월(월 +0.35 상한)' },
+      fabricate_claim:    { n:'교회법 명분 위조', desc:'진행 (3+스킬÷5)%/월 → 100%: 미행사 명분 획득', progressive:true },
+      convert_faith:      { n:'신앙 개종',        desc:'진행 (0.5+스킬÷10)%/월 → 100%: 지역 신앙 전환', progressive:true },
     },
   },
 };
@@ -483,6 +487,7 @@ function mk(o){
     council:{chancellor:null,marshal:null,steward:null,spymaster:null,chaplain:null},
     claims:[], // [{rid,type,obtained}]
     lastActivity:0, // 마지막 활동 연도
+    betrothed:null, // 혼약 상대 charId (CK3: betrothal)
   }, o);
   chars[c.id] = c;
   return c;
@@ -598,6 +603,15 @@ seizeDuchy(kUls.id,    'd_ulster');
       traits:randTraits(2), base:sk, edu:2, eduFocus:['dip','mar','stew','intr','learn'][i],
       courtOf:king.region}); // king.region = seat barony
   });
+  // 혼인 가능한 미혼 여성 궁정인 (각 궁정 2~3명, 혼처 풀 제공)
+  const femNames=['오를라트','고름라트','베브','사브','데르브길','모르','이테','우나'];
+  const femCount=2+Math.floor(Math.random()*2); // 2~3명
+  for(let j=0;j<femCount;j++){
+    mk({name:femNames[Math.floor(Math.random()*femNames.length)], dyn:king.dyn, sex:'f',
+      byear:1040+Math.floor(Math.random()*12), bmonth:(j%12)+1, bday:5+j,
+      traits:randTraits(2), base:randStats(), edu:1, eduFocus:'dip',
+      courtOf:king.region});
+  }
 });
 /* ─── 3계층 핵심 헬퍼 ─── */
 function seizeBaronies(charId,bids){ bids.forEach(bid=>{ if(BARONIES[bid]) BARONIES[bid].owner=charId; }); }
@@ -634,6 +648,7 @@ const state = {
   },
   /* 진행형 태스크 진행도 0~100 */
   councilProgress:{ steward:0, chaplain:0 },
+  fabricateTarget:null, // 사제 명분 위조 대상 county id (CK3: 태스크 시작 시 지정)
   claims:[],
   popupQ:[], modalOpen:false,
   over:false, victory:false,
@@ -731,6 +746,8 @@ function kill(c, cause){
   if(c.ruler||c.id===state.player) playSynthSFX('death');
   // 배우자 해제
   if(c.spouse&&chars[c.spouse]){ chars[c.spouse].spouse=null; addStress(chars[c.spouse],40,'배우자의 죽음'); }
+  // 혼약 해제 (CK3: 사망 시 혼약 자동 파기, 페널티 없음)
+  if(c.betrothed&&chars[c.betrothed]){ chars[c.betrothed].betrothed=null; }
   // 자녀 스트레스
   for(const id in chars){const k=chars[id];
     if(!k.dead&&(k.father===c.id||k.mother===c.id)) addStress(k,30,'부모의 죽음');}
@@ -1090,6 +1107,18 @@ function onBirthday(c,a){
   // 성인 (16세) — 교육 특성 확정
   if(a===16&&c.edu===null){
     comeOfAge(c);
+  }
+  // 혼약 → 혼인 자동 완성 (CK3: betrothal → marriage at 16)
+  if(a===16 && c.betrothed){
+    const partner = chars[c.betrothed];
+    if(partner && !partner.dead && age(partner)>=16 && !c.spouse && !partner.spouse){
+      c.spouse = partner.id;
+      partner.spouse = c.id;
+      c.betrothed = null;
+      partner.betrothed = null;
+      if(isPlayerFamily(c)||isPlayerFamily(partner))
+        log('<b>'+c.name+'</b>과(와) <b>'+partner.name+'</b>의 혼약이 혼인으로 성사됐습니다.','fam');
+    }
   }
   // 노화 사망 (60세 이후, 위키: 60세 이후 자연사 가능)
   if(a>=60){
@@ -1458,9 +1487,14 @@ function schemePulse(){
     if(!p||!t||p.dead||t.dead) return false;
     s.months++;
     if(s.months<3) return true; // 준비 기간
-    // 성공률: 음모 스탯 차이 기반
-    const succ=Math.max(0.04, Math.min(0.45, 0.08+(stat(p,'intr')-stat(t,'intr'))*0.03));
-    const discover=0.07+stat(t,'intr')*0.008;
+    /* 위키: 첩보관 Disrupt Schemes → +1%/skill 발각률 가산 (discoverBonus)
+             Disrupt Schemes → 방어측 단계 시간 연장 (defBonus, months 제한으로 근사)
+             Support Schemes → +5%+0.5%/skill 성공률 가산 (successBonus) */
+    // 성공률: 음모 스탯 차이 기반 + 지원 보너스
+    const succBase = Math.max(0.04, Math.min(0.45, 0.08+(stat(p,'intr')-stat(t,'intr'))*0.03));
+    const succ = Math.min(0.65, succBase + (s.successBonus||0));
+    // 발각률: 기본 + 방어 첩보관 발각 보너스
+    const discover = Math.min(0.55, 0.07 + stat(t,'intr')*0.008 + (s.discoverBonus||0));
     const roll=Math.random();
     if(roll<succ){
       log(`<b>${t.name}</b>이(가) 의문의 죽음을 맞았습니다. 독이 든 술잔이었습니다.`,'war');
@@ -1485,7 +1519,9 @@ function schemePulse(){
       }
       return false;
     }
-    return s.months<30;
+    /* 위키: defBonus = 방어 단계 시간 연장 → months 상한 축소로 표현 (30→최대 36) */
+    const monthLimit = 30 + Math.min(6, Math.round((s.defBonus||0)/10));
+    return s.months < monthLimit;
   });
 }
 
@@ -1505,7 +1541,17 @@ function declareWar(atk,def,targetRid){
   if(COUNTIES[tRid]){ tCid=tRid; tRid=COUNTIES[tRid].capital; } // county → barony
   else if(BARONIES[tRid]){ tCid=BARONIES[tRid].county; }        // barony → county
   if(!tRid||!BARONIES[tRid]){ return false; }
-  state.wars.push({atk:atk.id, def:def.id, targetRid:tCid||tRid, score:0, months:0, allies:[]});
+  /* 지휘관 자동 지정: 공격자의 원수(marshal) → 없으면 공격자 본인 */
+  const _atkCmd = (atk.council?.marshal && chars[atk.council.marshal] && !chars[atk.council.marshal].dead)
+    ? atk.council.marshal : atk.id;
+  const _defCmd = (def.council?.marshal && chars[def.council.marshal] && !chars[def.council.marshal].dead)
+    ? def.council.marshal : def.id;
+  state.wars.push({
+    atk:atk.id, def:def.id, targetRid:tCid||tRid,
+    score:0, months:0, allies:[],
+    atkCmd:_atkCmd, defCmd:_defCmd, // 지휘관 charId
+    occupied:[]
+  });
   chOp(def,atk,-40);
   log(`<b>${atk.name}</b>이(가) <b>${tCid?COUNTIES[tCid]?.n:BARONIES[tRid]?.n||tRid}</b>을(를) 목표로 선전포고했습니다!`,'war');
   if(atk.id===state.player){
@@ -1545,10 +1591,12 @@ function declareWar(atk,def,targetRid){
     }
   }
   if(def.id===state.player){
-    // 피침략 → 복수 명분 자동 부여
     grantRevengeClaim(tCid||tRid);
+    const _w2 = state.wars.find(x=>x.atk===atk.id&&x.def===def.id);
+    const _myCmd2 = _w2 ? warCommander(_w2,'def') : null;
+    const _cmdLine = _myCmd2 ? `\n\n⚔ 지휘관: ${_myCmd2.name} (무예 ${stat(_myCmd2,'mar')} · 용맹 ${stat(_myCmd2,'prow')})` : '';
     popup({title:'전쟁이다!', sub:'침공',
-      body:`${atk.name}의 군대가 국경을 넘었습니다!\n목표: <b>${tCid?COUNTIES[tCid]?.n:BARONIES[tRid]?.n||tRid}</b>\n\n복수 명분이 생겼습니다. 패배 후 반격이 가능합니다.`,
+      body:`${atk.name}의 군대가 국경을 넘었습니다!\n목표: <b>${tCid?COUNTIES[tCid]?.n:BARONIES[tRid]?.n||tRid}</b>\n복수 명분이 생겼습니다.${_cmdLine}`,
       opts:[{t:'전군 소집!', f:()=>addStress(playerChar(),10,'전쟁의 무게')}]});
   }
   renderMap(); return true;
@@ -1576,7 +1624,37 @@ function power(c){
     for(const bid of regionsOf(v.id)){ const b=BARONIES[bid]; if(b) t+=b.troops*0.1; }
   }
   if(!t) t=150;
-  return t*(1+stat(c,'mar')*0.04)*(1+stat(c,'prow')*0.01);
+  // 기본 전력: 병력 × 무예 보정 × 용맹 보정
+  const base = t * (1+stat(c,'mar')*0.04) * (1+stat(c,'prow')*0.01);
+  return base;
+}
+
+/* 전쟁 지휘관 헬퍼 */
+function warCommander(w, side){
+  // side: 'atk' or 'def'
+  const cmdId = side==='atk' ? w.atkCmd : w.defCmd;
+  if(!cmdId) return null;
+  const c = chars[cmdId];
+  return (c && !c.dead) ? c : null;
+}
+
+/* 지휘관 보정 전력 (CK3: 무예 → Advantage → +5%/point 피해)
+   근사: 무예 1점 = 전력 2% 보정 */
+function powerWithCommander(c, w, side){
+  const base = power(c);
+  const cmd = warCommander(w, side);
+  if(!cmd) return base;
+  const marBonus = 1 + stat(cmd,'mar') * 0.02;  // 무예 보정
+  const prowBonus = 1 + stat(cmd,'prow') * 0.01; // 용맹 보정
+  // 지휘관 특성 보정
+  let traitMul = 1;
+  if(cmd.traits.includes('brave'))     traitMul += 0.05;
+  if(cmd.traits.includes('wrathful'))  traitMul += 0.03;
+  if(cmd.traits.includes('diligent'))  traitMul += 0.03;
+  if(cmd.traits.includes('patient'))   traitMul += 0.02;
+  if(cmd.traits.includes('craven'))    traitMul -= 0.05;
+  if(cmd.traits.includes('lazy'))      traitMul -= 0.03;
+  return base * marBonus * prowBonus * traitMul;
 }
 function resolveWarChar(wSide){
   const c=chars[wSide]; if(c&&!c.dead) return wSide;
@@ -1627,11 +1705,17 @@ function warPulse(){
     w.months++;
     if(!w.occupied) w.occupied=[];
 
-    // ── 전력 계산 (봉신·동맹 포함)
+    // ── 지휘관 갱신 (사망·해임 시)
+    if(!w.atkCmd||!chars[w.atkCmd]||chars[w.atkCmd].dead)
+      w.atkCmd=(a.council?.marshal&&chars[a.council.marshal]&&!chars[a.council.marshal].dead)?a.council.marshal:a.id;
+    if(!w.defCmd||!chars[w.defCmd]||chars[w.defCmd].dead)
+      w.defCmd=(d.council?.marshal&&chars[d.council.marshal]&&!chars[d.council.marshal].dead)?d.council.marshal:d.id;
+
+    // ── 전력 계산 (지휘관 보정 포함)
     const allyPow=(w.allies||[]).reduce((s,id)=>{ const v=chars[id]; return v?s+power(v)*0.6:s; },0);
     const vPow=vassalsOf(w.atk).reduce((s,v)=>s+power(v)*0.4,0);
-    const pa=power(a)+allyPow+vPow;
-    const pd=power(d)+vassalsOf(w.def).reduce((s,v)=>s+power(v)*0.4,0);
+    const pa=powerWithCommander(a,w,'atk')+allyPow+vPow;
+    const pd=powerWithCommander(d,w,'def')+vassalsOf(w.def).reduce((s,v)=>s+power(v)*0.4,0);
     const ratio=(pa-pd)/Math.max(pa,pd);
 
     // ── 전쟁 소모 (병력·금)
@@ -1666,25 +1750,14 @@ function warPulse(){
     if(w.months%3===0&&(w.atk===state.player||w.def===state.player)){
       const my=w.atk===state.player?w.score:-w.score;
       const siege=tCid?` · 공성 ${Math.round(siegePct*100)}%`:'';
-      log(`전황: ${my>=0?'+':''}${Math.round(my)}%${siege} — ${my>30?'아군 우세':my<-30?'적군 우세':'교착 상태'}`,'war');
+      const myCmd = warCommander(w, w.atk===state.player?'atk':'def');
+      const cmdStr = myCmd ? ` · 지휘관: ${myCmd.name}(무${stat(myCmd,'mar')})` : '';
+      log(`전황: ${my>=0?'+':''}${Math.round(my)}%${siege} — ${my>30?'아군 우세':my<-30?'적군 우세':'교착 상태'}${cmdStr}`,'war');
     }
 
-    // ── 전투 이벤트 (플레이어 전쟁 시 월 15% 확률)
-    if((w.atk===state.player||w.def===state.player) && Math.random()<0.15 && !state.modalOpen){
-      const isAtk=w.atk===state.player;
-      const foe=isAtk?d:a;
-      const events=[
-        {cond:isAtk&&ratio>0.1, t:'전선 돌파!', body:`${foe.name}의 진지가 흔들립니다. 결정적 추격을 명할 수 있습니다.`,
-         opts:[{t:'추격한다', d:'전황 +15, 소모 +', f:()=>{w.score=Math.min(100,w.score+15); for(const b of regionsOf(a.id)) BARONIES[b].troops=Math.max(80,Math.round(BARONIES[b].troops*0.94));}},
-               {t:'진지를 굳힌다', d:'현 상태 유지', f:()=>{}}]},
-        {cond:!isAtk&&ratio<-0.1, t:'적군 포위!', body:`${foe.name}의 군대가 보급선을 끊었습니다. 돌파를 시도합니까?`,
-         opts:[{t:'돌파한다', d:'50% 성공, 실패시 대손실', f:()=>{if(Math.random()<0.5){w.score=Math.min(100,w.score+20);}else{for(const b of regionsOf(d.id)) BARONIES[b].troops=Math.max(50,Math.round(BARONIES[b].troops*0.75));}}},
-               {t:'방어를 유지한다', d:'전황 -5', f:()=>{w.score=Math.max(-100,w.score-5);}}]},
-        {cond:true, t:'소규모 충돌', body:`국경에서 소규모 전투가 벌어졌습니다. 양측 모두 피해를 입었습니다.`,
-         opts:[{t:'전선을 정비한다', d:'소모 증가', f:()=>{ for(const b of regionsOf(a.id)) BARONIES[b].troops=Math.max(80,Math.round(BARONIES[b].troops*0.96)); }}]},
-      ];
-      const ev=events.find(e=>e.cond);
-      if(ev) popup({title:ev.t, sub:'전황', body:ev.body, opts:ev.opts});
+    // ── 전투 이벤트 (플레이어 전쟁 시 월 20% 확률)
+    if((w.atk===state.player||w.def===state.player) && Math.random()<0.20 && !state.modalOpen){
+      _battleEvent(w, a, d, ratio, tCid);
     }
 
     // ── 승패 판정
@@ -1693,8 +1766,18 @@ function warPulse(){
     if(w.score<=-100){
       log(`<b>${a.name}</b>의 침공이 격퇴됐습니다.`,'war');
       setTruce(a.id,d.id,5);
-      if(w.atk===state.player){ addStress(a,30,'패전의 굴욕'); addClaim(tCid||w.targetRid,'unpressed'); }
-      if(w.def===state.player){ addStress(d,-10,'승전의 기쁨'); if(dSeat) dSeat.gold+=80; }
+      if(w.atk===state.player){
+        addStress(a,30,'패전의 굴욕'); addClaim(tCid||w.targetRid,'unpressed');
+        // 패배 시 공격측 지휘관 부상/포로 체크 (CK3: 10% 포로)
+        const losingCmd=warCommander(w,'atk');
+        _cmdCasualty(losingCmd, a, false, w, 'atk');
+      }
+      if(w.def===state.player){
+        addStress(d,-10,'승전의 기쁨'); if(dSeat) dSeat.gold+=80;
+        // 승리 시에도 방어측 지휘관 소모 체크
+        const winningCmd=warCommander(w,'def');
+        if(winningCmd && Math.random()<0.05) log(`${winningCmd.name}이(가) 승전 중 경상을 입었습니다.`,'war');
+      }
       return false;
     }
     if(w.months>60){
@@ -1703,6 +1786,213 @@ function warPulse(){
     return true;
   });
 }
+/* ════════════════════════════════════════════════════
+   전투 이벤트 시스템 (CK3 기반)
+   출처: https://ck3.paradoxwikis.com/Army (지휘관·Advantage·부상 수치)
+   ════════════════════════════════════════════════════ */
+
+/* 지휘관 부상/포로 처리 (CK3: 패배 시 10% 포로, prowess로 부상률 결정) */
+function _cmdCasualty(cmd, p, isVictory, w, side){
+  if(!cmd || cmd.id===state.player) return; // 플레이어 본인은 별도 처리
+  const prowess = stat(cmd,'prow');
+  // 위키: prowess 높을수록 부상 확률 감소
+  const injuryChance = Math.max(0.03, 0.20 - prowess*0.012);
+  // 포로: 패배 시 10% (CK3 위키)
+  if(!isVictory && Math.random()<0.10){
+    log(`<b>${cmd.name}</b>이(가) 전장에서 포로로 잡혔습니다!`,'war');
+    addStress(p,15,'지휘관 포로');
+    chOp(cmd,p,-20);
+    return;
+  }
+  if(Math.random()<injuryChance){
+    if(!cmd.traits.includes('wounded') && !cmd.traits.includes('maimed')){
+      cmd.traits.push('wounded');
+      log(`<b>${cmd.name}</b>이(가) 전투 중 부상을 입었습니다.`,'war');
+      if(cmd.id===state.player||isPlayerFamily(cmd))
+        addStress(p,10,'지휘관 부상');
+    } else if(cmd.traits.includes('wounded') && Math.random()<0.3){
+      cmd.traits = cmd.traits.filter(t=>t!=='wounded');
+      cmd.traits.push('maimed');
+      log(`<b>${cmd.name}</b>이(가) 중상을 입었습니다!`,'war');
+    }
+  }
+}
+
+/* 전투 이벤트 8종 — warPulse에서 호출 */
+function _battleEvent(w, a, d, ratio, tCid){
+  const isAtk = w.atk===state.player;
+  const p = playerChar();
+  const myCmd = warCommander(w, isAtk?'atk':'def');
+  const foeCmd = warCommander(w, isAtk?'def':'atk');
+  const foe = isAtk ? d : a;
+  const ally = isAtk ? a : d;
+
+  // 지휘관 스탯 (없으면 플레이어 본인 값 사용)
+  const myMar = myCmd ? stat(myCmd,'mar') : stat(p,'mar');
+  const myProw = myCmd ? stat(myCmd,'prow') : stat(p,'prow');
+  const myIntr = myCmd ? stat(myCmd,'intr') : stat(p,'intr');
+  const cmdName = myCmd ? myCmd.name : p.name;
+
+  /* 이벤트 후보 목록 — cond 조건 평가 후 첫 번째 해당 이벤트 발화 */
+  const events = [
+
+    /* ① 전선 돌파 — 아군 우세 + 공격 중 */
+    { cond: isAtk && ratio>0.15,
+      t:'전선 돌파!', sub:'전황 보고',
+      body:`${cmdName}이(가) 보고합니다.
+「${foe.name}의 방어선이 무너지고 있습니다. 지금이 기회입니다, 전하.」
+
+현재 전황: +${Math.round(w.score)}%`,
+      opts:[
+        { t:'전속 추격한다', d:`전황 +${10+Math.round(myMar*0.5)} · 병력 소모 증가`,
+          f:()=>{ const gain=10+Math.round(myMar*0.5); w.score=Math.min(100,w.score+gain);
+            for(const b of regionsOf(ally.id)) BARONIES[b].troops=Math.max(80,Math.round(BARONIES[b].troops*0.93));
+            log(`${cmdName}의 전속 추격으로 전황 +${gain}.`,'war');
+            if(myCmd&&myCmd.traits.includes('brave')) addStress(p,-5,'용감한 지휘관의 결단'); }},
+        { t:'진지를 굳힌다', d:'전황 유지 · 병력 보전',
+          f:()=>{ log('진지를 강화하며 전선을 정비했습니다.','war'); }},
+      ]},
+
+    /* ② 적군 포위 — 열세 + 수비 중 */
+    { cond: !isAtk && ratio<-0.15,
+      t:'적군에 포위됐다!', sub:'위기',
+      body:`${cmdName}이(가) 보고합니다.
+「${foe.name}의 군대가 사방을 에워쌌습니다. 돌파구를 찾아야 합니다.」`,
+      opts:[
+        { t:'정면 돌파한다', d:`성공률 ${Math.min(70,30+myProw*2)}% · 실패 시 대손실`,
+          f:()=>{ const succRate=Math.min(0.70,0.30+myProw*0.02);
+            if(Math.random()<succRate){ w.score=Math.min(100,w.score+20); log('포위를 돌파했습니다! 전황이 역전됐습니다.','war'); }
+            else{ for(const b of regionsOf(ally.id)) BARONIES[b].troops=Math.max(50,Math.round(BARONIES[b].troops*0.72));
+              log('돌파 시도가 실패했습니다. 큰 손실을 입었습니다.','war'); }
+            _cmdCasualty(myCmd,p,false,w,isAtk?'atk':'def'); }},
+        { t:'방어선을 유지한다', d:'전황 -5 · 다음 기회를 노린다',
+          f:()=>{ w.score=Math.max(-100,w.score-5); log('방어를 유지하며 원군을 기다립니다.','war'); }},
+      ]},
+
+    /* ③ 기습 성공 — 지휘관 brave 또는 intr 높을 때 */
+    { cond: (myCmd&&(myCmd.traits.includes('brave')||myCmd.traits.includes('deceitful'))) && ratio>-0.1 && w.months>=3,
+      t:'기습 성공!', sub:'전술 기동',
+      body:`${cmdName}이(가) 야간 기습을 감행했습니다.
+「허를 찔렀습니다! ${foe.name}의 진영이 혼란에 빠졌습니다.」`,
+      opts:[
+        { t:'혼란을 이용한다', d:`전황 +${15+Math.round(myIntr*0.5)}`,
+          f:()=>{ const gain=15+Math.round(myIntr*0.5); w.score=Math.min(100,w.score+gain);
+            for(const b of regionsOf(foe.id)) BARONIES[b].troops=Math.max(60,Math.round(BARONIES[b].troops*0.90));
+            log(`${cmdName}의 기습으로 적진이 흔들렸습니다. 전황 +${gain}.`,'war'); }},
+        { t:'추가 기습은 위험하다', d:'안전하게 현 전황 유지',
+          f:()=>{ log('기습 성과를 굳히며 전선을 정비합니다.','war'); }},
+      ]},
+
+    /* ④ 보급 차단 — 장기전 (20월 이상) */
+    { cond: w.months>=20 && ratio>0 && isAtk,
+      t:'적군 보급 차단', sub:'전략',
+      body:`${cmdName}이(가) 보고합니다.
+「${foe.name}의 보급선이 취약합니다. 차단하면 전쟁이 빠르게 끝날 것입니다.」
+전쟁 ${w.months}개월째.`,
+      opts:[
+        { t:'보급선을 차단한다', d:'적 병력 소모 가속 · 병력 소모 +',
+          f:()=>{ for(const b of regionsOf(foe.id)) BARONIES[b].troops=Math.max(60,Math.round(BARONIES[b].troops*0.82));
+            for(const b of regionsOf(ally.id)) BARONIES[b].troops=Math.max(70,Math.round(BARONIES[b].troops*0.95));
+            log('적군 보급선을 차단했습니다. 적 병력이 급격히 감소합니다.','war'); }},
+        { t:'정면 교전을 유지한다', d:'안전한 전술',
+          f:()=>{}},
+      ]},
+
+    /* ⑤ 지휘관 결투 — 양측 지휘관 prow 모두 높을 때 */
+    { cond: myCmd && foeCmd && stat(myCmd,'prow')>=7 && stat(foeCmd,'prow')>=7 && Math.random()<0.4,
+      t:'지휘관 결투 요청', sub:'기사도',
+      body:`${foeCmd.name}이(가) ${cmdName}에게 단독 결투를 신청했습니다.
+「겁쟁이처럼 숨지 말고 칼로 승부하라!」
+
+${cmdName} 용맹: ${myProw} vs ${foeCmd.name} 용맹: ${stat(foeCmd,'prow')}`,
+      opts:[
+        { t:'결투를 받아들인다', d:`승률 ${Math.min(80,30+Math.round((myProw-stat(foeCmd,'prow'))*5+50))}%`,
+          f:()=>{
+            const myAdv = myProw + Math.floor(Math.random()*6);
+            const foeAdv = stat(foeCmd,'prow') + Math.floor(Math.random()*6);
+            if(myAdv>foeAdv){
+              w.score=Math.min(100,w.score+15);
+              log(`${cmdName}이(가) ${foeCmd.name}을(를) 결투에서 이겼습니다! 전황 +15.`,'war');
+              addStress(p,-10,'결투 승리의 영광');
+              if(!foeCmd.traits.includes('wounded')) foeCmd.traits.push('wounded');
+            } else {
+              w.score=Math.max(-100,w.score-15);
+              log(`${cmdName}이(가) ${foeCmd.name}에게 결투에서 졌습니다. 전황 -15.`,'war');
+              addStress(p,15,'결투 패배의 수치');
+              _cmdCasualty(myCmd,p,false,w,isAtk?'atk':'def');
+            }
+          }},
+        { t:'거절한다', d:'위신 -5 · 안전',
+          f:()=>{ state.prestige=Math.max(0,state.prestige-5);
+            log(`${cmdName}이(가) 결투를 거절했습니다.`,'war');
+            if(myCmd&&myCmd.traits.includes('brave')) addStress(p,10,'용감한 자의 굴욕'); }},
+      ]},
+
+    /* ⑥ 봉신 배신 의심 — 봉신 있을 때 */
+    { cond: vassalsOf(p.id).length>0 && ratio<0.1 && Math.random()<0.35,
+      t:'봉신의 배신 의혹', sub:'내부 첩보',
+      body:`첩보관이 보고합니다.
+「봉신 중 한 명이 ${foe.name}과(와) 내통하고 있다는 정보가 들어왔습니다.
+사실이라면 전황에 큰 타격이 됩니다.」`,
+      opts:[
+        { t:'즉각 조사한다', d:'금 -30 · 봉신 관계 -15 · 첩보 확인',
+          f:()=>{
+            const seat=BARONIES[p.region];
+            if(seat&&seat.gold>=30){ seat.gold-=30;
+              const v=vassalsOf(p.id)[Math.floor(Math.random()*vassalsOf(p.id).length)];
+              if(v){ chOp(v,p,-15);
+                if(Math.random()<0.3){ w.score=Math.max(-100,w.score-10);
+                  log(`${v.name}의 내통이 확인됐습니다. 전황에 타격을 입었습니다.`,'war');
+                } else log(`${v.name}은 결백했습니다. 불필요한 의심이었습니다.`,'dip');
+              }
+            } else log('금이 부족합니다.','dip'); }},
+        { t:'무시한다', d:'위험 무시 · 추후 문제 가능',
+          f:()=>{ if(Math.random()<0.2){ w.score=Math.max(-100,w.score-8);
+            log('의혹을 무시했더니 적에게 정보가 새어나간 것 같습니다.','war'); }}},
+      ]},
+
+    /* ⑦ 밤 기습 방어 — 수비 중 */
+    { cond: !isAtk && ratio>-0.2 && w.months>=5,
+      t:'적의 야습!', sub:'긴급',
+      body:`${cmdName}이(가) 보고합니다.
+「${foe.name}의 군대가 야음을 틈타 기습해 왔습니다!
+즉각 대응이 필요합니다.」`,
+      opts:[
+        { t:'즉각 반격한다', d:`성공률 ${Math.min(75,40+myProw*2)}% · 기회 포착`,
+          f:()=>{ const succ=Math.min(0.75,0.40+myProw*0.02);
+            if(Math.random()<succ){ w.score=Math.min(100,w.score+12);
+              log('야습을 성공적으로 격퇴하고 반격했습니다. 전황 +12.','war');
+            } else { log('야습 대응에 실패했습니다.','war');
+              for(const b of regionsOf(ally.id)) BARONIES[b].troops=Math.max(70,Math.round(BARONIES[b].troops*0.93)); }}},
+        { t:'방어 진형을 갖춘다', d:'안정적 방어 · 손실 최소화',
+          f:()=>{ log('방어 진형으로 야습을 막아냈습니다.','war');
+            for(const b of regionsOf(ally.id)) BARONIES[b].troops=Math.max(80,Math.round(BARONIES[b].troops*0.97)); }},
+      ]},
+
+    /* ⑧ 소규모 충돌 — fallback (항상 발화 가능) */
+    { cond: true,
+      t:'국경 충돌', sub:'전황',
+      body:`${cmdName}이(가) 보고합니다.
+「국경 일대에서 소규모 전투가 계속되고 있습니다.
+양측 모두 소모를 피할 수 없습니다.」
+
+현재 전황: ${w.score>=0?'+':''}${Math.round(w.score)}%`,
+      opts:[
+        { t:'공세를 강화한다', d:`전황 +${3+Math.round(myMar*0.3)} · 병력 소모`,
+          f:()=>{ const gain=3+Math.round(myMar*0.3); w.score=Math.min(100,w.score+gain);
+            for(const b of regionsOf(ally.id)) BARONIES[b].troops=Math.max(80,Math.round(BARONIES[b].troops*0.97));
+            log(`공세를 강화했습니다. 전황 +${gain}.`,'war'); }},
+        { t:'병력을 아낀다', d:'병력 보전 · 현 전황 유지',
+          f:()=>{ log('소모를 최소화하며 전선을 유지합니다.','war'); }},
+      ]},
+
+  ];
+
+  /* 발화 이벤트 선택 — cond 통과하는 첫 번째 */
+  const ev = events.find(e=>e.cond);
+  if(ev) popup({title:ev.t, sub:ev.sub||'전황', body:ev.body, opts:ev.opts});
+}
+
 /* 백작령 단위 정복: 해당 county의 모든 barony를 승자에게 이전 */
 function conquerTarget(a, d, targetCid){
   // targetCid가 county id인지 barony id인지 판별
@@ -1893,120 +2183,369 @@ function npcGrantRevenge(defender, rid){
 }
 
 /* ════════════════════════════════════════════════════
-   NPC 활동 시스템 (연회·사냥·순례·외교 방문)
-   관계도 변화는 여기서만 이루어짐
+   NPC 활동 시스템 — 12종
+   cooldown: lastActivity 마지막 수행 연도 기록
    ════════════════════════════════════════════════════ */
 const NPC_ACTIVITIES = [
+
+  /* ① 연회 — 관계 개선, 금 소모 */
   {
-    id:'feast', n:'연회', icon:'🍖',
-    cond:(r,reg)=>reg.gold>80,
+    id:'feast', n:'연회', icon:'🍖', cooldown:1,
+    cond:(r,reg)=>reg.gold>80 && !r.traits.includes('greedy'),
     run:(r,reg,adj)=>{
       reg.gold -= 60;
-      r.lastActivity = state.year;
-      // 인접 군주 1~2명만 관계 개선 (전체 아님)
-      const guests = adj.filter(t=>t&&t.id!==r.id&&!t.dead);
-      const inviteCount = Math.min(guests.length, 1+Math.floor(Math.random()*2));
-      const invited = guests.sort(()=>Math.random()-0.5).slice(0,inviteCount);
+      const guests=adj.filter(t=>t&&t.id!==r.id&&!t.dead);
+      const cnt=Math.min(guests.length,1+Math.floor(Math.random()*2));
+      const invited=guests.sort(()=>Math.random()-.5).slice(0,cnt);
       invited.forEach(g=>{ chOp(g,r,10); chOp(r,g,7); });
-      // 플레이어 초대: 관계도 10 이상이고 30% 확률로만 팝업 (너무 잦은 팝업 방지)
-      if(invited.some(g=>g.id===state.player) && Math.random()<0.5){
+      if(invited.some(g=>g.id===state.player)&&Math.random()<0.5){
         const p=playerChar();
-        popup({title:`${r.name}의 연회 초대`, sub:`${COUNTIES[countyOf(r.region)]?.n||''} 왕국`,
+        popup({title:`${r.name}의 연회 초대`,sub:`${COUNTIES[countyOf(r.region)]?.n||''} 왕국`,
           body:`${r.name}이(가) 성대한 연회를 열고 당신을 초대했습니다.`,
           opts:[
-            {t:'참석한다', d:'관계 +15, 스트레스 -10', f:()=>{
-              chOp(r,p,15); chOp(p,r,10);
-              addStress(p,-10,'연회의 즐거움');
-              if(p.traits.includes('shy')) addStress(p,8,'내성적인 자의 고역');
+            {t:'참석한다',d:'관계 +15, 스트레스 -10',f:()=>{
+              chOp(r,p,15);chOp(p,r,10);addStress(p,-10,'연회의 즐거움');
+              if(p.traits.includes('shy'))addStress(p,8,'내성적인 자의 고역');
               log(`${r.name}의 연회에 참석했습니다.`,'dip');
             }},
-            {t:'정중히 거절한다', d:'관계 -5', f:()=>{
-              chOp(r,p,-5);
-              log(`${r.name}의 연회를 거절했습니다.`,'dip');
-            }},
+            {t:'정중히 거절한다',d:'관계 -5',f:()=>{chOp(r,p,-5);log(`${r.name}의 연회를 거절했습니다.`,'dip');}},
           ]});
       } else if(invited.length>0){
-        log(`${r.name}이(가) ${invited[0].name}을(를) 연회에 초대했습니다.`,'dip');
+        log(`${r.name}이(가) 연회를 열었습니다.`,'dip');
       }
     }
   },
+
+  /* ② 사냥 — 소규모 유대, 금 소모 */
   {
-    id:'hunt', n:'사냥', icon:'🦌',
-    cond:(r,reg)=>reg.gold>20,
+    id:'hunt', n:'사냥', icon:'🦌', cooldown:1,
+    cond:(r,reg,adj)=>reg.gold>20&&adj.some(t=>t&&t.id!==r.id&&!t.dead),
     run:(r,reg,adj)=>{
-      reg.gold -= 15;
-      r.lastActivity = state.year;
-      const partner = adj.find(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)>-20);
+      reg.gold-=15;
+      const partner=adj.find(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)>-20);
       if(!partner) return;
-      chOp(partner,r,8); chOp(r,partner,8);
+      chOp(partner,r,8);chOp(r,partner,8);
       if(partner.id===state.player){
-        popup({title:`${r.name}의 사냥 초대`, sub:'여흥',
-          body:`${r.name}이(가) 가을 사냥에 동행할 것을 청합니다.
-자연 속에서 동료로서의 유대를 다질 기회입니다.`,
+        popup({title:`${r.name}의 사냥 초대`,sub:'여흥',
+          body:`${r.name}이(가) 가을 사냥에 동행할 것을 청합니다.`,
           opts:[
-            {t:'함께 사냥을 나선다', d:'관계 +10, 스트레스 -8', f:()=>{
-              chOp(r,playerChar(),10); addStress(playerChar(),-8,'사냥의 즐거움');
+            {t:'함께 나선다',d:'관계 +10, 스트레스 -8',f:()=>{
+              const p=playerChar();chOp(r,p,10);addStress(p,-8,'사냥의 즐거움');
+              log(`${r.name}과(와) 함께 사냥을 즐겼습니다.`,'dip');
             }},
-            {t:'바쁘다고 한다', d:'관계 -5', f:()=>chOp(r,playerChar(),-5)},
+            {t:'거절한다',d:'관계 -5',f:()=>chOp(r,playerChar(),-5)},
           ]});
       }
     }
   },
+
+  /* ③ 순례 — 민심·경건 상승, 종교 관계 개선 */
   {
-    id:'pilgrimage', n:'순례', icon:'✝',
-    cond:(r)=>r.traits.includes('zealous')||r.traits.includes('pious')||Math.random()<0.3,
+    id:'pilgrimage', n:'순례', icon:'✝', cooldown:2,
+    cond:(r)=>r.traits.includes('zealous')||r.traits.includes('pious')||Math.random()<0.2,
     run:(r,reg,adj)=>{
-      r.lastActivity = state.year;
-      reg.pop = Math.min(100,(reg.pop||60)+6);
-      // 경건한 이웃과 관계 개선
+      reg.pop=Math.min(100,(reg.pop||60)+6);
       adj.filter(t=>t&&t.id!==r.id&&(t.traits.includes('zealous')||t.traits.includes('pious')))
-         .forEach(t=>{ chOp(t,r,6); chOp(r,t,6); });
-      if(adj.some(t=>t&&t.id===state.player))
-        log(`${r.name}이(가) 클론맥노이즈 수도원으로 순례를 떠났습니다.`,'dip');
+        .forEach(t=>{chOp(t,r,6);chOp(r,t,6);});
+      log(`${r.name}이(가) 클론맥노이즈 수도원으로 순례를 떠났습니다.`,'dip');
     }
   },
+
+  /* ④ 외교 방문 — 우호 관계 강화 */
   {
-    id:'diplomacy', n:'외교 방문', icon:'🤝',
-    cond:(r,reg,adj)=>adj.some(t=>t&&t.id!==r.id&&opinion(r,t)>0),
+    id:'diplomacy', n:'외교 방문', icon:'🤝', cooldown:1,
+    cond:(r,reg,adj)=>adj.some(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)>0),
     run:(r,reg,adj)=>{
-      r.lastActivity = state.year;
-      const target = adj.find(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)>0);
+      const target=adj.find(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)>0);
       if(!target) return;
-      chOp(target,r,10); chOp(r,target,10);
+      chOp(target,r,10);chOp(r,target,10);
       if(target.id===state.player){
-        popup({title:'외교 방문', sub:`${r.name}의 방문`,
-          body:`${r.name}이(가) 직접 당신의 궁정을 찾아왔습니다.
-「먼스터의 명성이 에이레에 울려 퍼집니다, 전하.」`,
+        popup({title:'외교 방문',sub:`${r.name}의 방문`,
+          body:`${r.name}이(가) 직접 당신의 궁정을 찾아왔습니다.\n「먼스터의 명성이 에이레에 울려 퍼집니다, 전하.」`,
           opts:[
-            {t:'환대한다', d:'관계 +15, 금 -20', f:()=>{
-              if(REGIONS[playerChar().region].gold>=20) REGIONS[playerChar().region].gold-=20;
-              chOp(r,playerChar(),15);
-              log(`${r.name}을(를) 극진히 맞이했습니다.`,'good');
+            {t:'환대한다',d:'관계 +15, 금 -20',f:()=>{
+              const p=playerChar();
+              if(REGIONS[p.region].gold>=20)REGIONS[p.region].gold-=20;
+              chOp(r,p,15);log(`${r.name}을(를) 극진히 맞이했습니다.`,'good');
             }},
-            {t:'형식적으로 맞이한다', d:'관계 +5', f:()=>chOp(r,playerChar(),5)},
+            {t:'형식적으로 맞이한다',d:'관계 +5',f:()=>chOp(r,playerChar(),5)},
           ]});
       } else {
         log(`${r.name}이(가) ${target.name}의 궁정을 방문했습니다.`,'dip');
       }
     }
   },
+
+  /* ⑤ 건설 — 영지 발전 투자 */
+  {
+    id:'build', n:'영지 건설', icon:'🏗', cooldown:2,
+    cond:(r,reg)=>reg.gold>120&&(reg.pop||60)<90,
+    run:(r,reg)=>{
+      const invest=40+Math.floor(Math.random()*40);
+      reg.gold-=invest;
+      reg.pop=Math.min(100,(reg.pop||60)+4);
+      reg.cap=Math.min(2000,(reg.cap||300)+30);
+      log(`${r.name}이(가) 영지 개발에 ${invest}금을 투자했습니다.`,'good');
+    }
+  },
+
+  /* ⑥ 병력 징집 — 전쟁 준비 */
+  {
+    id:'muster', n:'병력 징집', icon:'⚔', cooldown:1,
+    cond:(r,reg)=>reg.gold>100&&reg.troops<reg.cap*0.6
+      &&(r.traits.includes('brave')||r.traits.includes('wrathful')||Math.random()<0.3),
+    run:(r,reg,adj)=>{
+      const cost=60+Math.floor(Math.random()*40);
+      const gain=100+Math.floor(Math.random()*150);
+      reg.gold-=cost;
+      reg.troops=Math.min(reg.cap,reg.troops+gain);
+      // 병력 증강 시 인접 플레이어에게 경고 팝업 (30%)
+      const p=playerChar();
+      if(adj.some(t=>t&&t.id===p.id)&&Math.random()<0.3){
+        popup({title:'군사 동향',sub:'첩보 보고',
+          body:`${r.name}이(가) 병력을 대규모로 징집하고 있습니다.\n「전하, 인근 왕국의 움직임이 심상치 않습니다.」`,
+          opts:[
+            {t:'경계를 강화한다',d:'스트레스 +5, 위신 +3',f:()=>{
+              addStress(p,5,'전쟁의 불안');state.prestige+=3;
+              log(`${r.name}의 동향에 주목하고 있습니다.`,'war');
+            }},
+            {t:'무시한다',f:()=>log(`${r.name}의 동향을 무시했습니다.`,'war')},
+          ]});
+      } else {
+        log(`${r.name}이(가) 병력을 징집했습니다.`,'war');
+      }
+    }
+  },
+
+  /* ⑦ 혼인 협상 — 가문 간 외교 결혼 */
+  {
+    id:'marriage', n:'혼인 협상', icon:'💍', cooldown:3,
+    cond:(r,reg,adj)=>{
+      const kids=Object.values(chars).filter(c=>!c.dead&&(c.father===r.id||c.mother===r.id)&&age(c)>=14&&!c.spouse);
+      return kids.length>0&&adj.some(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)>-10);
+    },
+    run:(r,reg,adj)=>{
+      const myKids=Object.values(chars).filter(c=>!c.dead&&(c.father===r.id||c.mother===r.id)&&age(c)>=14&&!c.spouse);
+      const target=adj.find(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)>-10);
+      if(!myKids.length||!target) return;
+      const kid=myKids[0];
+      chOp(target,r,12);chOp(r,target,12);
+      if(target.id===state.player){
+        popup({title:'혼인 제안',sub:`${r.name}의 전갈`,
+          body:`${r.name}이(가) 자녀 ${kid.name}(${age(kid)}세)의 혼인을 제안해 왔습니다.\n두 가문의 유대를 다질 기회입니다.`,
+          opts:[
+            {t:'혼인을 수락한다',d:'관계 +20, 위신 +5',f:()=>{
+              const p=playerChar();
+              // 플레이어 미혼 자녀 또는 본인과 kid 혼약/혼인 체결
+              const myCand = (!p.spouse&&!p.betrothed) ? p :
+                Object.values(chars).find(k=>!k.dead&&(k.father===p.id||k.mother===p.id)&&!k.spouse&&!k.betrothed&&age(k)>=6&&k.sex!==kid.sex);
+              if(myCand){
+                const isBetrothal = age(myCand)<16||age(kid)<16;
+                _solemnizeMarriage(myCand, kid, r, isBetrothal);
+              }
+              chOp(r,p,20); state.prestige+=5;
+            }},
+            {t:'정중히 거절한다',d:'관계 -8',f:()=>{
+              chOp(r,playerChar(),-8);
+              log(`${r.name}의 혼인 제안을 거절했습니다.`,'dip');
+            }},
+          ]});
+      } else {
+        log(`${r.name}이(가) ${target.name}과(와) 혼인 협정을 맺었습니다.`,'fam');
+      }
+    }
+  },
+
+  /* ⑧ 후계자 교육 — 자녀 성장 이벤트 */
+  {
+    id:'education', n:'후계자 교육', icon:'📜', cooldown:2,
+    cond:(r)=>{
+      const kids=Object.values(chars).filter(c=>!c.dead&&(c.father===r.id||c.mother===r.id)&&age(c)>=6&&age(c)<=16);
+      return kids.length>0;
+    },
+    run:(r,reg)=>{
+      const kids=Object.values(chars).filter(c=>!c.dead&&(c.father===r.id||c.mother===r.id)&&age(c)>=6&&age(c)<=16);
+      const kid=kids[Math.floor(Math.random()*kids.length)];
+      // 스킬 소폭 상승
+      const skills=['dip','mar','stew','intr','learn'];
+      const sk=skills[Math.floor(Math.random()*skills.length)];
+      kid.base[sk]=(kid.base[sk]||4)+1;
+      if(r.id===state.player||Object.values(chars).some(c=>c.id===state.player&&(c.father===r.id||c.mother===r.id))){
+        popup({title:'후계자 교육',sub:`${r.name}의 가문`,
+          body:`${kid.name}이(가) 궁중 교육을 받으며 성장하고 있습니다.\n「${['외교술','무예','내정술','음모술','학문'][skills.indexOf(sk)]} 분야에서 두각을 나타내고 있습니다.」`,
+          opts:[{t:'흐뭇하게 지켜본다',f:()=>{}}]});
+      } else {
+        log(`${r.name}의 자녀 ${kid.name}이(가) 교육을 받고 있습니다.`,'fam');
+      }
+    }
+  },
+
+  /* ⑨ 조공 / 화해 — 갈등 해소 */
+  {
+    id:'tribute', n:'조공 제안', icon:'💰', cooldown:2,
+    cond:(r,reg,adj)=>reg.gold>150&&adj.some(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)<-15&&power(t)>power(r)*1.1),
+    run:(r,reg,adj)=>{
+      const target=adj.find(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)<-15&&power(t)>power(r)*1.1);
+      if(!target) return;
+      const amount=30+Math.floor(Math.random()*30);
+      reg.gold-=amount;
+      chOp(target,r,15);chOp(r,target,10);
+      if(target.id===state.player){
+        REGIONS[playerChar().region].gold+=amount;
+        popup({title:'조공 도착',sub:`${r.name}의 전갈`,
+          body:`${r.name}이(가) 금 ${amount}을(를) 보내왔습니다.\n「긴장을 풀고 평화롭게 지내기를 바랍니다, 전하.」`,
+          opts:[{t:'받아들인다',f:()=>log(`${r.name}의 조공 ${amount}금을 받았습니다.`,'good')}]});
+      } else {
+        log(`${r.name}이(가) ${target.name}에게 조공을 보냈습니다.`,'dip');
+      }
+    }
+  },
+
+  /* ⑩ 내부 반란 진압 — 민심 낮을 때 */
+  {
+    id:'suppress', n:'반란 진압', icon:'🏰', cooldown:2,
+    cond:(r,reg)=>reg.gold>60&&(reg.pop||60)<40&&reg.troops>100,
+    run:(r,reg)=>{
+      const cost=40;const troopLoss=30+Math.floor(Math.random()*50);
+      reg.gold-=cost;
+      reg.troops=Math.max(50,reg.troops-troopLoss);
+      reg.pop=Math.min(100,(reg.pop||60)+10);
+      if(adj_contains_player(r)){
+        popup({title:'인근 반란',sub:'첩보 보고',
+          body:`${r.name}의 영지에서 반란이 발생했으나 곧 진압됐습니다.\n백성들의 불만이 누적된 결과입니다.`,
+          opts:[{t:'주시한다',f:()=>{}}]});
+      } else {
+        log(`${r.name}이(가) 내부 반란을 진압했습니다.`,'war');
+      }
+    }
+  },
+
+  /* ⑪ 첩보 유포 — 인접 군주 평판 훼손 */
+  {
+    id:'slander', n:'첩보 유포', icon:'🕵', cooldown:2,
+    cond:(r,reg,adj)=>r.traits.includes('deceitful')&&adj.some(t=>t&&t.id!==r.id&&opinion(r,t)<-10),
+    run:(r,reg,adj)=>{
+      const target=adj.find(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)<-10);
+      if(!target) return;
+      // 제3자들이 target을 -5~-12 나빠봄
+      adj.filter(t=>t&&t.id!==r.id&&t.id!==target.id).forEach(t=>{
+        chOp(target,t,-(5+Math.floor(Math.random()*8)));
+      });
+      if(target.id===state.player){
+        popup({title:'음해 공작',sub:'첩보 보고',
+          body:`${r.name}이(가) 당신에 대한 거짓 소문을 퍼뜨리고 있습니다.\n인접 왕국들의 시선이 곱지 않아지고 있습니다.`,
+          opts:[
+            {t:'반박한다',d:'위신 -5, 관계 일부 회복',f:()=>{
+              const p=playerChar();state.prestige=Math.max(0,state.prestige-5);
+              adj.filter(t=>t&&t.id!==r.id&&t.id!==p.id).forEach(t=>chOp(t,p,4));
+              log(`${r.name}의 음해에 적극 대응했습니다.`,'dip');
+            }},
+            {t:'무시한다',f:()=>log(`${r.name}의 소문을 무시했습니다.`,'dip')},
+          ]});
+      } else {
+        log(`${r.name}이(가) ${target.name}에 대한 음해를 꾸몄습니다.`,'dip');
+      }
+    }
+  },
+
+  /* ⑫ 자연재해 대응 — 흉작·홍수 시 금 지출로 민심 유지 */
+  {
+    id:'disaster', n:'재해 대응', icon:'🌾', cooldown:3,
+    cond:(r,reg)=>(reg.pop||60)<55&&reg.gold>40,
+    run:(r,reg,adj)=>{
+      const spend=20+Math.floor(Math.random()*20);
+      reg.gold-=spend;
+      reg.pop=Math.min(100,(reg.pop||60)+8);
+      const disasters=['흉작','홍수','역병','폭설'];
+      const disaster=disasters[Math.floor(Math.random()*disasters.length)];
+      if(adj_contains_player(r)){
+        popup({title:`인근 ${disaster}`,sub:'계절 보고',
+          body:`${r.name}의 영지에 ${disaster}이(가) 발생했습니다.\n${r.name}이(가) 금고를 열어 백성을 구휼하고 있습니다.`,
+          opts:[{t:'경계를 높인다',f:()=>{}}]});
+      } else {
+        log(`${r.name}이(가) 영지 ${disaster}에 대응해 금고를 열었습니다.`,'good');
+      }
+    }
+  },
+
 ];
+
+/* 헬퍼 — 플레이어가 인접 NPC의 이웃인지 */
+function adj_contains_player(r){
+  return (ADJ[r.region]||[]).map(x=>ownerOf(x)).some(t=>t&&t.id===state.player);
+}
 
 function npcActivityPulse(){
   for(const id in chars){
-    const r = chars[id];
-    if(r.dead || !r.ruler || id===state.player || !r.region || !REGIONS[r.region]) continue;
-    // 같은 해에 이미 활동했으면 스킵 (연 1회 제한)
-    if(r.lastActivity >= state.year-1) continue; // 2년에 1회 활동
-    // 월 15% 확률로 활동 시도
-    if(Math.random()>0.15) continue;
-    const reg = REGIONS[r.region];
-    const adj = (ADJ[r.region]||[]).map(x=>ownerOf(x)).filter(Boolean);
-    // 가능한 활동 필터링 후 랜덤 선택
-    const possible = NPC_ACTIVITIES.filter(a=>a.cond(r,reg,adj));
-    if(!possible.length) continue;
-    const act = possible[Math.floor(Math.random()*possible.length)];
-    act.run(r, reg, adj);
+    const r=chars[id];
+    if(r.dead||!r.ruler||id===state.player||!r.region||!REGIONS[r.region]) continue;
+    if(!r.actCooldowns) r.actCooldowns={};
+
+    // 월 20% 확률로 활동 시도
+    if(Math.random()>0.20) continue;
+
+    const reg=REGIONS[r.region];
+    const adj=(ADJ[r.region]||[]).map(x=>ownerOf(x)).filter(Boolean);
+
+    // 쿨다운 미완료 활동 제외
+    const available=NPC_ACTIVITIES.filter(a=>{
+      const lastY=r.actCooldowns[a.id]||0;
+      return (state.year-lastY)>=a.cooldown && a.cond(r,reg,adj);
+    });
+    if(!available.length) continue;
+
+    // 우선순위 — 플레이어와 인접한 경우 상호작용 활동 가중치 2배
+    const weights=available.map(a=>{
+      const isInteractive=['feast','diplomacy','hunt','marriage','tribute','muster','slander'].includes(a.id);
+      return isInteractive&&adj_contains_player(r)?2:1;
+    });
+    const total=weights.reduce((s,w)=>s+w,0);
+    let pick=Math.random()*total;
+    let chosen=available[available.length-1];
+    for(let i=0;i<available.length;i++){
+      pick-=weights[i];
+      if(pick<=0){chosen=available[i];break;}
+    }
+
+    chosen.run(r,reg,adj);
+    r.actCooldowns[chosen.id]=state.year;
+  }
+}
+
+/* NPC 자동 혼인/재혼 — 인구 존속 유지 (매년 1월)
+   배우자 없는 성인 NPC를 같은/다른 궁정의 미혼 이성과 짝지음 */
+function npcMarriagePulse(){
+  // 배우자도 혼약도 없는 16세 이상 NPC (플레이어 제외, 사망 제외)
+  const singles = Object.values(chars).filter(c=>
+    !c.dead && c.id!==state.player && age(c)>=16 && age(c)<55 &&
+    !c.spouse && !c.betrothed && c.courtOf // 궁정 소속 또는 군주
+  );
+  // 군주는 region 기반이라 courtOf가 없을 수 있음 → 별도 포함
+  const singleRulers = Object.values(chars).filter(c=>
+    !c.dead && c.id!==state.player && c.ruler && age(c)>=16 && age(c)<60 &&
+    !c.spouse && !c.betrothed
+  );
+  const pool = [...new Set([...singles, ...singleRulers])];
+
+  for(const c of pool){
+    if(c.spouse||c.betrothed) continue; // 루프 중 이미 짝지어졌으면 skip
+    // 짝 후보: 반대 성별, 미혼, 16세 이상, 가까운 나이, 같은 가문 아님
+    const wantedSex = c.sex==='m' ? 'f' : 'm';
+    const mate = pool.find(m=>
+      m.id!==c.id && !m.spouse && !m.betrothed &&
+      m.sex===wantedSex &&
+      m.dyn!==c.dyn && // 근친 방지 (같은 가문 회피)
+      Math.abs(age(m)-age(c))<=18
+    );
+    if(mate){
+      // 혼인 체결 — 남편 가문으로 편입 (부계)
+      c.spouse = mate.id; mate.spouse = c.id;
+      // 여성이 남편 궁정으로 이동 (자녀가 부계 궁정에서 자라도록)
+      const husband = c.sex==='m' ? c : mate;
+      const wife = c.sex==='m' ? mate : c;
+      if(husband.region) wife.courtOf = husband.region;
+      else if(husband.courtOf) wife.courtOf = husband.courtOf;
+    }
   }
 }
 
@@ -2017,9 +2556,10 @@ function aiPulse(){
   npcCouncilPulse();
   npcActivityPulse();
 
-  // 매년 1월: 관직 재구성
+  // 매년 1월: 관직 재구성 + NPC 혼인/재혼 (인구 존속)
   if(state.month===1){
     Object.values(chars).filter(c=>!c.dead&&c.ruler&&c.id!==state.player).forEach(buildNpcCouncil);
+    npcMarriagePulse();
   }
 
   for(const rid in REGIONS){
@@ -3081,8 +3621,18 @@ function buildProfileHTML(c){
       <div style="width:${Math.min(100,c.stress/1.5)}%;height:100%;background:linear-gradient(90deg,#6e5a2c,${stressColor});border-radius:2px"></div>
     </div>
     ${warNow.length?`<div class="pm-kv"><span>전쟁</span><span style="color:#d05a4a">⚔ ${warNow.length}건 진행 중</span></div>`:''}
+    ${warNow.map(w=>{
+      const isAtk=w.atk===c.id;
+      const myCmd=warCommander(w,isAtk?'atk':'def');
+      const foeId=isAtk?w.def:w.atk;
+      const foe=chars[foeId];
+      const score=isAtk?w.score:-w.score;
+      if(!myCmd) return '';
+      return `<div class="pm-kv"><span>지휘관</span><span style="color:var(--gold-dim)">${myCmd.name} (무${stat(myCmd,'mar')} 용${stat(myCmd,'prow')})${myCmd.traits.includes('wounded')?' <span style="color:#d05a4a">부상</span>':''}</span></div>`;
+    }).join('')}
     ${allyList.length?`<div class="pm-kv"><span>동맹</span><span>${allyList.join(', ')}</span></div>`:''}
-    ${c.spouse&&chars[c.spouse]?`<div class="pm-kv"><span>배우자</span><span>${chars[c.spouse].name}</span></div>`:''}`;
+    ${c.spouse&&chars[c.spouse]?`<div class="pm-kv"><span>배우자</span><span>${chars[c.spouse].name}</span></div>`:''}
+    ${!c.spouse&&c.betrothed&&chars[c.betrothed]?`<div class="pm-kv"><span>혼약</span><span style="color:#c9a227">💍 ${chars[c.betrothed].name} (${age(chars[c.betrothed])}세)</span></div>`:''}`;
 
   /* B. 스킬 + 특성 */
   const SKILL_FULL={dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문',prow:'용맹'};
@@ -3198,6 +3748,20 @@ function openRegion(rid, cid_hint){
   const cid=cid_hint||countyOf(rid);
   const defTroops=cid&&COUNTIES[cid]?COUNTIES[cid].baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0):(BARONIES[rid]?.troops||0);
 
+  // 혼약 현황 — 내 가족 중 이 가문과 혼약 중인 인원
+  const myBetrotheds = Object.values(chars).filter(k=>
+    !k.dead && (k.id===p.id||k.father===p.id||k.mother===p.id) &&
+    k.betrothed && chars[k.betrothed]?.courtOf===c.region
+  );
+  const betrothLine = myBetrotheds.length
+    ? `<div class="kv"><span>혼약</span><span style="color:#c9a227">💍 ${myBetrotheds.map(k=>k.name).join(', ')}</span></div>`
+    : '';
+  // 혼인 후보 수 미리보기
+  const spCandM = findMarriageCandidates(c,'m').length;
+  const spCandF = findMarriageCandidates(c,'f').length;
+  const candLine = (spCandM+spCandF)>0
+    ? `<div class="kv"><span>혼인 후보</span><span style="color:var(--parch-dim)">♂${spCandM} ♀${spCandF}</span></div>`
+    : '';
   const html=`
     <div class="kv"><span>지배자</span><span>${c.name} (${age(c)}세)</span></div>
     <div class="kv"><span>가문</span><span>${c.dyn}</span></div>
@@ -3209,6 +3773,7 @@ function openRegion(rid, cid_hint){
     <div class="kv"><span>내가 보는 시각</span><span class="${myOp>15?'relGood':myOp<-15?'relBad':'relMid'}">${myOp>0?'+':''}${myOp}</span></div>
     ${isAllied(p.id,c.id)?'<div class="kv"><span>관계</span><span style="color:#6aaa7a">⚔ 동맹</span></div>':''}
     ${c.liege===p.id?'<div class="kv"><span>관계</span><span style="color:#c9a227">👑 봉신</span></div>':''}
+    ${betrothLine}${candLine}
   `;
   const opts=[];
   if(!atWar){
@@ -3242,7 +3807,9 @@ function openRegion(rid, cid_hint){
         } else { chOp(c,p,-20); log(`<b>${c.name}</b>이(가) 봉신 요청을 거절했습니다.`,'dip'); }
       }});
     }
-    opts.push({t:'혼인 교섭', d:'가문 간 혼약 — 관계 +30', f:()=>tryMarriage(c)});
+    /* 혼인 교섭 — 후보 유무에 따라 설명 변경 */
+    const _mCands = findMarriageCandidates(c,'m').length + findMarriageCandidates(c,'f').length;
+    opts.push({t:'💍 혼인 교섭', d:_mCands>0?`후보 ${_mCands}명 · 관계 +30`:'가문 생성 혼인 · 관계 +30', f:()=>tryMarriage(c)});
     opts.push({t:'살해 모략', d:'은밀한 칼 — 발각 시 관계 악화', f:()=>{
       if(startScheme(p,c)) log('어둠 속에서 칼을 갈기 시작합니다...','war');
       else log('이미 진행 중인 모략입니다.');
@@ -3285,45 +3852,241 @@ function vassalChance(c,p){
   v+=Math.round(prestigeBonus()*1.5); // 봉신 수락에 위신 비중 높음
   return Math.max(1,Math.min(85,Math.round(v)));
 }
-function doMarriage(candidate, c){
-  // candidate: 혼인 당사자(플레이어 본인 또는 자녀)
-  const p=playerChar();
-  const acc=40+opinion(c,p)+aiW(c,'soc')*4+prestigeBonus();
-  if(Math.random()*100<acc){
-    const sp=mk({
-      name:c.dyn+' 가문의 '+(candidate.sex==='m'?'규수':'자제'),
-      dyn:c.dyn, sex:candidate.sex==='m'?'f':'m',
-      byear:candidate.byear, bmonth:2, bday:2,
-      traits:randTraits(2), base:randStats(), edu:1, eduFocus:'dip', courtOf:p.region
-    });
-    if(age(candidate)>=16){ candidate.spouse=sp.id; sp.spouse=candidate.id; }
-    chOp(c,p,30); chOp(p,c,30);
-    const rel=candidate.id===p.id?'당신':candidate.sex==='m'?'아들':'딸';
-    log(`<b>${candidate.name}</b>(${rel})과(와) ${c.dyn} 가문의 혼약 성사 — 두 가문이 맺어졌습니다.`,'good');
+/* ─── 혼인 수락 공식 (CK3 위키: Marriage Acceptance) ───
+   출처: https://ck3.paradoxwikis.com/Breeding#Marriage_acceptance
+   기준 +1 이상이면 수락. 주요 항목만 근사 구현.          */
+function marriageAcceptance(candidate, targetRuler, mySelf){
+  /* candidate: 내 쪽 혼인 당사자, targetRuler: 상대 군주, mySelf: true면 본인 혼인 */
+  const p = playerChar();
+  let v = 0;
+  /* 위키: +0.75 per opinion with marriage offerer (나에 대한 호감) */
+  v += Math.floor(opinion(targetRuler, p) * 0.75);
+  /* 위키: +0.25 per opinion with prospective spouse (당사자에 대한 호감) */
+  v += Math.floor(opinion(targetRuler, candidate) * 0.25);
+  /* 위키: -15 if arranging own marriage */
+  if(mySelf) v -= 15;
+  /* 위키: Marrying up/down — 영지 수 차이로 서열 근사 */
+  const myCount  = directCountiesOf(p.id).length;
+  const tgtCount = directCountiesOf(targetRuler.id).length;
+  const rankDiff = tgtCount - myCount;
+  if(rankDiff > 0) v += 30;        // 상대가 위 → 상향혼: 상대에게 유리
+  else if(rankDiff < 0) v -= 30;   // 상대가 아래 → 하향혼: 상대가 꺼림
+  /* 위신 보정 */
+  v += prestigeBonus() * 2;
+  /* AI 성향 보정 */
+  v += aiW(targetRuler, 'soc') * 5;
+  if(targetRuler.traits.includes('ambitious')) v -= 10; // 야심가는 혼인보다 정복 선호
+  if(targetRuler.traits.includes('content'))  v += 10;
+  return Math.max(1, Math.min(95, Math.round(v)));
+}
+
+/* 실존 후보 조회: 상대 군주 궁정의 미혼 성인/아동 */
+function findMarriageCandidates(targetRuler, wantedSex){
+  return Object.values(chars).filter(c =>
+    !c.dead &&
+    c.courtOf === targetRuler.region &&
+    c.sex === wantedSex &&
+    !c.spouse &&
+    !c.betrothed &&
+    c.id !== targetRuler.id &&
+    age(c) >= 6
+  ).sort((a,b) => age(b) - age(a)); // 나이 많은 순
+}
+
+/* 후보 카드 HTML 생성 */
+function _candidateCardHTML(sp, acc){
+  const a = age(sp);
+  const traitStr = sp.traits.map(t=>TRAITS[t]?.n||'').filter(Boolean).join(' · ') || '—';
+  const accColor = acc >= 60 ? '#7aaa6a' : acc >= 30 ? '#c9a227' : '#9e5a5a';
+  return `
+    <div style="background:#1a1408;border:1px solid var(--line);border-radius:4px;padding:8px 10px;margin:6px 0">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="font-size:1.4rem">${sp.sex==='m'?'👨':'👩'}</div>
+        <div style="flex:1">
+          <div style="font-size:.85rem;color:var(--gold);font-weight:600">${sp.name} <span style="color:var(--parch-dim);font-weight:400">(${a}세)</span></div>
+          <div style="font-size:.72rem;color:var(--parch);margin-top:2px">
+            외<b>${stat(sp,'dip')}</b> 무<b>${stat(sp,'mar')}</b> 내<b>${stat(sp,'stew')}</b> 음<b>${stat(sp,'intr')}</b> 학<b>${stat(sp,'learn')}</b>
+          </div>
+          <div style="font-size:.68rem;color:var(--parch-dim);margin-top:1px">특성: ${traitStr}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:.72rem;color:${accColor};font-weight:600">수락 ${acc}%</div>
+          <div style="font-size:.62rem;color:var(--parch-dim)">${a<16?'혼약 대상':'혼인 가능'}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+/* 혼인/혼약 실제 체결 처리 */
+function _solemnizeMarriage(myChar, spChar, targetRuler, isBetrothal){
+  const p = playerChar();
+  /* 기존 혼약 상대가 있으면 조용히 해제 (상대측 betrothed도 null 처리) */
+  if(myChar.betrothed && myChar.betrothed !== spChar.id){
+    const prev = chars[myChar.betrothed]; if(prev) prev.betrothed = null;
+    myChar.betrothed = null;
+  }
+  if(spChar.betrothed && spChar.betrothed !== myChar.id){
+    const prev = chars[spChar.betrothed]; if(prev) prev.betrothed = null;
+    spChar.betrothed = null;
+  }
+  if(isBetrothal){
+    myChar.betrothed = spChar.id;
+    spChar.betrothed = myChar.id;
+    chOp(targetRuler, p, 20); chOp(p, targetRuler, 20);
+    const rel = myChar.id===p.id ? '당신' : myChar.sex==='m' ? '아들' : '딸';
+    log(`<b>${myChar.name}</b>(${rel})과(와) <b>${spChar.name}</b>의 혼약이 맺어졌습니다. 성인이 되면 혼인합니다.`, 'fam');
+    playSynthSFX('event');
   } else {
-    chOp(c,p,-5); log(`${c.name}이(가) 혼담을 정중히 물렸습니다.`,'dip');
+    myChar.spouse = spChar.id;
+    spChar.spouse = myChar.id;
+    if(spChar.courtOf !== p.region) spChar.courtOf = p.region;
+    chOp(targetRuler, p, 30); chOp(p, targetRuler, 30);
+    const rel = myChar.id===p.id ? '당신' : myChar.sex==='m' ? '아들' : '딸';
+    log(`<b>${myChar.name}</b>(${rel})과(와) <b>${spChar.name}</b>의 혼인이 성사됐습니다! 두 가문이 맺어졌습니다.`, 'good');
+    playSynthSFX('gold');
+    popup({title:'혼인 성사', sub:`${myChar.name} ♥ ${spChar.name}`,
+      body:`${myChar.name}과(와) ${spChar.name}의 혼인이 이루어졌습니다.\n두 가문의 유대가 공고해졌습니다.`,
+      opts:[{t:'축복이 있기를', f:()=>addStress(p,-5,'혼인의 기쁨')}]});
   }
 }
-function tryMarriage(c){
-  const p=playerChar();
-  // 후보: 플레이어 본인(미혼) + 미혼 자녀
-  const candidates=[];
-  if(!p.spouse) candidates.push({...p, _label:'본인'});
-  Object.values(chars)
-    .filter(k=>!k.dead&&(k.father===p.id||k.mother===p.id)&&!k.spouse&&age(k)>=6)
-    .forEach(k=>candidates.push(k));
-  if(!candidates.length){ log('혼인시킬 미혼 가족이 없습니다.'); return; }
-  const opts=candidates.map(kid=>({
-    t:kid.id===p.id
-      ? `${kid.name} (본인 · ${age(kid)}세)`
-      : `${kid.name} (${kid.sex==='m'?'아들':'딸'} · ${age(kid)}세)`,
-    d:age(kid)<16?'성인이 되면 혼인 — 지금은 혼약':'즉시 혼인',
-    f:()=>doMarriage(kid.id===p.id?p:kid, c)
-  }));
+
+/* 후보 선택 모달 — 상대 궁정 후보 카드 UI */
+function _showCandidatePicker(myChar, targetRuler, candidates, idx){
+  idx = idx || 0;
+  const p = playerChar();
+  const sp = candidates[idx];
+  if(!sp){ showModal({title:'혼인 후보 없음', sub:'혼담 종료',
+    body:'적합한 혼인 후보가 없습니다.', opts:[{t:'닫기'}]}); return; }
+
+  const mySelf = myChar.id === p.id;
+  const acc = marriageAcceptance(myChar, targetRuler, mySelf);
+  const isBetrothal = age(myChar) < 16 || age(sp) < 16;
+  const cardHTML = _candidateCardHTML(sp, acc);
+
+  const opts = [];
+  /* 혼인/혼약 제안 */
+  opts.push({
+    t: isBetrothal ? '혼약 체결' : '혼인 제안',
+    d: `수락 가능성 ${acc}%`,
+    f: () => {
+      if(Math.random() * 100 < acc){
+        _solemnizeMarriage(myChar, sp, targetRuler, isBetrothal);
+      } else {
+        chOp(targetRuler, p, -5);
+        log(`${targetRuler.name}이(가) 혼담을 정중히 거절했습니다.`, 'dip');
+      }
+    }
+  });
+  /* 다음 후보 */
+  if(candidates.length > 1){
+    opts.push({
+      t: `다음 후보 (${idx+1}/${candidates.length})`,
+      f: () => _showCandidatePicker(myChar, targetRuler, candidates, (idx+1) % candidates.length)
+    });
+  }
+  /* 파혼 버튼: myChar에 기존 혼약이 있을 때 */
+  if(myChar.betrothed){
+    const exPartner = chars[myChar.betrothed];
+    opts.push({
+      t: `파혼 — ${exPartner?.name||'혼약 상대'} (위신 -10)`,
+      d: '관계 -20',
+      f: () => breakBetrothal(myChar)
+    });
+  }
   opts.push({t:'그만둔다'});
-  showModal({title:'혼인 교섭', sub:`${c.dyn} 가문과의 혼담`,
-    body:'누구의 혼처를 알아보시겠습니까?', opts});
+
+  showModal({
+    title: '혼인 교섭',
+    sub: `${targetRuler.dyn} 가문과의 혼담`,
+    body: `<b>${myChar.name}</b>(${age(myChar)}세)의 혼처`,
+    html: cardHTML,
+    opts
+  });
 }
+
+/* 파혼 처리 (CK3: Break Betrothal — 위신 -10, 관계 -20) */
+function breakBetrothal(c){
+  const p = playerChar();
+  const partner = chars[c.betrothed];
+  if(!partner) { c.betrothed = null; return; }
+  const partnerRuler = Object.values(chars).find(k=>!k.dead&&k.ruler&&k.region===partner.courtOf);
+  c.betrothed = null;
+  partner.betrothed = null;
+  state.prestige = Math.max(0, state.prestige - 10);
+  if(partnerRuler){ chOp(partnerRuler, p, -20); chOp(p, partnerRuler, -20); }
+  log(`<b>${c.name}</b>과(와) <b>${partner.name}</b>의 혼약이 파기됐습니다. 위신 -10`, 'war');
+}
+
+/* 혼인 교섭 진입점 — openRegion에서 호출 */
+function doMarriage(candidate, c){
+  /* 하위 호환: NPC 활동 marriage에서 직접 호출하는 경우 fallback */
+  tryMarriage(c);
+}
+
+function tryMarriage(targetRuler){
+  const p = playerChar();
+  /* ① 내 쪽 후보 목록: 본인(미혼/혼약 없음) + 미혼 자녀 (6세 이상) */
+  const myCandidates = [];
+  if(!p.spouse && !p.betrothed) myCandidates.push(p);
+  Object.values(chars)
+    .filter(k => !k.dead && (k.father===p.id||k.mother===p.id) && !k.spouse && !k.betrothed && age(k)>=6)
+    .sort((a,b) => age(b)-age(a))
+    .forEach(k => myCandidates.push(k));
+
+  if(!myCandidates.length){
+    log('혼인시킬 미혼 가족이 없습니다. (혼약 중인 가족은 먼저 파혼하세요)', 'dip');
+    return;
+  }
+
+  /* ② 내 후보 선택 → 상대 후보 탐색 */
+  const pickOpts = myCandidates.map(myChar => {
+    const wantedSex = myChar.sex === 'm' ? 'f' : 'm';
+    const spCands = findMarriageCandidates(targetRuler, wantedSex);
+    const hasReal = spCands.length > 0;
+    const myAge = age(myChar);
+    const rel = myChar.id===p.id ? '본인' : myChar.sex==='m' ? '아들' : '딸';
+    return {
+      t: `${myChar.name} (${rel} · ${myAge}세)`,
+      d: hasReal
+        ? `${targetRuler.dyn} 후보 ${spCands.length}명`
+        : `가문 생성 — ${myAge<16?'혼약':'혼인'}`,
+      f: () => {
+        if(hasReal){
+          /* 실존 후보 카드 UI */
+          _showCandidatePicker(myChar, targetRuler, spCands, 0);
+        } else {
+          /* Fallback: 즉석 NPC 생성 (기존 방식) */
+          const acc = marriageAcceptance(myChar, targetRuler, myChar.id===p.id);
+          if(Math.random()*100 < acc){
+            const isBetrothal = myAge < 16;
+            const sp = mk({
+              name: targetRuler.dyn+' 가문의 '+(myChar.sex==='m'?'규수':'자제'),
+              dyn: targetRuler.dyn,
+              sex: myChar.sex==='m'?'f':'m',
+              byear: state.year - (isBetrothal ? 10+Math.floor(Math.random()*5) : 18+Math.floor(Math.random()*8)),
+              bmonth:3, bday:15,
+              traits: randTraits(2), base: randStats(), edu:1, eduFocus:'dip',
+              courtOf: p.region
+            });
+            _solemnizeMarriage(myChar, sp, targetRuler, isBetrothal);
+          } else {
+            chOp(targetRuler, p, -5);
+            log(`${targetRuler.name}이(가) 혼담을 정중히 거절했습니다.`, 'dip');
+          }
+        }
+      }
+    };
+  });
+  pickOpts.push({t:'그만둔다'});
+
+  showModal({
+    title: '혼인 교섭',
+    sub: `${targetRuler.dyn} 가문과의 혼담`,
+    body: '누구의 혼처를 알아보시겠습니까?',
+    opts: pickOpts
+  });
+}
+
 
 /* ---------- 궁정 ---------- */
 /* ════════════════════════════════════════════════════
@@ -3339,20 +4102,38 @@ const CB_TYPES = {
   revenge:   { n:'복수 선포',   icon:'🩸', cost:0,   desc:'침략당한 영지 탈환 명분',    color:'#9e3535' },
 };
 
-function hasClaim(rid){ return state.claims.find(c=>c.rid===rid); }
-function claimsForRegion(def){
-  // 명분은 county id로 저장 — def가 보유한 백작령에 대한 명분 필터
-  const defCids = countiesOf(def.id);
-  return state.claims.filter(c=>defCids.includes(c.rid));
+/* ─── 명분 시스템 핵심 헬퍼
+   county id 기준으로 통일. barony id가 들어와도 자동 변환.
+   수정: _chaplainFabricateClaim 버그 대응              ─── */
+function _normClaimId(rid){
+  // barony id → county id 자동 변환
+  if(COUNTIES[rid]) return rid;       // 이미 county id
+  if(BARONIES[rid]) return BARONIES[rid].county || rid; // barony → county
+  return rid;
 }
-function claimName(rid){ return COUNTIES[rid]?.n||BARONIES[rid]?.n||rid; }
+function hasClaim(rid){
+  const cid = _normClaimId(rid);
+  return state.claims.find(c=>c.rid===cid);
+}
+function claimsForRegion(def){
+  // def가 보유한 county id 목록과 명분 county id 비교
+  const defCids = countiesOf(def.id);
+  return state.claims.filter(c=>defCids.includes(_normClaimId(c.rid)));
+}
+function claimName(rid){
+  const cid = _normClaimId(rid);
+  return COUNTIES[cid]?.n || BARONIES[rid]?.n || rid;
+}
 function addClaim(rid, type){
-  if(hasClaim(rid)) return;
-  state.claims.push({rid, type, obtained:state.year});
-  log(`<b>${claimName(rid)}</b>에 대한 ${CB_TYPES[type].n}을(를) 획득했습니다.`, 'dip');
+  const cid = _normClaimId(rid); // 항상 county id로 정규화
+  if(!COUNTIES[cid]){ return; }   // 실존하지 않는 county는 무시
+  if(hasClaim(cid)) return;
+  state.claims.push({rid:cid, type, obtained:state.year});
+  log(`<b>${COUNTIES[cid].n}</b>에 대한 ${CB_TYPES[type].n}을(를) 획득했습니다.`, 'dip');
 }
 function removeClaim(rid){
-  state.claims = state.claims.filter(c=>c.rid!==rid);
+  const cid = _normClaimId(rid);
+  state.claims = state.claims.filter(c=>c.rid!==cid);
 }
 /* 복수 선포: 피침략 시 자동 생성 */
 function grantRevengeClaim(rid){
@@ -3463,13 +4244,44 @@ function setCouncilTask(role, taskKey){
   const prev = state.councilTasks[role];
   if(prev !== taskKey){
     if(state.councilProgress[role] !== undefined) state.councilProgress[role] = 0;
+    /* fabricate_claim으로 전환 시 기존 대상 초기화 */
+    if(taskKey === 'fabricate_claim'){ state.fabricateTarget = null; }
+    if(prev === 'fabricate_claim' && taskKey !== 'fabricate_claim'){ state.fabricateTarget = null; }
     log(`${COUNCIL_ROLES[role].n}의 임무가 [${COUNCIL_ROLES[role].tasks[taskKey].n}](으)로 변경됩니다.`, 'dip');
   }
   state.councilTasks[role] = taskKey;
-  renderCourt();
+  /* CK3: fabricate_claim 선택 즉시 대상 county 지정 요구 */
+  if(taskKey === 'fabricate_claim' && !state.fabricateTarget){
+    renderCourt();
+    _promptFabricateTarget();
+  } else {
+    renderCourt();
+  }
+}
+
+/* fabricate_claim 대상 선택 진입 — 자문회 드롭다운에서 태스크 선택 시 호출 */
+function _promptFabricateTarget(){
+  const p = playerChar(); if(!p) return;
+  const cid2 = state.council.chaplain;
+  const chaplain = cid2 && chars[cid2] && !chars[cid2].dead ? chars[cid2] : null;
+  const sk = chaplain ? stat(chaplain, 'learn') : 5;
+  const adjBids = ADJ[p.region]||[];
+  const adjCids = [...new Set(adjBids.map(b=>countyOf(b)).filter(Boolean))];
+  const targets = adjCids.filter(cid=>{ const h=countyHolder(cid); return h&&h.id!==p.id&&!hasClaim(cid); });
+  if(!targets.length){
+    log('인접한 영지 중 명분 위조 가능한 곳이 없습니다. 이미 모든 명분을 보유 중이거나 인접 적이 없습니다.','dip');
+    /* 대상 없으면 태스크를 religious_relations로 되돌림 */
+    state.councilTasks.chaplain = 'religious_relations';
+    renderCourt();
+    return;
+  }
+  window._fabricateTargets = targets;
+  window._fabricateSk = sk;
+  _showFabricateTargetPicker(sk, targets, 0);
 }
 
 /* ── councilPulse — 매달 호출 ── */
+/* 수치 출처: CK3 위키 https://ck3.paradoxwikis.com/Council (v1.19 검증) */
 function councilPulse(){
   const p = playerChar(); if(!p||!REGIONS[p.region]) return;
   const reg = REGIONS[p.region];
@@ -3482,135 +4294,198 @@ function councilPulse(){
 
     const sk = stat(c, COUNCIL_ROLES[role].skill);
     const task = state.councilTasks[role] || Object.keys(COUNCIL_ROLES[role].tasks)[0];
-    const fireEvent = Math.random() < 0.08;
-    const positive  = Math.random() < (0.4 + sk * 0.03);
+    /* 연간 1회 이벤트 → 월 8.33% 확률(1/12) 근사 */
+    const fireEvent = Math.random() < 0.0833;
+    /* 위키: 스킬 >8이면 긍정 이벤트 가능, 스킬 <15면 부정 이벤트 가능 */
+    const positive  = Math.random() < (0.4 + sk * 0.025);
     const canPos    = sk > 8;
     const canNeg    = sk < 15;
 
-    /* ── 재상 ── */
+    /* ── 재상 (Chancellor) ── */
     if(role === 'chancellor'){
       if(task === 'foreign_affairs'){
-        state.prestige += parseFloat((sk * 0.05).toFixed(2));
+        /* 위키: +0.05 Prestige/skill/month · +0.5 Independent Ruler Opinion/skill/month */
+        state.prestige += sk * 0.05;
+        /* 독립 군주 호감 +0.5/스킬/월 (실질 적용: 월 0.5*sk*0.01 cap 0.2) */
+        const dipGain = Math.min(0.2, sk * 0.5 * 0.01);
+        Object.values(chars).filter(k=>!k.dead&&k.ruler&&k.id!==p.id&&!k.liege).forEach(k=>{
+          k.op[p.id] = Math.min(100, (k.op[p.id]||0) + dipGain);
+        });
         if(fireEvent){
-          const rnd = Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id);
+          const rnd = Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id&&!k.liege);
           if(positive && canPos && rnd){
-            chOp(rnd, p, Math.round(sk * 0.5));
+            /* 긍정 이벤트: Shorten Truce — 위신 소폭 추가, 군주 호감 +sk*0.5 */
+            const opGain = Math.round(sk * 0.5);
+            chOp(rnd, p, opGain);
             popup({title:'재상의 외교 성과', sub:`${c.name}의 보고`,
-              body:`${c.name}이(가) 인접 왕국과의 관계를 개선했습니다.\n「${REGIONS[rnd.region]?.n||'인근'}과의 신뢰가 쌓이고 있습니다, 전하.」`,
+              body:`${c.name}이(가) ${rnd.name}과(와)의 신뢰를 쌓았습니다.\n「각국 군주들의 시선이 우호적으로 바뀌고 있습니다, 전하.」\n${rnd.name} 호감 +${opGain}`,
               opts:[{t:'수고했다', f:()=>chOp(c,p,5)}]});
           } else if(canNeg){
+            /* 부정 이벤트: Neighbor Opinion Loss */
             state.prestige = Math.max(0, state.prestige - 10);
+            const rndNeg = Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id);
+            if(rndNeg) chOp(rndNeg, p, -Math.round(sk * 0.3));
             popup({title:'재상의 외교 실언', sub:`${c.name}의 보고`,
               body:`${c.name}이(가) 외교 교섭에서 실언을 저질렀습니다.\n위신 -10`,
               opts:[{t:'질책한다', f:()=>{chOp(c,p,-10); addStress(p,5,'재상의 실책');}}]});
           }
         }
       } else if(task === 'domestic_affairs'){
+        /* 위키: +0.5 Direct Vassal Opinion/skill/month (+0.2/month until max)
+                 +1% Tyranny Loss/skill (폭정은 미구현이므로 봉신 호감으로 근사) */
+        const vasGain = Math.min(0.2, sk * 0.5 * 0.01);
         for(const v of vassalsOf(p.id)){
-          v.op[p.id] = Math.min(100, (v.op[p.id]||0) + Math.min(0.2, sk*0.5/100));
+          v.op[p.id] = Math.min(100, (v.op[p.id]||0) + vasGain);
         }
         if(fireEvent && positive && canPos){
-          const v = vassalsOf(p.id)[0];
-          if(v){ chOp(v, p, Math.round(sk*0.3));
+          /* 긍정 이벤트: Increase Vassal Opinion */
+          const v = vassalsOf(p.id)[Math.floor(Math.random()*Math.max(1,vassalsOf(p.id).length))];
+          if(v){ const gain=Math.round(sk*0.5); chOp(v, p, gain);
             popup({title:'봉신 화합', sub:`${c.name}의 보고`,
-              body:`${c.name}이(가) ${v.name}과의 갈등을 중재했습니다.`,
+              body:`${c.name}이(가) ${v.name}과(와)의 갈등을 중재했습니다.\n${v.name} 호감 +${gain}`,
               opts:[{t:'잘 됐다', f:()=>chOp(c,p,5)}]}); }
         } else if(fireEvent && canNeg){
+          /* 부정 이벤트: Lowered Vassal Opinion */
           const v = vassalsOf(p.id)[0];
-          if(v){ chOp(v,p,-Math.round(sk*0.2));
+          if(v){ const loss=Math.round(sk*0.2); chOp(v,p,-loss);
             popup({title:'봉신 불만', sub:`${c.name}의 보고`,
-              body:`${c.name}이(가) 봉신 관리에 실패해 불만이 커지고 있습니다.`,
+              body:`${c.name}이(가) 봉신 관리에 실패해 불만이 커지고 있습니다.\n${v.name} 호감 -${loss}`,
               opts:[{t:'직접 나선다', f:()=>{chOp(v,p,5); addStress(p,5,'봉신 관리의 부담');}}]}); }
         }
       } else if(task === 'bestow_favor'){
-        state.prestige += parseFloat((sk * 0.02).toFixed(2));
+        /* 위키: +0.5 Vassal Prestige · +0.02 Prestige/skill/month · +0.5 Vassal Opinion/skill/month */
+        state.prestige += sk * 0.02;
+        const vasGain2 = Math.min(0.2, sk * 0.5 * 0.01);
         for(const v of vassalsOf(p.id)){
-          v.op[p.id] = Math.min(100, (v.op[p.id]||0) + Math.min(0.2, sk*0.5/100));
+          v.op[p.id] = Math.min(100, (v.op[p.id]||0) + vasGain2);
         }
         if(fireEvent && positive && canPos){
-          const v = vassalsOf(p.id)[Math.floor(Math.random()*Math.max(1,vassalsOf(p.id).length))];
+          /* 긍정 이벤트: Increase Vassal Opinion */
+          const vs = vassalsOf(p.id);
+          const v = vs[Math.floor(Math.random()*Math.max(1,vs.length))];
           if(v){ const gain=Math.round(sk*0.5); chOp(v,p,gain);
             popup({title:'왕실 은총 효과', sub:`${c.name}의 보고`,
-              body:`${c.name}이(가) ${v.name}에게 왕실의 총애를 전달했습니다.\n호감 +${gain}`,
+              body:`${c.name}이(가) ${v.name}에게 왕실의 총애를 전달했습니다.\n${v.name} 호감 +${gain}`,
               opts:[{t:'좋은 일이다', f:()=>chOp(c,p,5)}]}); }
+        } else if(fireEvent && canNeg){
+          const vs = vassalsOf(p.id);
+          const v = vs[0];
+          if(v){ chOp(v,p,-Math.round(sk*0.2));
+            popup({title:'은총 반발', sub:`${c.name}의 보고`,
+              body:`편향된 은총 분배로 일부 봉신의 불만이 높아졌습니다.`,
+              opts:[{t:'고르게 배분하라', f:()=>addStress(p,3,'봉신 관리의 부담')}]}); }
         }
       }
     }
 
-    /* ── 원수 ── */
+    /* ── 원수 (Marshal) ── */
     else if(role === 'marshal'){
       if(task === 'organize_army'){
+        /* 위키: -1% Maintenance/skill · +2% Levy Reinforcement/skill · +2% Garrison/skill
+           근사 구현: 병력 자연회복 보너스 +sk*0.6 (레비 보충 +2%/스킬 ≈ 매달 병력 상승) */
         reg.troops = Math.min(reg.cap, reg.troops + Math.round(sk * 0.6));
+        /* 수비대 +2%/스킬: 병력 상한 소폭 영구 반영 (1회 최대 한도 내) */
+        reg.cap = Math.min(2000, (reg.cap||300) + Math.round(sk * 0.02));
         if(fireEvent){
           if(positive && canPos){
+            /* 긍정: Increased Military Presence — 병력 추가 */
             const extra = Math.round(sk * 3);
             popup({title:'군대 조직 성과', sub:`${c.name}의 보고`,
               body:`${c.name}이(가) 병력 재편성에 성공했습니다.\n「부대 기강이 잡혔습니다, 전하.」\n병력 +${extra}`,
               opts:[{t:'격려한다', f:()=>{reg.troops=Math.min(reg.cap,reg.troops+extra); chOp(c,p,5); log(`병력 +${extra}.`,'war');}}]});
           } else if(canNeg){
+            /* 부정: Levy Desertion */
             const loss = Math.round((15-sk)*4);
             reg.troops = Math.max(100, reg.troops - loss);
-            popup({title:'훈련 중 사고', sub:`${c.name}의 보고`,
-              body:`강훈련 중 부상자가 속출했습니다.\n병력 -${loss}`,
+            popup({title:'훈련 중 탈영', sub:`${c.name}의 보고`,
+              body:`가혹한 훈련에 병사들이 이탈했습니다.\n병력 -${loss}`,
               opts:[{t:'어쩔 수 없다', f:()=>addStress(p,5,'병사 손실')}]});
           }
         }
       } else if(task === 'train_commanders'){
+        /* 위키: +1% Knight Effectiveness/skill/month · +1% MaA Damage/skill/month
+                 +0.5%/month chance to improve Commander per skill
+           근사: 병력 효율 누적 (+0.4/sk) + 이벤트로 병력 상한 향상 */
         reg.troops = Math.min(reg.cap, reg.troops + Math.round(sk * 0.4));
-        if(fireEvent && positive && canPos){
-          popup({title:'지휘관 성장', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 유망한 지휘관을 키워냈습니다.\n「새 전사가 전하의 군기 아래 섰습니다.」`,
-            opts:[{t:'훌륭하다', f:()=>{chOp(c,p,8); reg.troops=Math.min(reg.cap,reg.troops+30);}}]});
-        } else if(fireEvent && canNeg){
-          popup({title:'지휘관 부상', sub:`${c.name}의 보고`,
-            body:`훈련 중 유망한 지휘관이 부상을 입었습니다.`,
-            opts:[{t:'위로한다', f:()=>addStress(p,3,'인재 손실')}]});
+        /* 위키: 0.5%×sk/월 확률로 지휘관 개선 이벤트 */
+        if(Math.random() < sk * 0.005 || fireEvent){
+          if(positive && canPos){
+            popup({title:'지휘관 성장', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) 유망한 지휘관을 발굴했습니다.\n「새 전사가 전하의 군기 아래 섰습니다.」\n병력 상한 +30`,
+              opts:[{t:'훌륭하다', f:()=>{chOp(c,p,8); reg.cap=Math.min(2000,reg.cap+30); reg.troops=Math.min(reg.cap,reg.troops+30);}}]});
+          } else if(canNeg && fireEvent){
+            popup({title:'지휘관 부상', sub:`${c.name}의 보고`,
+              body:`훈련 중 유망한 지휘관이 부상을 입었습니다.\n다음 훈련까지 전력이 감소합니다.`,
+              opts:[{t:'위로한다', f:()=>{addStress(p,3,'인재 손실'); reg.troops=Math.max(50,reg.troops-20);}}]});
+          }
         }
       } else if(task === 'increase_control'){
-        reg.pop = Math.min(100, (reg.pop||60) + sk*0.002);
+        /* 위키: +0.2% Monthly chance to remove County Corruption/skill
+                 County cannot gain Corruption
+           근사: 민심 부패 제거 → pop 소폭 회복 (0.2%×sk/월 확률로 pop+2) */
+        if(Math.random() < sk * 0.002){
+          reg.pop = Math.min(100, (reg.pop||60) + 2);
+        }
         if(fireEvent && positive && canPos){
+          /* 긍정: Baron Opinion Increase — 민심 +8 */
           popup({title:'영지 안정화', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 직할령의 질서를 회복했습니다.\n민심 +8`,
+            body:`${c.name}이(가) 직할령의 질서를 회복했습니다.\n「반란의 씨앗이 뽑혔습니다, 전하.」\n민심 +8`,
             opts:[{t:'수고했다', f:()=>{reg.pop=Math.min(100,(reg.pop||60)+8); chOp(c,p,5);}}]});
         } else if(fireEvent && canNeg){
+          /* 부정: Lose County Opinion */
           popup({title:'영지 마찰', sub:`${c.name}의 보고`,
-            body:`강압적 통제로 백성들의 반감을 샀습니다.`,
+            body:`강압적 통제로 백성들의 반감을 샀습니다.\n민심 -5`,
             opts:[{t:'방식을 바꾸게 한다', f:()=>{reg.pop=Math.max(0,(reg.pop||60)-5); chOp(c,p,-5);}}]});
         }
       }
     }
 
-    /* ── 재무관 ── */
+    /* ── 재무관 (Steward) ── */
     else if(role === 'steward'){
       if(task === 'collect_taxes'){
+        /* 위키: +0.5% Domain Taxes/skill/month
+           직할 남작령 수 × sk × 0.5% 근사 → 월 gold 증가 */
         const myBids = regionsOf(p.id);
-        reg.gold = Math.min(3500, (reg.gold||0) + Math.round(myBids.length * sk * 0.05));
+        const taxBonus = Math.round(myBids.length * sk * 0.5 * 0.01 * 10); // ×10 스케일 조정
+        reg.gold = Math.min(3500, (reg.gold||0) + taxBonus);
         if(fireEvent){
           if(positive && canPos){
-            const bonus = 30 + sk*3;
+            /* 긍정: Extra Taxes */
+            const bonus = Math.round(20 + sk * 3);
             popup({title:'세금 성과', sub:`${c.name}의 보고`,
               body:`${c.name}이(가) 효율적인 징수로 금고를 채웠습니다.\n금 +${bonus}`,
               opts:[{t:'수고했다', f:()=>{reg.gold=Math.min(3500,reg.gold+bonus); chOp(c,p,5); log(`재무관 추가 징수 +${bonus}금.`,'good');}}]});
           } else if(canNeg){
+            /* 부정: County Corruption — 금 손실, 민심 -3 */
             reg.gold=Math.max(0,reg.gold-40); reg.pop=Math.max(0,(reg.pop||60)-3);
             popup({title:'세금 마찰', sub:`${c.name}의 보고`,
               body:`강압적 징수에 백성들이 반발합니다.\n금 -40 · 민심 -3`,
-              opts:[{t:'완화한다', f:()=>{reg.gold-=15; reg.pop=Math.min(100,(reg.pop||60)+5); chOp(c,p,-5);}}]});
+              opts:[{t:'완화한다', f:()=>{reg.gold=Math.max(0,reg.gold-15); reg.pop=Math.min(100,(reg.pop||60)+5); chOp(c,p,-5);}}]});
           }
         }
       } else if(task === 'increase_development'){
+        /* 위키: -1% Construction Time/skill · +0.175 Development Growth/skill/month
+                 At 100% → Development +1 (민심 +3, cap +20으로 근사) */
         const rate = sk * 0.175;
         state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate);
         if(state.councilProgress.steward >= 100){
           state.councilProgress.steward = 0;
           reg.pop = Math.min(100,(reg.pop||60)+3); reg.cap=(reg.cap||300)+20;
           log(`재무관의 영지 개발 완료! 민심 +3 · 병력 상한 +20`, 'good');
+          if(canPos) popup({title:'영지 개발 완료', sub:`${c.name}의 보고`,
+            body:`영지 개발이 완료됐습니다!\n민심 +3 · 병력 상한 +20`,
+            opts:[{t:'훌륭하다', f:()=>chOp(c,p,10)}]});
         } else if(fireEvent && canNeg){
+          /* 부정: Slow Construction */
           popup({title:'개발 지연', sub:`${c.name}의 보고`,
-            body:`개발 사업이 예상치 못한 문제로 지연되고 있습니다.`,
-            opts:[{t:'추가 지원', f:()=>{reg.gold=Math.max(0,reg.gold-20); state.councilProgress.steward+=5;}}]});
+            body:`개발 사업이 예상치 못한 문제로 지연되고 있습니다.\n(현재 진행: ${Math.round(state.councilProgress.steward)}%)`,
+            opts:[{t:'추가 지원 (금 -20)', f:()=>{
+              if(reg.gold>=20){ reg.gold=Math.max(0,reg.gold-20); state.councilProgress.steward=Math.min(100,state.councilProgress.steward+5); }
+              else log('금이 부족합니다.','dip');
+            }}]});
         }
       } else if(task === 'promote_culture'){
+        /* 위키: (0.25 + skill÷20)%/month 진행 → 100%: 문화 전환 */
         const rate2 = 0.25 + sk/20;
         state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate2);
         if(state.councilProgress.steward >= 100){
@@ -3618,98 +4493,163 @@ function councilPulse(){
           state.prestige += 15;
           log(`재무관의 문화 진흥 완료! 위신 +15`, 'good');
         }
-        if(fireEvent && positive && canPos) reg.pop=Math.min(100,(reg.pop||60)+3);
-        else if(fireEvent && canNeg){
+        if(fireEvent && positive && canPos){
+          /* 긍정: Increased Levies */
+          reg.troops=Math.min(reg.cap,(reg.troops||0)+Math.round(sk*2));
+          reg.pop=Math.min(100,(reg.pop||60)+3);
+        } else if(fireEvent && canNeg){
+          /* 부정: Resistance to Settlers */
           popup({title:'문화 저항', sub:`${c.name}의 보고`,
-            body:'일부 백성들이 문화 진흥 정책에 반발합니다.',
-            opts:[{t:'설득한다', f:()=>reg.gold=Math.max(0,reg.gold-15)}]});
+            body:'일부 백성들이 문화 진흥 정책에 완강히 반발합니다.',
+            opts:[{t:'설득한다 (금 -15)', f:()=>{ if(reg.gold>=15) reg.gold=Math.max(0,reg.gold-15); }},
+                  {t:'강행한다', f:()=>{ reg.pop=Math.max(0,(reg.pop||60)-5); addStress(p,3,'민심 억압'); }}]});
         }
       }
     }
 
-    /* ── 첩보관 ── */
+    /* ── 첩보관 (Spymaster) ── */
     else if(role === 'spymaster'){
       if(task === 'disrupt_schemes'){
-        state.schemes.forEach(s=>{ if(s.target===p.id) s.defBonus=(s.defBonus||0)+sk; });
+        /* 위키: +5days base Enemy Scheme Phase Length · +0.5days/skill · +1% Discovery/skill
+           근사: 각 적 모략에 방어 보너스 부여, schemePulse에서 적용 */
+        state.schemes.forEach(s=>{
+          if(s.target===p.id){
+            s.defBonus=(s.defBonus||0) + 5 + sk*0.5; // days 단위 방어 가산
+            s.discoverBonus=(s.discoverBonus||0) + sk*0.01; // 발각률 가산
+          }
+        });
         if(fireEvent){
           if(positive && canPos){
+            /* 긍정: Hostile Scheme Disrupted */
             const enemy=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id&&state.schemes.some(s=>s.plotter===k.id&&s.target===p.id));
             if(enemy){
               state.schemes=state.schemes.filter(s=>!(s.plotter===enemy.id&&s.target===p.id));
               popup({title:'모략 분쇄', sub:`${c.name}의 보고`,
-                body:`${c.name}이(가) ${enemy.name}의 음모를 봉쇄했습니다.\n「그림자 속의 칼날을 찾아냈습니다, 전하.」`,
+                body:`${c.name}이(가) ${enemy.name}의 음모를 완전히 봉쇄했습니다.\n「그림자 속의 칼날을 찾아냈습니다, 전하.」`,
                 opts:[{t:'잘 했다', f:()=>{chOp(c,p,10); addStress(p,-5,'위기 모면');}}]});
-            } else { state.prestige+=Math.round(sk*0.3); log(`${c.name}이(가) 유용한 정보를 수집했습니다.`,'dip'); }
+            } else {
+              state.prestige+=Math.round(sk*0.3);
+              log(`${c.name}이(가) 유용한 정보를 수집했습니다.`,'dip');
+            }
           } else if(canNeg){
+            /* 부정: Your Secret Revealed */
             popup({title:'정보 유출', sub:`${c.name}의 보고`,
               body:`밀정 하나가 이중첩자임이 드러났습니다. 기밀이 유출됐을 수 있습니다.`,
               opts:[{t:'엄중히 처리', f:()=>{addStress(p,10,'배신의 충격'); chOp(c,p,-15);}}]});
           }
         }
       } else if(task === 'support_schemes'){
-        state.schemes.forEach(s=>{ if(s.plotter===p.id) s.progress=(s.progress||0)+Math.round(sk*0.5); });
+        /* 위키: -1days Scheme Phase/skill · +5% base Success · +0.5%/skill
+           근사: 아군 모략 progress 가속 */
+        state.schemes.forEach(s=>{
+          if(s.plotter===p.id){
+            s.progress=(s.progress||0)+Math.round(sk*0.5);
+            s.successBonus=(s.successBonus||0) + 0.005 + sk*0.005; // +0.5%+0.5%/sk 추가 성공률
+          }
+        });
         if(fireEvent && positive && canPos){
+          /* 긍정: Secret Discovered */
           const s=state.schemes.find(x=>x.plotter===p.id);
           if(s){ s.progress+=10; log(`${c.name}이(가) 공작 진행을 앞당겼습니다.`,'dip'); }
+          else {
+            const tgt=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id);
+            if(tgt) log(`${c.name}이(가) ${tgt.name}에 관한 정보를 수집했습니다.`,'dip');
+          }
         } else if(fireEvent && canNeg){
+          /* 부정: Scheme Failure / Loss of Prestige */
           state.prestige=Math.max(0,state.prestige-5);
           popup({title:'공작 차질', sub:`${c.name}의 보고`,
-            body:`지원 공작이 발각 위험에 처했습니다. 위신 -5`,
+            body:`지원 공작이 발각 위험에 처했습니다.\n위신 -5`,
             opts:[{t:'일시 중단', f:()=>addStress(p,5,'공작 차질')}]});
         }
       } else if(task === 'find_secrets'){
-        if(Math.random() < sk*0.005 && fireEvent && positive && canPos){
+        /* 위키: +5% Chance to discover Secret per skill
+           근사: 월 5%×sk 확률로 비밀 발견 이벤트 */
+        const secretChance = sk * 0.05 * 0.01; // 월 확률로 변환
+        if(Math.random() < secretChance && positive && canPos){
           const tgt=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==p.id);
-          if(tgt){ chOp(tgt,p,-15);
+          if(tgt){
+            chOp(tgt,p,-15);
             popup({title:'비밀 발견', sub:`${c.name}의 보고`,
-              body:`${c.name}이(가) ${tgt.name}의 비밀을 알아냈습니다.\n「이것은 귀중한 패패입니다, 전하.」`,
-              opts:[{t:'잘 보관한다', f:()=>{chOp(c,p,8); state.prestige+=5;}}]}); }
+              body:`${c.name}이(가) ${tgt.name}의 비밀을 알아냈습니다.\n「이것은 귀중한 패입니다, 전하.」\n위신 +5`,
+              opts:[{t:'잘 보관한다', f:()=>{chOp(c,p,8); state.prestige+=5;}}]});
+          }
+        } else if(fireEvent && canNeg){
+          /* 부정: Find Secrets Discovered */
+          popup({title:'첩보 역탐지', sub:`${c.name}의 보고`,
+            body:`${c.name}의 비밀 탐문이 역으로 탐지됐습니다.\n위신 -5`,
+            opts:[{t:'활동을 중단한다', f:()=>{state.prestige=Math.max(0,state.prestige-5); chOp(c,p,-5);}}]});
         }
       }
     }
 
-    /* ── 사제 ── */
+    /* ── 사제 (Court Chaplain) ── */
     else if(role === 'chaplain'){
       if(task === 'religious_relations'){
-        state.prestige += parseFloat((sk*0.05).toFixed(2));
-        reg.pop = Math.min(100, (reg.pop||60) + sk*0.05);
+        /* 위키: +0.05 Monthly Piety/skill · +0.5 Same Faith Ruler Opinion/skill (+0.35/month until max)
+           경건은 위신으로 근사, 동일신앙 군주 호감 → 독립 군주 전체 호감 소폭 상승 */
+        state.prestige += sk * 0.05;
+        const faithGain = Math.min(0.35, sk * 0.5 * 0.01);
+        Object.values(chars).filter(k=>!k.dead&&k.ruler&&k.id!==p.id).forEach(k=>{
+          k.op[p.id] = Math.min(100, (k.op[p.id]||0) + faithGain * 0.3); // 동일신앙 근사
+        });
+        reg.pop = Math.min(100, (reg.pop||60) + sk * 0.05); // 민심 보조
         if(fireEvent){
           if(positive && canPos){
+            /* 긍정: Increase Vassal Opinion */
             popup({title:'사제의 설교', sub:`${c.name}의 보고`,
-              body:`${c.name}이(가) 감동적인 설교로 민심을 하나로 모았습니다.\n「전하의 이름으로 기도하는 목소리가 들립니다.」`,
+              body:`${c.name}이(가) 감동적인 설교로 민심을 하나로 모았습니다.\n「전하의 이름으로 기도하는 목소리가 들립니다.」\n민심 +8 · 위신 +5`,
               opts:[{t:'좋은 일이다', f:()=>{reg.pop=Math.min(100,(reg.pop||60)+8); state.prestige+=5; addStress(p,-8,'백성의 사랑');}}]});
           } else if(canNeg){
+            /* 부정: Loss of Piety / Loss of Vassal Opinion */
             reg.pop=Math.max(0,(reg.pop||60)-5);
             popup({title:'종교 갈등', sub:`${c.name}의 보고`,
-              body:`설교에서 불필요한 발언을 해 백성들이 반발합니다. 민심 -5`,
+              body:`설교에서 불필요한 발언을 해 백성들이 반발합니다.\n민심 -5`,
               opts:[{t:'자중하라 경고', f:()=>{chOp(c,p,-10); reg.pop=Math.min(100,(reg.pop||60)+3);}}]});
           }
         }
       } else if(task === 'fabricate_claim'){
-        /* 진행 속도: 기본 3% + 스킬÷5%/월 (CK3 위키 수치) */
-        const rate3 = 3 + sk/5;
-        state.councilProgress.chaplain = Math.min(100, (state.councilProgress.chaplain||0) + rate3);
-        log(`사제 명분 위조 진행: ${state.councilProgress.chaplain.toFixed(0)}%`, 'dip');
-        if(state.councilProgress.chaplain >= 100){
-          state.councilProgress.chaplain = 0;
-          _chaplainFabricateClaim(sk);
-        } else if(fireEvent && canNeg){
-          state.prestige=Math.max(0,state.prestige-8);
-          popup({title:'명분 위조 발각', sub:`${c.name}의 보고`,
-            body:`${c.name}의 문서 조작이 인근 주교에게 발각됐습니다. 위신 -8`,
-            opts:[{t:'수습한다', f:()=>{reg.gold=Math.max(0,reg.gold-30); chOp(c,p,-10);}}]});
+        /* CK3: 대상 county 지정 없으면 진행 안 함 */
+        if(!state.fabricateTarget){
+          /* 대상 미지정 상태 — 자문회 패널에서 선택 유도 */
+        } else {
+          /* 위키: (3 + skill÷5)%/month 진행 → 100%: 미행사 명분 획득 */
+          const rate3 = 3 + sk/5;
+          state.councilProgress.chaplain = Math.min(100, (state.councilProgress.chaplain||0) + rate3);
+          if(state.councilProgress.chaplain >= 100){
+            state.councilProgress.chaplain = 0;
+            /* 완료: 지정된 county에 명분 획득 */
+            const tgtCid = state.fabricateTarget;
+            const tgtHolder = countyHolder(tgtCid);
+            state.fabricateTarget = null; // 완료 후 초기화
+            _doFabricateClaim(sk, tgtCid, tgtHolder);
+          } else if(fireEvent && canNeg){
+            /* 부정: Loss of Piety / Upset Target */
+            state.prestige=Math.max(0,state.prestige-8);
+            const tgtHolder2 = countyHolder(state.fabricateTarget);
+            if(tgtHolder2) chOp(tgtHolder2, p, -10);
+            popup({title:'명분 위조 발각', sub:`${c.name}의 보고`,
+              body:`${c.name}의 문서 조작이 인근 주교에게 발각됐습니다.\n위신 -8 · ${COUNTIES[state.fabricateTarget]?.n||''} 지배자 관계 악화`,
+              opts:[{t:'수습한다', f:()=>{reg.gold=Math.max(0,reg.gold-30); chOp(c,p,-10);}}]});
+          }
         }
       } else if(task === 'convert_faith'){
-        /* 진행 속도: 기본 0.5% + 스킬÷10%/월 (CK3 위키 수치) */
+        /* 위키: (0.5 + skill÷10)%/month 진행 → 100%: 지역 문화 전환 */
         const rate4 = 0.5 + sk/10;
         state.councilProgress.chaplain = Math.min(100, (state.councilProgress.chaplain||0) + rate4);
         if(state.councilProgress.chaplain >= 100){
           state.councilProgress.chaplain = 0;
-          reg.pop=Math.min(100,(reg.pop||60)+5); state.prestige+=10;
-          log(`${c.name}이(가) 영지 일대의 신앙을 통일했습니다! 위신 +10`, 'good');
+          /* 위키: Increase County Development / Increase County Levies */
+          reg.pop=Math.min(100,(reg.pop||60)+5);
+          reg.troops=Math.min(reg.cap,(reg.troops||0)+Math.round(sk*2));
+          state.prestige+=10;
+          log(`${c.name}이(가) 영지 일대의 신앙을 통일했습니다! 위신 +10 · 민심 +5`, 'good');
         }
-        if(fireEvent && positive && canPos) reg.pop=Math.min(100,(reg.pop||60)+4);
-        else if(fireEvent && canNeg){
+        if(fireEvent && positive && canPos){
+          /* 긍정: Increase County Opinion */
+          reg.pop=Math.min(100,(reg.pop||60)+4);
+        } else if(fireEvent && canNeg){
+          /* 부정: Loss of County Opinion / Resistance to Conversion */
           popup({title:'개종 저항', sub:`${c.name}의 보고`,
             body:'일부 주민들이 신앙 개종에 격렬히 저항합니다.',
             opts:[
@@ -3723,22 +4663,118 @@ function councilPulse(){
 }
 
 /* 사제 명분 위조 완료 처리 */
+/* 사제 명분 위조 완료 — 대상 선택 UI 표시
+   수정: ADJ는 barony id → county id로 변환하여 addClaim에 전달
+   (addClaim/claimsForRegion 모두 county id 기준으로 통일)           */
 function _chaplainFabricateClaim(sk){
   const p = playerChar(); if(!p) return;
-  const adj = ADJ[p.region]||[];
-  const targets = adj.filter(rid=>{ const o=ownerOf(rid); return o&&o.id!==p.id&&!hasClaim(rid); });
-  if(!targets.length) return;
-  const rid = targets[Math.floor(Math.random()*targets.length)];
-  if(Math.random() < 0.3 + sk*0.05){
-    addClaim(rid,'unpressed');
-    popup({title:'교회법 명분 확보', sub:'사제의 보고',
-      body:`사제가 교회 문서를 검토해 ${claimName(rid)}에 대한 교회법적 주장을 찾아냈습니다.\n「고문서에 선대의 헌납 기록이 있습니다, 전하.」`,
-      opts:[{t:'잘 했다'}]});
+  // ADJ[p.region]: 인접 barony ids → 각각의 county id로 변환, 중복 제거
+  const adjBids = ADJ[p.region]||[];
+  const adjCids = [...new Set(adjBids.map(bid=>countyOf(bid)).filter(Boolean))];
+  // 대상 후보: 적 소유, 아직 명분 없는 county만
+  const targets = adjCids.filter(cid=>{
+    const holder = countyHolder(cid);
+    return holder && holder.id!==p.id && !hasClaim(cid);
+  });
+  if(!targets.length){
+    popup({title:'명분 위조 불가', sub:'사제의 보고',
+      body:'인접한 영지 중 명분을 위조할 수 있는 곳이 없습니다.\n이미 모든 인접 영지에 명분이 있거나, 적이 없습니다.',
+      opts:[{t:'알겠다'}]});
+    return;
+  }
+  // 대상 선택 UI
+  _showFabricateTargetPicker(sk, targets, 0);
+}
+
+/* 명분 위조 대상 선택 모달 (CK3: 태스크 시작 시 county 지정)
+   선택 확정 시 state.fabricateTarget 세팅 → 이후 매달 자동 진행 */
+function _showFabricateTargetPicker(sk, targets, idx){
+  const p = playerChar();
+  const cid = targets[idx];
+  const holder = countyHolder(cid);
+  const cname = COUNTIES[cid]?.n || cid;
+  const holderName = holder?.name || '—';
+  const cBids = COUNTIES[cid]?.baronies||[];
+  const totalTroops = cBids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
+  const pop = cBids.length ? Math.round(cBids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/cBids.length) : 60;
+  /* 월 진행 속도 (3+sk/5)%/월 — 완료까지 예상 개월 */
+  const monthlyRate = 3 + sk/5;
+  const monthsEst = Math.ceil(100 / monthlyRate);
+  const isCurrent = state.fabricateTarget === cid;
+
+  const infoHTML = `
+    <div style="background:#1a1408;border:1px solid var(--line);border-radius:4px;padding:8px 10px;margin:6px 0">
+      <div style="display:flex;align-items:center;gap:6px">
+        <div style="flex:1">
+          <div style="font-size:.88rem;color:var(--gold);font-weight:600">${cname}${isCurrent?' <span style="color:#c9a227;font-size:.7rem">▶ 진행 중</span>':''}</div>
+          <div style="font-size:.72rem;color:var(--parch);margin-top:4px">
+            <span>지배자: ${holderName}</span>
+            <span style="margin-left:8px">병력: ${totalTroops}</span>
+            <span style="margin-left:8px">민심: ${pop}</span>
+          </div>
+          <div style="font-size:.7rem;color:#7aaa6a;margin-top:3px">
+            진행 속도: ${monthlyRate.toFixed(1)}%/월 · 예상 ${monthsEst}개월
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  const opts = [];
+  if(!isCurrent){
+    opts.push({
+      t: `📜 ${cname}으로 위조 시작`,
+      d: `월 ${monthlyRate.toFixed(1)}% 진행 · 완료 시 명분 획득`,
+      f: ()=>{
+        /* 대상 변경 시 진행도 초기화 (CK3 동일) */
+        if(state.fabricateTarget && state.fabricateTarget !== cid){
+          state.councilProgress.chaplain = 0;
+          log(`명분 위조 대상을 ${COUNTIES[cid]?.n||cid}으로 변경했습니다. 진행도가 초기화됩니다.`, 'dip');
+        }
+        state.fabricateTarget = cid;
+        log(`사제가 <b>${cname}</b>에 대한 교회법 명분 위조를 시작합니다.`, 'dip');
+        renderCourt();
+      }
+    });
   } else {
-    const o=ownerOf(rid); if(o) chOp(o,p,-20);
-    state.prestige=Math.max(0,state.prestige-10);
+    opts.push({
+      t: `⏸ 위조 중단 (${cname})`,
+      d: '진행도 유지 · 나중에 재개 가능',
+      f: ()=>{
+        state.fabricateTarget = null;
+        log(`${cname} 명분 위조를 중단했습니다.`, 'dip');
+        renderCourt();
+      }
+    });
+  }
+  if(targets.length > 1){
+    opts.push({
+      t: `다음 후보 (${idx+1}/${targets.length})`,
+      f: ()=> _showFabricateTargetPicker(sk, targets, (idx+1) % targets.length)
+    });
+  }
+  opts.push({t:'닫기'});
+
+  showModal({
+    title:'명분 위조 대상 선택', sub:'사제의 보고',
+    body:'어느 영지에 교회법 명분을 위조하시겠습니까?',
+    html: infoHTML, opts
+  });
+}
+
+/* 명분 위조 실행 */
+function _doFabricateClaim(sk, cid, holder){
+  const p = playerChar();
+  const cname = COUNTIES[cid]?.n || cid;
+  if(Math.random() < 0.3 + sk*0.05){
+    addClaim(cid, 'unpressed'); // county id로 저장
+    popup({title:'교회법 명분 확보', sub:'사제의 보고',
+      body:`사제가 교회 문서를 검토해 <b>${cname}</b>에 대한 교회법적 주장을 찾아냈습니다.\n「고문서에 선대의 헌납 기록이 있습니다, 전하.」`,
+      opts:[{t:'잘 했다', f:()=>addStress(p,-3,'명분 획득의 안도')}]});
+  } else {
+    if(holder) chOp(holder, p, -20);
+    state.prestige = Math.max(0, state.prestige-10);
     popup({title:'명분 위조 발각', sub:'사제의 보고',
-      body:`${claimName(rid)}에 대한 교회법 명분 위조가 발각됐습니다.\n위신 -10`,
+      body:`${cname}에 대한 교회법 명분 위조가 발각됐습니다.\n위신 -10`,
       opts:[{t:'어쩔 수 없다', f:()=>addStress(p,10,'위조 발각')}]});
   }
 }
@@ -3791,10 +4827,51 @@ function renderCourt(){
 
       /* 진행형 태스크 프로그레스 바 */
       if(taskInfo.progressive){
-        const prog=Math.round(state.councilProgress[role]||0);
-        html+=`<div style="margin-top:3px;background:#1a140a;border-radius:2px;height:5px;width:100%;overflow:hidden">
-          <div style="background:var(--gold);height:100%;width:${prog}%"></div></div>
-          <div style="font-size:.62rem;color:var(--parch-dim);text-align:right">${prog}%</div>`;
+        /* fabricate_claim: CK3 방식 — 대상 county 지정 후 진행 */
+        if(curTask==='fabricate_claim'){
+          const p2=playerChar();
+          const adjBids2=(ADJ[p2.region]||[]);
+          const adjCids2=[...new Set(adjBids2.map(b=>countyOf(b)).filter(Boolean))];
+          const availCids=adjCids2.filter(cid2=>{ const h=countyHolder(cid2); return h&&h.id!==p2.id&&!hasClaim(cid2); });
+          window._fabricateTargets=availCids;
+          window._fabricateSk=councilor?stat(councilor,rinfo.skill):5;
+          if(state.fabricateTarget && COUNTIES[state.fabricateTarget]){
+            /* 대상 지정됨 — 진행도 + 대상 정보 표시 */
+            const tCname = COUNTIES[state.fabricateTarget].n;
+            const tHolder = countyHolder(state.fabricateTarget);
+            const prog=Math.round(state.councilProgress[role]||0);
+            html+=`<div style="margin-top:4px;background:#12100a;border:1px solid #2c2316;border-radius:3px;padding:5px 7px">
+              <div style="font-size:.68rem;color:var(--gold)">📜 위조 대상: <b>${tCname}</b>
+                <span style="color:var(--parch-dim);font-weight:400"> (${tHolder?.name||'—'})</span></div>
+              <div style="margin-top:4px;background:#1a140a;border-radius:2px;height:5px;overflow:hidden">
+                <div style="background:var(--gold);height:100%;width:${prog}%"></div></div>
+              <div style="display:flex;justify-content:space-between;margin-top:2px">
+                <span style="font-size:.6rem;color:var(--parch-dim)">진행: ${prog}%</span>
+                <span style="font-size:.6rem;color:var(--parch-dim)">완료까지 약 ${Math.ceil((100-prog)/(3+stat(councilor,'learn')/5))}개월</span>
+              </div>
+            </div>`;
+            html+=`<button class="p-action" style="margin-top:3px;padding:2px 8px;font-size:.63rem"
+              onclick="pause();_showFabricateTargetPicker(window._fabricateSk,window._fabricateTargets,0)">
+              대상 변경</button>`;
+          } else {
+            /* 대상 미지정 — 선택 유도 */
+            html+=`<div style="margin-top:4px;background:#1a100a;border:1px solid #6a3a1a;border-radius:3px;padding:5px 7px;font-size:.68rem;color:#c97a3a">
+              ⚠ 위조할 영지를 선택하세요</div>`;
+            if(availCids.length){
+              html+=`<button class="p-action" style="margin-top:3px;padding:2px 8px;font-size:.65rem;background:#3a1a0a;border-color:#c97a3a"
+                onclick="pause();_showFabricateTargetPicker(window._fabricateSk,window._fabricateTargets,0)">
+                📜 영지 선택 (${availCids.length}곳)</button>`;
+            } else {
+              html+=`<div style="font-size:.63rem;color:#5a4a3a;margin-top:2px">인접 명분 위조 가능 영지 없음</div>`;
+            }
+          }
+        } else {
+          /* 다른 progressive 태스크 (develop, culture, convert) — 기존 진행바 */
+          const prog=Math.round(state.councilProgress[role]||0);
+          html+=`<div style="margin-top:3px;background:#1a140a;border-radius:2px;height:5px;width:100%;overflow:hidden">
+            <div style="background:var(--gold);height:100%;width:${prog}%"></div></div>
+            <div style="font-size:.62rem;color:var(--parch-dim);text-align:right">${prog}%</div>`;
+        }
       }
 
       html+=`<button class="p-action" style="margin-top:4px;padding:2px 8px;font-size:.68rem" onclick="appointCouncilor('${role}',null)">해임</button>`;
@@ -4119,49 +5196,131 @@ function renderChar(){
   el.textContent=lvTxt;
   el.style.color=lv===0?'var(--parch-dim)':lv===1?'#c8a24a':lv===2?'#c87a4a':'#d05a4a';
 }
+/* ════════════════════════════════════════════════
+   지도 렌더링 — polygon 기반 실지형 지도
+   ════════════════════════════════════════════════ */
+
+/* 아일랜드 섬 외곽선 (시계방향, 근사) */
+const IRELAND_OUTLINE = '30,40 95,30 150,42 225,30 300,38 330,58 305,88 330,58 348,145 385,208 388,268 378,358 365,300 340,372 305,368 282,342 252,358 222,338 198,358 172,342 155,392 148,358 138,438 98,468 52,468 52,428 30,415 30,200 30,95';
+
+/* 공작령 기본 색상 (polygon fill 기반) */
+const DUCHY_BASE = {
+  d_munster:  '#2d4a32',
+  d_leinster: '#3a4a28',
+  d_dublin:   '#2a3d4f',
+  d_meath:    '#3d3a28',
+  d_connacht: '#3a2d4a',
+  d_breifne:  '#4a3228',
+  d_ulster:   '#284a3a',
+};
+
 function renderMap(){
-  const svg=document.getElementById('map');
-  const p=playerChar();
-  let h='';
-  // 백작령 간 인접선
-  const drawn=new Set();
-  for(const cid in COUNTY_ADJ){
-    for(const nb of (COUNTY_ADJ[cid]||[])){
-      const k=[cid,nb].sort().join('|');
-      if(drawn.has(k)) continue; drawn.add(k);
-      const A=COUNTIES[cid],B=COUNTIES[nb]; if(!A||!B) continue;
-      const inWar=state.wars.some(w=>{
-        const aH=countyHolder(cid),bH=countyHolder(nb);
-        return aH&&bH&&((chars[w.atk]?.id===aH.id&&chars[w.def]?.id===bH.id)||(chars[w.atk]?.id===bH.id&&chars[w.def]?.id===aH.id));
-      });
-      h+=`<line class="edge${inWar?' warEdge':''}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
-    }
-  }
-  // 백작령 노드 (15개)
+  const svg = document.getElementById('map');
+  const p = playerChar();
+  let h = '';
+
+  /* ── 레이어 0: 바다 배경 */
+  h += `<rect width="420" height="500" fill="#1a2d3d"/>`;
+
+  /* ── 레이어 1: 섬 전체 육지 기본색 (외곽선 아래) */
+  h += `<polygon points="${IRELAND_OUTLINE}" fill="#2a2018" stroke="none"/>`;
+
+  /* ── 레이어 2: county polygon */
   for(const cid in COUNTIES){
-    const C=COUNTIES[cid];
-    const holder=countyHolder(cid);
-    const mine=holder&&holder.id===p.id;
-    const isVassalOf=holder&&holder.liege===p.id;
-    const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':(DUCHIES[C.duchy]?.color||'#555');
-    const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':'#6a5836';
-    const bids=C.baronies;
-    const totalT=bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
-    const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
-    const rad=mine?22:18;
-    // 공성중 표시
-    const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
-    const siegedBy=underSiege?state.wars.find(w=>w.targetRid===cid):'';
-    h+=`<g class="node" onclick="openCounty('${cid}')">
-      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${col}" stroke="${underSiege?'#c83030':stroke}"/>
-      ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
-      ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
-      <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
-      <text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${holder?holder.name.split(' ')[0]:'—'}</text>
-      <text class="owner" x="${C.x}" y="${C.y+36}" style="font-size:7.5px;fill:#7a6848">⚔${totalT} 민${avgPop}</text>
-    </g>`;
+    const C = COUNTIES[cid];
+    if(!C.poly) continue;
+    const holder = countyHolder(cid);
+    const mine = holder && holder.id === p.id;
+    const isVassal = holder && holder.liege === p.id;
+    const atWar = state.wars.some(w => {
+      const h1=countyHolder(cid);
+      return h1 && (w.atk===h1.id||w.def===h1.id);
+    });
+    const underSiege = state.wars.some(w => w.targetRid===cid && w.occupied?.length>0);
+    const hasClaim = state.claims.some(cl => cl.rid===cid);
+
+    /* fill 결정 */
+    let fill;
+    if(mine)          fill = '#3a6644';
+    else if(isVassal) fill = '#2e5438';
+    else              fill = DUCHY_BASE[C.duchy] || '#2d3028';
+
+    /* stroke 결정 */
+    let stroke = '#1a1508', strokeW = '1';
+    if(mine)          { stroke='#c8a24a'; strokeW='2'; }
+    else if(isVassal) { stroke='#6aaa7a'; strokeW='1.5'; }
+    else if(atWar)    { stroke='#c83030'; strokeW='1.5'; }
+
+    h += `<g class="county-region" onclick="openCounty('${cid}')">
+      <polygon
+        points="${C.poly}"
+        fill="${fill}"
+        stroke="${stroke}"
+        stroke-width="${strokeW}"
+        stroke-linejoin="round"
+      />`;
+
+    /* 공성 pulse 오버레이 */
+    if(underSiege){
+      h += `<polygon points="${C.poly}" fill="none"
+        stroke="#c83030" stroke-width="2.5" stroke-dasharray="4 3"
+        class="siege-pulse"/>`;
+    }
+    /* 명분 보유 표시 — 옅은 금색 점선 */
+    if(hasClaim && !mine){
+      h += `<polygon points="${C.poly}" fill="rgba(200,162,74,0.08)"
+        stroke="#c8a24a" stroke-width="1" stroke-dasharray="3 4"/>`;
+    }
+
+    /* 지명 텍스트 */
+    const cx = C.x, cy = C.y;
+    const bids = C.baronies;
+    const totalT = bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
+    const avgPop = Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
+    const holderShort = holder ? holder.name.split(' ')[0] : '—';
+
+    h += `
+      <text x="${cx}" y="${cy-6}"
+        style="font-size:8.5px;fill:#e6d9be;text-anchor:middle;pointer-events:none;
+               font-family:Georgia,serif;font-weight:bold;
+               text-shadow:0 0 4px #000;letter-spacing:.03em"
+        paint-order="stroke" stroke="#0a0806" stroke-width="2.5">${C.n}</text>
+      <text x="${cx}" y="${cy+5}"
+        style="font-size:7px;fill:#b0a080;text-anchor:middle;pointer-events:none;
+               font-family:Georgia,serif"
+        paint-order="stroke" stroke="#0a0806" stroke-width="2">${holderShort}</text>
+      <text x="${cx}" y="${cy+15}"
+        style="font-size:6.5px;fill:#8a7858;text-anchor:middle;pointer-events:none"
+        paint-order="stroke" stroke="#0a0806" stroke-width="1.5">⚔${totalT} ·${avgPop}</text>`;
+
+    /* 내 영지 표시 — 왕관 아이콘 */
+    if(mine){
+      h += `<text x="${cx}" y="${cy-17}"
+        style="font-size:9px;text-anchor:middle;pointer-events:none">👑</text>`;
+    }
+
+    h += `</g>`;
   }
-  svg.innerHTML=h;
+
+  /* ── 레이어 3: 섬 외곽선 테두리 (위에 덮어 자연스럽게) */
+  h += `<polygon points="${IRELAND_OUTLINE}"
+    fill="none" stroke="#4a3c28" stroke-width="2" stroke-linejoin="round"/>`;
+
+  /* ── 레이어 4: 전쟁 중 교전선 표시 */
+  for(const w of state.wars){
+    const aC = chars[w.atk], dC = chars[w.def];
+    if(!aC||!dC) continue;
+    const aCid = countyOf(aC.region), dCid = countyOf(dC.region);
+    if(!aCid||!dCid||!COUNTIES[aCid]||!COUNTIES[dCid]) continue;
+    const ax=COUNTIES[aCid].x, ay=COUNTIES[aCid].y;
+    const dx=COUNTIES[dCid].x, dy=COUNTIES[dCid].y;
+    h += `<line x1="${ax}" y1="${ay}" x2="${dx}" y2="${dy}"
+      stroke="#c83030" stroke-width="1.5" stroke-dasharray="5 3" opacity="0.7"/>
+    <text x="${(ax+dx)/2}" y="${(ay+dy)/2-4}"
+      style="font-size:7px;fill:#c83030;text-anchor:middle" paint-order="stroke" stroke="#000" stroke-width="2">⚔</text>`;
+  }
+
+  svg.innerHTML = h;
 }
 function ownerRegionOf(c){ return c.region || regionsOf(c.id)[0] || null; }
 function renderAll(){ renderHeader(); renderChar(); renderMap(); }
