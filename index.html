@@ -19,8 +19,15 @@
 
 <div id="main">
   <div id="mapWrap">
-    <h3>에이레 — 일곱 왕국</h3>
-    <svg id="map" viewBox="0 0 420 470" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="mapHeader">
+      <span id="mapTitle">에이레 1066 — 일곱 왕국</span>
+      <span id="mapLegend">
+        <span class="leg-item" style="background:#3a6644"></span>내 영지
+        <span class="leg-item" style="background:#2e5438"></span>봉신
+        <span class="leg-item" style="background:#2d3028"></span>타국
+      </span>
+    </div>
+    <svg id="map" viewBox="0 0 420 500" preserveAspectRatio="xMidYMid meet"></svg>
   </div>
   <div id="logWrap" class="side-panel">
     <button class="panel-tab" id="logTab" onclick="initAudio();togglePanel('log')">연대기</button>
