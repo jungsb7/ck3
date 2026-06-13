@@ -219,10 +219,10 @@ const BARONIES = {
 const COUNTIES = {
   c_thomond: {n:'톰몬드',   duchy:'d_munster',  capital:'b_limerick',  baronies:['b_limerick','b_nenagh','b_roscrea','b_kilmallock'], x:104, y:318, poly:'72,262 118,268 162,278 168,322 148,358 118,378 85,372 58,350 48,312 58,278'},
   c_ennis:   {n:'에니스',   duchy:'d_munster',  capital:'b_ennis',     baronies:['b_ennis','b_kincora'],                              x: 49, y:314, poly:'30,200 48,215 48,240 58,278 48,312 58,350 72,390 52,428 30,415'},
-  c_ormond:  {n:'오몬드',   duchy:'d_munster',  capital:'b_waterford', baronies:['b_waterford','b_emly','b_clonmel'],                 x:210, y:302, poly:'198,288 238,282 262,252 228,272 212,308 222,338 198,358 172,342 162,278'},
+  c_ormond:  {n:'오몬드',   duchy:'d_munster',  capital:'b_waterford', baronies:['b_waterford','b_emly','b_clonmel'],                 x:248, y:342, poly:'198,288 238,282 262,252 228,272 212,308 222,338 198,358 172,342 162,278'},
   c_desmond: {n:'데스몬드', duchy:'d_munster',  capital:'b_cork',      baronies:['b_tralee','b_cork','b_kinsale','b_baltimore'],      x: 98, y:404, poly:'52,428 72,390 58,350 85,372 118,378 148,358 155,392 138,438 98,468 52,468'},
-  c_leinster:{n:'레인스터', duchy:'d_leinster', capital:'b_wexford',   baronies:['b_wexford','b_enniscorthy','b_ferns','b_carlow'],   x:321, y:326, poly:'298,268 330,292 365,300 378,358 340,372 305,368 282,342 272,308'},
-  c_ossory:  {n:'오서리',   duchy:'d_leinster', capital:'b_gowran',    baronies:['b_gowran','b_kilkenny','b_athy','b_carrick'],       x:254, y:306, poly:'262,252 298,268 272,308 282,342 252,358 222,338 212,308 228,272'},
+  c_leinster:{n:'레인스터', duchy:'d_leinster', capital:'b_wexford',   baronies:['b_wexford','b_enniscorthy','b_ferns','b_carlow'],   x:340, y:338, poly:'298,268 330,292 365,300 378,358 340,372 305,368 282,342 272,308'},
+  c_ossory:  {n:'오서리',   duchy:'d_leinster', capital:'b_gowran',    baronies:['b_gowran','b_kilkenny','b_athy','b_carrick'],       x:240, y:296, poly:'262,252 298,268 272,308 282,342 252,358 222,338 212,308 228,272'},
   c_dublin:  {n:'더블린',   duchy:'d_dublin',   capital:'b_dublin',    baronies:['b_dublin','b_wicklow','b_kildare'],                 x:341, y:246, poly:'285,228 322,215 352,190 385,208 388,268 365,300 330,292 298,268'},
   c_meath:   {n:'미드',     duchy:'d_meath',    capital:'b_trim',      baronies:['b_trim','b_drogheda','b_kells'],                    x:292, y:180, poly:'240,158 278,152 312,128 348,145 352,190 322,215 285,228 252,215 238,192'},
   c_athlone: {n:'애슬론',   duchy:'d_meath',    capital:'b_athlone',   baronies:['b_athlone','b_birr','b_uisneach'],                  x:206, y:237, poly:'155,255 168,198 182,198 210,210 238,192 252,215 262,252 238,282 198,288 162,278'},
@@ -3608,31 +3608,33 @@ function buildProfileHTML(c){
     .filter(k=>k.includes(c.id))
     .map(k=>{ const oid=k.replace(c.id,'').replace('|',''); return chars[oid]?.name||''; })
     .filter(Boolean);
-  const secA=`
-    <div class="pm-sec-title">인물</div>
-    <div class="pm-kv"><span>가문</span><span>${c.dyn||'—'}</span></div>
-    <div class="pm-kv"><span>나이</span><span>${charAge}세 (${c.byear}년생)</span></div>
-    <div class="pm-kv"><span>성별</span><span>${c.sex==='m'?'남':'여'}</span></div>
-    <div class="pm-kv"><span>칭호</span><span>${ttl}</span></div>
-    ${isPlayer?`<div class="pm-kv"><span>위신</span><span style="color:var(--gold)">${state.prestige}</span></div>`:''}
-    ${isPlayer?`<div class="pm-kv"><span>상속법</span><span>{{SUCCESSION}}</span></div>`.replace('{{SUCCESSION}}',{partition:'분할상속',primogeniture:'장자상속',elective:'선출제'}[state.successionLaw]):''}
-    <div class="pm-kv" style="margin-top:6px"><span>스트레스</span><span style="color:${stressColor}">${c.stress}/150 (${['평온','불안','위험','임계'][stressLv]})</span></div>
-    <div style="height:6px;background:#0c0906;border:1px solid #2a2014;border-radius:2px;overflow:hidden;margin:4px 0 8px">
-      <div style="width:${Math.min(100,c.stress/1.5)}%;height:100%;background:linear-gradient(90deg,#6e5a2c,${stressColor});border-radius:2px"></div>
-    </div>
-    ${warNow.length?`<div class="pm-kv"><span>전쟁</span><span style="color:#d05a4a">⚔ ${warNow.length}건 진행 중</span></div>`:''}
-    ${warNow.map(w=>{
-      const isAtk=w.atk===c.id;
-      const myCmd=warCommander(w,isAtk?'atk':'def');
-      const foeId=isAtk?w.def:w.atk;
-      const foe=chars[foeId];
-      const score=isAtk?w.score:-w.score;
-      if(!myCmd) return '';
-      return `<div class="pm-kv"><span>지휘관</span><span style="color:var(--gold-dim)">${myCmd.name} (무${stat(myCmd,'mar')} 용${stat(myCmd,'prow')})${myCmd.traits.includes('wounded')?' <span style="color:#d05a4a">부상</span>':''}</span></div>`;
-    }).join('')}
-    ${allyList.length?`<div class="pm-kv"><span>동맹</span><span>${allyList.join(', ')}</span></div>`:''}
-    ${c.spouse&&chars[c.spouse]?`<div class="pm-kv"><span>배우자</span><span>${chars[c.spouse].name}</span></div>`:''}
-    ${!c.spouse&&c.betrothed&&chars[c.betrothed]?`<div class="pm-kv"><span>혼약</span><span style="color:#c9a227">💍 ${chars[c.betrothed].name} (${age(chars[c.betrothed])}세)</span></div>`:''}`;
+  /* secA 조각들을 변수로 분리 — 템플릿 리터럴 중첩 문제 방지 */
+  const _prestigeLine  = isPlayer ? '<div class="pm-kv"><span>위신</span><span style="color:var(--gold)">'+Math.round(state.prestige)+'</span></div>' : '';
+  const _lawNames      = {partition:'분할상속',primogeniture:'장자상속',elective:'선출제'};
+  const _succLine      = isPlayer ? '<div class="pm-kv"><span>상속법</span><span>'+(_lawNames[state.successionLaw]||'')+'</span></div>' : '';
+  const _warLine       = warNow.length ? '<div class="pm-kv"><span>전쟁</span><span style="color:#d05a4a">⚔ '+warNow.length+'건 진행 중</span></div>' : '';
+  const _cmdLines      = warNow.map(w=>{
+    const isAtk = w.atk===c.id;
+    const myCmd = warCommander(w, isAtk?'atk':'def');
+    if(!myCmd) return '';
+    const woundedTag = myCmd.traits.includes('wounded') ? ' <span style="color:#d05a4a">부상</span>' : '';
+    const maimedTag  = myCmd.traits.includes('maimed')  ? ' <span style="color:#c83030">중상</span>'  : '';
+    return '<div class="pm-kv"><span>지휘관</span><span style="color:var(--gold-dim)">'+myCmd.name+' (무'+stat(myCmd,'mar')+' 용'+stat(myCmd,'prow')+')'+woundedTag+maimedTag+'</span></div>';
+  }).join('');
+  const _allyLine      = allyList.length ? '<div class="pm-kv"><span>동맹</span><span>'+allyList.join(', ')+'</span></div>' : '';
+  const _spouseLine    = (c.spouse&&chars[c.spouse]) ? '<div class="pm-kv"><span>배우자</span><span>'+chars[c.spouse].name+'</span></div>' : '';
+  const _betrothLine   = (!c.spouse&&c.betrothed&&chars[c.betrothed]) ? '<div class="pm-kv"><span>혼약</span><span style="color:#c9a227">💍 '+chars[c.betrothed].name+' ('+age(chars[c.betrothed])+'세)</span></div>' : '';
+
+  const secA = '<div class="pm-sec-title">인물</div>'
+    + '<div class="pm-kv"><span>가문</span><span>'+(c.dyn||'—')+'</span></div>'
+    + '<div class="pm-kv"><span>나이</span><span>'+charAge+'세 ('+c.byear+'년생)</span></div>'
+    + '<div class="pm-kv"><span>성별</span><span>'+(c.sex==='m'?'남':'여')+'</span></div>'
+    + '<div class="pm-kv"><span>칭호</span><span>'+ttl+'</span></div>'
+    + _prestigeLine + _succLine
+    + '<div class="pm-kv" style="margin-top:6px"><span>스트레스</span><span style="color:'+stressColor+'">'+c.stress+'/150 ('+['평온','불안','위험','임계'][stressLv]+')</span></div>'
+    + '<div style="height:5px;background:#0c0906;border:1px solid #2a2014;border-radius:2px;overflow:hidden;margin:4px 0 8px">'
+    + '<div style="width:'+Math.min(100,c.stress/1.5)+'%;height:100%;background:linear-gradient(90deg,#6e5a2c,'+stressColor+');border-radius:2px"></div></div>'
+    + _warLine + _cmdLines + _allyLine + _spouseLine + _betrothLine;
 
   /* B. 스킬 + 특성 */
   const SKILL_FULL={dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문',prow:'용맹'};
