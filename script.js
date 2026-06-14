@@ -129,126 +129,107 @@ const EDU_BONUS = [1,2,3,5]; // 등급별 스탯 보너스 (위키 기준)
 
 /* 남작령: 소유·전투·경제의 기본 단위. owner = charId */
 const BARONIES = {
-  /* ── 먼스터 (d_munster) ────────────────────────── */
-  /* c_thomond */
-  b_limerick:  {n:'리머릭',   county:'c_thomond', troops:340, gold:100, pop:65, cap:340, type:'castle', owner:null},
-  b_nenagh:    {n:'네나',     county:'c_thomond', troops:220, gold: 55, pop:60, cap:220, type:'city', owner:null},
-  b_roscrea:   {n:'로스크리아',county:'c_thomond', troops:200, gold: 50, pop:58, cap:200, type:'temple', owner:null},
-  b_kilmallock:{n:'킬말록',   county:'c_thomond', troops:180, gold: 45, pop:55, cap:180, type:'temple', owner:null},
-  /* c_ennis */
-  b_ennis:     {n:'에니스',   county:'c_ennis',   troops:260, gold: 70, pop:62, cap:260, type:'castle', owner:null},
-  b_kincora:   {n:'킨코라',   county:'c_ennis',   troops:190, gold: 50, pop:58, cap:190, type:'temple', owner:null},
-  /* c_ormond */
-  b_waterford: {n:'워터퍼드', county:'c_ormond',  troops:280, gold: 90, pop:60, cap:280, type:'castle', owner:null},
-  b_emly:      {n:'에믈리',   county:'c_ormond',  troops:180, gold: 45, pop:55, cap:180, type:'temple', owner:null},
-  b_clonmel:   {n:'클론멜',   county:'c_ormond',  troops:200, gold: 55, pop:57, cap:200, type:'city', owner:null},
-  /* c_desmond */
-  b_tralee:    {n:'트랄리',   county:'c_desmond', troops:200, gold: 50, pop:55, cap:200, type:'temple', owner:null},
-  b_cork:      {n:'코크',     county:'c_desmond', troops:260, gold: 75, pop:62, cap:260, type:'castle', owner:null},
-  b_kinsale:   {n:'킨세일',   county:'c_desmond', troops:180, gold: 50, pop:55, cap:180, type:'city', owner:null},
-  b_baltimore: {n:'볼티모어', county:'c_desmond', troops:160, gold: 40, pop:52, cap:160, type:'temple', owner:null},
+  /* ── 먼스터 (d_munster) ──────────────────────────
+     CK3 1066: 아일랜드는 개발 초기. 바이킹 도시(리머릭·코크)에 city,
+     주요 수도원에 temple. 나머지는 빈 슬롯.
+     출처: CK3 위키 + 학습 데이터 기준                */
+
+  /* c_thomond — 수도 리머릭(castle), 바이킹 항구도시(city), 빈 슬롯 1 */
+  b_limerick:  {n:'리머릭',   county:'c_thomond', type:'castle', troops:340, gold:100, pop:65, cap:340, owner:null},
+  b_nenagh:    {n:'네나',     county:'c_thomond', type:'city',   troops:160, gold: 80, pop:60, cap:160, owner:null},
+  b_kilmallock:{n:'킬말록',   county:'c_thomond', type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
+
+  /* c_ennis — 수도(castle), 수도원(temple), 빈 슬롯 1 */
+  b_ennis:     {n:'에니스',   county:'c_ennis',   type:'castle', troops:260, gold: 70, pop:62, cap:260, owner:null},
+  b_kincora:   {n:'킨코라',   county:'c_ennis',   type:'temple', troops:150, gold: 55, pop:58, cap:150, owner:null},
+  b_empty_ennis:{n:'(빈 슬롯)',county:'c_ennis',  type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
+
+  /* c_ormond — 수도 워터퍼드(castle/바이킹), 빈 슬롯 1 */
+  b_waterford: {n:'워터퍼드', county:'c_ormond',  type:'castle', troops:280, gold: 90, pop:60, cap:280, owner:null},
+  b_clonmel:   {n:'클론멜',   county:'c_ormond',  type:'city',   troops:160, gold: 70, pop:57, cap:160, owner:null},
+  b_empty_ormond:{n:'(빈 슬롯)',county:'c_ormond',type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
+
+  /* c_desmond — 수도 코크(castle), 항구 도시, 빈 슬롯 1 */
+  b_cork:      {n:'코크',     county:'c_desmond', type:'castle', troops:260, gold: 75, pop:62, cap:260, owner:null},
+  b_kinsale:   {n:'킨세일',   county:'c_desmond', type:'city',   troops:140, gold: 65, pop:55, cap:140, owner:null},
+  b_empty_desmond:{n:'(빈 슬롯)',county:'c_desmond',type:'empty',troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
   /* ── 레인스터 (d_leinster) ────────────────────── */
-  /* c_leinster */
-  b_wexford:   {n:'웩스퍼드', county:'c_leinster',troops:290, gold: 80, pop:58, cap:290, type:'castle', owner:null},
-  b_enniscorthy:{n:'에니스코시',county:'c_leinster',troops:200, gold:50, pop:55, cap:200, type:'city', owner:null},
-  b_ferns:     {n:'퍼언스',   county:'c_leinster',troops:180, gold: 45, pop:55, cap:180, type:'temple', owner:null},
-  b_carlow:    {n:'칼로',     county:'c_leinster',troops:200, gold: 55, pop:57, cap:200, type:'temple', owner:null},
-  /* c_ossory */
-  b_gowran:    {n:'고란',     county:'c_ossory',  troops:220, gold: 60, pop:57, cap:220, type:'castle', owner:null},
-  b_kilkenny:  {n:'킬케니',   county:'c_ossory',  troops:240, gold: 65, pop:58, cap:240, type:'city', owner:null},
-  b_athy:      {n:'에이시',   county:'c_ossory',  troops:180, gold: 45, pop:55, cap:180, type:'temple', owner:null},
-  b_carrick:   {n:'캐릭',     county:'c_ossory',  troops:170, gold: 42, pop:54, cap:170, type:'temple', owner:null},
+  /* c_leinster — 웩스퍼드(castle/바이킹), 빈 슬롯 1 */
+  b_wexford:   {n:'웩스퍼드', county:'c_leinster',type:'castle', troops:290, gold: 80, pop:58, cap:290, owner:null},
+  b_ferns:     {n:'퍼언스',   county:'c_leinster',type:'temple', troops:150, gold: 48, pop:55, cap:150, owner:null},
+  b_empty_leinster:{n:'(빈 슬롯)',county:'c_leinster',type:'empty',troops:0,gold:0,  pop: 0, cap:  0, owner:null},
+
+  /* c_ossory — 킬케니(castle), 빈 슬롯 1 */
+  b_gowran:    {n:'고란',     county:'c_ossory',  type:'castle', troops:220, gold: 60, pop:57, cap:220, owner:null},
+  b_kilkenny:  {n:'킬케니',   county:'c_ossory',  type:'city',   troops:170, gold: 75, pop:58, cap:170, owner:null},
+  b_empty_ossory:{n:'(빈 슬롯)',county:'c_ossory', type:'empty', troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
   /* ── 더블린 (d_dublin) ─────────────────────────── */
-  /* c_dublin */
-  b_dublin:    {n:'더블린',   county:'c_dublin',  troops:380, gold:130, pop:65, cap:380, type:'castle', owner:null},
-  b_wicklow:   {n:'위클로',   county:'c_dublin',  troops:200, gold: 55, pop:58, cap:200, type:'city', owner:null},
-  b_kildare:   {n:'킬데어',   county:'c_dublin',  troops:220, gold: 60, pop:58, cap:220, type:'temple', owner:null},
+  /* c_dublin — 더블린(castle/바이킹 수도), 빈 슬롯 1 */
+  b_dublin:    {n:'더블린',   county:'c_dublin',  type:'castle', troops:380, gold:130, pop:65, cap:380, owner:null},
+  b_wicklow:   {n:'위클로',   county:'c_dublin',  type:'city',   troops:160, gold: 75, pop:58, cap:160, owner:null},
+  b_empty_dublin:{n:'(빈 슬롯)',county:'c_dublin', type:'empty', troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
   /* ── 미드 (d_meath) ────────────────────────────── */
-  /* c_meath */
-  b_trim:      {n:'트림',     county:'c_meath',   troops:260, gold: 70, pop:60, cap:260, type:'castle', owner:null},
-  b_drogheda:  {n:'드로이다', county:'c_meath',   troops:220, gold: 65, pop:60, cap:220, type:'city', owner:null},
-  b_kells:     {n:'켈스',     county:'c_meath',   troops:190, gold: 50, pop:57, cap:190, type:'temple', owner:null},
-  /* c_athlone */
-  b_athlone:   {n:'애슬론',   county:'c_athlone', troops:250, gold: 65, pop:58, cap:250, type:'castle', owner:null},
-  b_birr:      {n:'버',       county:'c_athlone', troops:190, gold: 48, pop:55, cap:190, type:'temple', owner:null},
-  b_uisneach:  {n:'위슈낙',   county:'c_athlone', troops:160, gold: 40, pop:52, cap:160, type:'temple', owner:null},
+  /* c_meath — 트림(castle), 켈스 수도원(temple), 빈 슬롯 1 */
+  b_trim:      {n:'트림',     county:'c_meath',   type:'castle', troops:260, gold: 70, pop:60, cap:260, owner:null},
+  b_kells:     {n:'켈스',     county:'c_meath',   type:'temple', troops:155, gold: 55, pop:57, cap:155, owner:null},
+  b_empty_meath:{n:'(빈 슬롯)',county:'c_meath',  type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
+
+  /* c_athlone — 애슬론(castle), 빈 슬롯 1 */
+  b_athlone:   {n:'애슬론',   county:'c_athlone', type:'castle', troops:250, gold: 65, pop:58, cap:250, owner:null},
+  b_empty_athlone:{n:'(빈 슬롯)',county:'c_athlone',type:'empty',troops:0,  gold:  0, pop: 0, cap:  0, owner:null},
 
   /* ── 코노트 (d_connacht) ───────────────────────── */
-  /* c_connacht */
-  b_galway:    {n:'골웨이',   county:'c_connacht',troops:310, gold: 80, pop:62, cap:310, type:'castle', owner:null},
-  b_athenry:   {n:'애슨리',   county:'c_connacht',troops:210, gold: 55, pop:58, cap:210, type:'city', owner:null},
-  b_tuam:      {n:'투암',     county:'c_connacht',troops:200, gold: 52, pop:57, cap:200, type:'temple', owner:null},
-  b_da_chainoc:{n:'다체이녹', county:'c_connacht',troops:180, gold: 45, pop:55, cap:180, type:'temple', owner:null},
-  /* c_mayo */
-  b_cruachu:   {n:'크루하후', county:'c_mayo',    troops:200, gold: 50, pop:55, cap:200, type:'castle', owner:null},
-  b_castlebar: {n:'캐슬바',   county:'c_mayo',    troops:210, gold: 52, pop:56, cap:210, type:'city', owner:null},
-  b_sligo:     {n:'슬라이고', county:'c_mayo',    troops:230, gold: 58, pop:57, cap:230, type:'temple', owner:null},
-  b_killala:   {n:'킬랄라',   county:'c_mayo',    troops:175, gold: 42, pop:53, cap:175, type:'temple', owner:null},
+  /* c_connacht — 골웨이(castle), 빈 슬롯 1 */
+  b_galway:    {n:'골웨이',   county:'c_connacht',type:'castle', troops:310, gold: 80, pop:62, cap:310, owner:null},
+  b_tuam:      {n:'투암',     county:'c_connacht',type:'temple', troops:160, gold: 58, pop:57, cap:160, owner:null},
+  b_empty_connacht:{n:'(빈 슬롯)',county:'c_connacht',type:'empty',troops:0,gold:0,  pop: 0, cap:  0, owner:null},
+
+  /* c_mayo — 수도(castle), 빈 슬롯 1 */
+  b_cruachu:   {n:'크루하후', county:'c_mayo',    type:'castle', troops:200, gold: 50, pop:55, cap:200, owner:null},
+  b_empty_mayo:{n:'(빈 슬롯)',county:'c_mayo',    type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
   /* ── 브레프네 (d_breifne) ──────────────────────── */
-  /* c_breifne */
-  b_dromahair: {n:'드로마헤르',county:'c_breifne', troops:230, gold: 58, pop:57, cap:230, type:'castle', owner:null},
-  b_belcoo:    {n:'벨쿠',     county:'c_breifne', troops:180, gold: 42, pop:53, cap:180, type:'temple', owner:null},
-  b_longford:  {n:'롱퍼드',   county:'c_breifne', troops:190, gold: 48, pop:55, cap:190, type:'city', owner:null},
-  b_cavan:     {n:'캐번',     county:'c_breifne', troops:200, gold: 50, pop:56, cap:200, type:'temple', owner:null},
-  b_adragh:    {n:'아드라그', county:'c_breifne', troops:160, gold: 38, pop:52, cap:160, type:'temple', owner:null},
+  /* c_breifne — 수도(castle), 빈 슬롯 1 */
+  b_dromahair: {n:'드로마헤르',county:'c_breifne', type:'castle', troops:230, gold: 58, pop:57, cap:230, owner:null},
+  b_empty_breifne:{n:'(빈 슬롯)',county:'c_breifne',type:'empty',troops:0,  gold:  0, pop: 0, cap:  0, owner:null},
 
   /* ── 얼스터 (d_ulster) ─────────────────────────── */
-  /* c_ulster */
-  b_downpatrick:{n:'다운패트릭',county:'c_ulster', troops:280, gold: 72, pop:60, cap:280, type:'castle', owner:null},
-  b_slemish:   {n:'슬레미시', county:'c_ulster',  troops:200, gold: 50, pop:57, cap:200, type:'temple', owner:null},
-  b_carrickfergus:{n:'캐릭퍼거스',county:'c_ulster',troops:240, gold:65, pop:60, cap:240, type:'city', owner:null},
-  b_bangor:    {n:'뱅거',     county:'c_ulster',  troops:185, gold: 45, pop:55, cap:185, type:'temple', owner:null},
-  /* c_oriel */
-  b_dundalk:   {n:'던돌크',   county:'c_oriel',   troops:240, gold: 62, pop:58, cap:240, type:'city', owner:null},
-  b_armagh:    {n:'아르마',   county:'c_oriel',   troops:260, gold: 70, pop:60, cap:260, type:'temple', owner:null},
-  b_ardee:     {n:'아르디',   county:'c_oriel',   troops:190, gold: 48, pop:55, cap:190, type:'castle', owner:null},
-  b_clogher:   {n:'클로허',   county:'c_oriel',   troops:180, gold: 44, pop:54, cap:180, type:'temple', owner:null},
-  b_dungannon: {n:'덩거논',   county:'c_oriel',   troops:185, gold: 46, pop:54, cap:185, type:'temple', owner:null},
-  /* c_ailech */
-  b_donegal:   {n:'도네갈',   county:'c_ailech',  troops:220, gold: 55, pop:57, cap:220, type:'castle', owner:null},
-  b_raphoe:    {n:'래포',     county:'c_ailech',  troops:190, gold: 48, pop:55, cap:190, type:'temple', owner:null},
-  b_fahan:     {n:'파한',     county:'c_ailech',  troops:175, gold: 42, pop:53, cap:175, type:'temple', owner:null},
-  b_derry:     {n:'더리',     county:'c_ailech',  troops:210, gold: 55, pop:58, cap:210, type:'city', owner:null},
+  /* c_ulster — 다운패트릭(castle), 아르마는 c_oriel로 이동 */
+  b_downpatrick:{n:'다운패트릭',county:'c_ulster', type:'castle', troops:280, gold: 72, pop:60, cap:280, owner:null},
+  b_carrickfergus:{n:'캐릭퍼거스',county:'c_ulster',type:'city', troops:175, gold: 75, pop:60, cap:175, owner:null},
+  b_empty_ulster:{n:'(빈 슬롯)',county:'c_ulster', type:'empty', troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* ── 빈 남작령 슬롯 (CK3: 게임 시작 시 미건설 슬롯) ── */
-  b_empty_thomond: {n:'(빈 슬롯)',  county:'c_thomond',  type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_ennis:   {n:'(빈 슬롯)',  county:'c_ennis',    type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_ormond:  {n:'(빈 슬롯)',  county:'c_ormond',   type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_desmond: {n:'(빈 슬롯)',  county:'c_desmond',  type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_leinster:{n:'(빈 슬롯)',  county:'c_leinster', type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_ossory:  {n:'(빈 슬롯)',  county:'c_ossory',   type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_dublin:  {n:'(빈 슬롯)',  county:'c_dublin',   type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_meath:   {n:'(빈 슬롯)',  county:'c_meath',    type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_athlone: {n:'(빈 슬롯)',  county:'c_athlone',  type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_connacht:{n:'(빈 슬롯)',  county:'c_connacht', type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_mayo:    {n:'(빈 슬롯)',  county:'c_mayo',     type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_breifne: {n:'(빈 슬롯)',  county:'c_breifne',  type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_ulster:  {n:'(빈 슬롯)',  county:'c_ulster',   type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_oriel:   {n:'(빈 슬롯)',  county:'c_oriel',    type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
-  b_empty_ailech:  {n:'(빈 슬롯)',  county:'c_ailech',   type:'empty', troops:0, gold:0, pop:0, cap:0, owner:null},
+  /* c_oriel — 아르디(castle), 아르마 대성당(temple — 아일랜드 대표 성지), 빈 슬롯 1 */
+  b_ardee:     {n:'아르디',   county:'c_oriel',   type:'castle', troops:190, gold: 48, pop:55, cap:190, owner:null},
+  b_armagh:    {n:'아르마',   county:'c_oriel',   type:'temple', troops:210, gold: 75, pop:60, cap:210, owner:null},
+  b_empty_oriel:{n:'(빈 슬롯)',county:'c_oriel',  type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
+
+  /* c_ailech — 도네갈(castle), 더리(city), 빈 슬롯 1 */
+  b_donegal:   {n:'도네갈',   county:'c_ailech',  type:'castle', troops:220, gold: 55, pop:57, cap:220, owner:null},
+  b_derry:     {n:'더리',     county:'c_ailech',  type:'city',   troops:165, gold: 62, pop:58, cap:165, owner:null},
+  b_empty_ailech:{n:'(빈 슬롯)',county:'c_ailech', type:'empty', troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 };
 
 /* 백작령: 남작령들의 집합. capital = 수도 남작령 */
 const COUNTIES = {
-  c_thomond: {n:'톰몬드',   duchy:'d_munster',  capital:'b_limerick',  baronies:['b_limerick','b_nenagh','b_roscrea','b_kilmallock','b_empty_thomond'], x:104, y:318, poly:'72,262 118,268 162,278 168,322 148,358 118,378 85,372 58,350 48,312 58,278'},
+  c_thomond: {n:'톰몬드',   duchy:'d_munster',  capital:'b_limerick',  baronies:['b_limerick','b_nenagh','b_kilmallock'], x:104, y:318, poly:'72,262 118,268 162,278 168,322 148,358 118,378 85,372 58,350 48,312 58,278'},
   c_ennis:   {n:'에니스',   duchy:'d_munster',  capital:'b_ennis',     baronies:['b_ennis','b_kincora','b_empty_ennis'],                              x: 49, y:314, poly:'30,200 48,215 48,240 58,278 48,312 58,350 72,390 52,428 30,415'},
-  c_ormond:  {n:'오몬드',   duchy:'d_munster',  capital:'b_waterford', baronies:['b_waterford','b_emly','b_clonmel','b_empty_ormond'],                 x:248, y:342, poly:'198,288 238,282 262,252 228,272 212,308 222,338 198,358 172,342 162,278'},
-  c_desmond: {n:'데스몬드', duchy:'d_munster',  capital:'b_cork',      baronies:['b_tralee','b_cork','b_kinsale','b_baltimore','b_empty_desmond'],      x: 98, y:404, poly:'52,428 72,390 58,350 85,372 118,378 148,358 155,392 138,438 98,468 52,468'},
-  c_leinster:{n:'레인스터', duchy:'d_leinster', capital:'b_wexford',   baronies:['b_wexford','b_enniscorthy','b_ferns','b_carlow','b_empty_leinster'],   x:340, y:338, poly:'298,268 330,292 365,300 378,358 340,372 305,368 282,342 272,308'},
-  c_ossory:  {n:'오서리',   duchy:'d_leinster', capital:'b_gowran',    baronies:['b_gowran','b_kilkenny','b_athy','b_carrick','b_empty_ossory'],       x:240, y:296, poly:'262,252 298,268 272,308 282,342 252,358 222,338 212,308 228,272'},
-  c_dublin:  {n:'더블린',   duchy:'d_dublin',   capital:'b_dublin',    baronies:['b_dublin','b_wicklow','b_kildare','b_empty_dublin'],                 x:341, y:246, poly:'285,228 322,215 352,190 385,208 388,268 365,300 330,292 298,268'},
-  c_meath:   {n:'미드',     duchy:'d_meath',    capital:'b_trim',      baronies:['b_trim','b_drogheda','b_kells','b_empty_meath'],                    x:292, y:180, poly:'240,158 278,152 312,128 348,145 352,190 322,215 285,228 252,215 238,192'},
-  c_athlone: {n:'애슬론',   duchy:'d_meath',    capital:'b_athlone',   baronies:['b_athlone','b_birr','b_uisneach','b_empty_athlone'],                  x:206, y:237, poly:'155,255 168,198 182,198 210,210 238,192 252,215 262,252 238,282 198,288 162,278'},
-  c_connacht:{n:'코노트',   duchy:'d_connacht', capital:'b_galway',    baronies:['b_galway','b_athenry','b_tuam','b_da_chainoc','b_empty_connacht'],     x:108, y:208, poly:'48,215 80,198 108,168 132,132 155,145 168,198 155,255 118,268 72,262 48,240'},
-  c_mayo:    {n:'마요',     duchy:'d_connacht', capital:'b_sligo',     baronies:['b_cruachu','b_castlebar','b_sligo','b_killala','b_empty_mayo'],    x: 76, y:152, poly:'30,95 72,110 112,100 132,132 108,168 80,198 48,215 30,200'},
-  c_breifne: {n:'브레프네', duchy:'d_breifne',  capital:'b_dromahair', baronies:['b_dromahair','b_belcoo','b_longford','b_cavan','b_adragh','b_empty_breifne'], x:178, y:153, poly:'112,100 148,88 168,120 205,140 240,158 238,192 210,210 182,198 168,198 155,145 132,132'},
-  c_ulster:  {n:'얼스터',   duchy:'d_ulster',   capital:'b_downpatrick',baronies:['b_downpatrick','b_slemish','b_carrickfergus','b_bangor','b_empty_ulster'], x:247, y: 66, poly:'150,42 225,30 300,38 330,58 305,88 270,100 225,110 168,62'},
-  c_oriel:   {n:'오리얼',   duchy:'d_ulster',   capital:'b_armagh',    baronies:['b_dundalk','b_armagh','b_ardee','b_clogher','b_dungannon','b_empty_oriel'], x:232, y:115, poly:'168,62 225,110 270,100 305,88 312,128 278,152 240,158 205,140 168,120 148,88'},
-  c_ailech:  {n:'애일라흐', duchy:'d_ulster',   capital:'b_donegal',   baronies:['b_donegal','b_raphoe','b_fahan','b_derry','b_empty_ailech'],         x:101, y: 71, poly:'30,40 95,30 150,42 168,62 148,88 112,100 72,110 30,95'},
+  c_ormond:  {n:'오몬드',   duchy:'d_munster',  capital:'b_waterford', baronies:['b_waterford','b_clonmel','b_empty_ormond'],                 x:248, y:342, poly:'198,288 238,282 262,252 228,272 212,308 222,338 198,358 172,342 162,278'},
+  c_desmond: {n:'데스몬드', duchy:'d_munster',  capital:'b_cork',      baronies:['b_cork','b_kinsale','b_empty_desmond'],      x: 98, y:404, poly:'52,428 72,390 58,350 85,372 118,378 148,358 155,392 138,438 98,468 52,468'},
+  c_leinster:{n:'레인스터', duchy:'d_leinster', capital:'b_wexford',   baronies:['b_wexford','b_ferns','b_empty_leinster'],   x:340, y:338, poly:'298,268 330,292 365,300 378,358 340,372 305,368 282,342 272,308'},
+  c_ossory:  {n:'오서리',   duchy:'d_leinster', capital:'b_gowran',    baronies:['b_gowran','b_kilkenny','b_empty_ossory'],       x:240, y:296, poly:'262,252 298,268 272,308 282,342 252,358 222,338 212,308 228,272'},
+  c_dublin:  {n:'더블린',   duchy:'d_dublin',   capital:'b_dublin',    baronies:['b_dublin','b_wicklow','b_empty_dublin'],                 x:341, y:246, poly:'285,228 322,215 352,190 385,208 388,268 365,300 330,292 298,268'},
+  c_meath:   {n:'미드',     duchy:'d_meath',    capital:'b_trim',      baronies:['b_trim','b_kells','b_empty_meath'],                    x:292, y:180, poly:'240,158 278,152 312,128 348,145 352,190 322,215 285,228 252,215 238,192'},
+  c_athlone: {n:'애슬론',   duchy:'d_meath',    capital:'b_athlone',   baronies:['b_athlone','b_empty_athlone'],                  x:206, y:237, poly:'155,255 168,198 182,198 210,210 238,192 252,215 262,252 238,282 198,288 162,278'},
+  c_connacht:{n:'코노트',   duchy:'d_connacht', capital:'b_galway',    baronies:['b_galway','b_tuam','b_empty_connacht'],     x:108, y:208, poly:'48,215 80,198 108,168 132,132 155,145 168,198 155,255 118,268 72,262 48,240'},
+  c_mayo:    {n:'마요',     duchy:'d_connacht', capital:'b_cruachu',     baronies:['b_cruachu','b_empty_mayo'],    x: 76, y:152, poly:'30,95 72,110 112,100 132,132 108,168 80,198 48,215 30,200'},
+  c_breifne: {n:'브레프네', duchy:'d_breifne',  capital:'b_dromahair', baronies:['b_dromahair','b_empty_breifne'], x:178, y:153, poly:'112,100 148,88 168,120 205,140 240,158 238,192 210,210 182,198 168,198 155,145 132,132'},
+  c_ulster:  {n:'얼스터',   duchy:'d_ulster',   capital:'b_downpatrick',baronies:['b_downpatrick','b_carrickfergus','b_empty_ulster'], x:247, y: 66, poly:'150,42 225,30 300,38 330,58 305,88 270,100 225,110 168,62'},
+  c_oriel:   {n:'오리얼',   duchy:'d_ulster',   capital:'b_armagh',    baronies:['b_ardee','b_armagh','b_empty_oriel'], x:232, y:115, poly:'168,62 225,110 270,100 305,88 312,128 278,152 240,158 205,140 168,120 148,88'},
+  c_ailech:  {n:'애일라흐', duchy:'d_ulster',   capital:'b_donegal',   baronies:['b_donegal','b_derry','b_empty_ailech'],         x:101, y: 71, poly:'30,40 95,30 150,42 168,62 148,88 112,100 72,110 30,95'},
 };
 
 /* 공작령: 백작령들의 집합 */
@@ -3666,34 +3647,37 @@ function openMyCounty(cid, dispName){
     const countyCapOwner=BARONIES[COUNTIES[cid]?.capital||'']?.owner;
     const isMyCounty=(countyCapOwner===p.id);
     if(b.type==='empty'&&isMyCounty){
-      // 빈 슬롯 — 홀딩 건설 (해당 county 수도 남작령의 금 차감)
+      // 빈 슬롯 — 홀딩 건설
       const capBid=COUNTIES[cid]?.capital||p.region;
       opts.push({t:'🏗 빈 슬롯 — 홀딩 건설',
         d:'성(150금) · 도시(120금) · 사원(100금)',
         f:()=>{
           const capGold=BARONIES[capBid]?.gold||0;
-          showModal({title:'홀딩 건설', sub:cnt?.n||dispName,
+          popup({title:'홀딩 건설', sub:cnt?.n||dispName,
             body:'어떤 홀딩을 건설하시겠습니까?\n성은 병력, 도시는 세금, 사원은 경건에 특화됩니다.',
             opts:[
-              {t:'🏰 성 건설 (금 150)', d:'병력 중심 · 직접 소유 가능', enabled:capGold>=150, f:()=>{
-                if((BARONIES[capBid]?.gold||0)<150){log('금이 부족합니다.');return;}
-                BARONIES[capBid].gold-=150;
-                b.type='castle'; b.n=cnt?.n+'의 성'; b.cap=200; b.troops=200; b.gold=0; b.owner=p.id;
-                log(`<b>${cnt?.n}</b>에 성을 건설했습니다.`,'good'); openMyCounty(cid,dispName);
-              }},
-              {t:'🏙 도시 건설 (금 120)', d:'세금 특화 · Mayor 봉신 필요', enabled:capGold>=120, f:()=>{
-                if((BARONIES[capBid]?.gold||0)<120){log('금이 부족합니다.');return;}
-                BARONIES[capBid].gold-=120;
-                b.type='city'; b.n=cnt?.n+'의 도시'; b.cap=150; b.troops=100; b.gold=0; b.owner=p.id;
-                log(`<b>${cnt?.n}</b>에 도시를 건설했습니다. Mayor를 임명하십시오.`,'good'); openMyCounty(cid,dispName);
-              }},
-              {t:'⛪ 사원 건설 (금 100)', d:'경건·chaplain 연동 · Bishop 봉신 필요', enabled:capGold>=100, f:()=>{
-                if((BARONIES[capBid]?.gold||0)<100){log('금이 부족합니다.');return;}
-                BARONIES[capBid].gold-=100;
-                b.type='temple'; b.n=cnt?.n+'의 사원'; b.cap=150; b.troops=120; b.gold=0; b.owner=p.id;
-                log(`<b>${cnt?.n}</b>에 사원을 건설했습니다. Bishop을 임명하십시오.`,'good'); openMyCounty(cid,dispName);
-              }},
-              {t:'취소'}
+              {t:'🏰 성 건설 (금 150)', d:'병력 중심 · 직접 소유 가능',
+                f:()=>{
+                  if((BARONIES[capBid]?.gold||0)<150){log('금이 부족합니다.');return;}
+                  BARONIES[capBid].gold-=150;
+                  b.type='castle'; b.n=cnt?.n+'의 성'; b.cap=200; b.troops=200; b.gold=0; b.owner=p.id;
+                  log(`<b>${cnt?.n}</b>에 성을 건설했습니다.`,'good');
+                }},
+              {t:'🏙 도시 건설 (금 120)', d:'세금 특화 · Mayor 봉신 필요',
+                f:()=>{
+                  if((BARONIES[capBid]?.gold||0)<120){log('금이 부족합니다.');return;}
+                  BARONIES[capBid].gold-=120;
+                  b.type='city'; b.n=cnt?.n+'의 도시'; b.cap=150; b.troops=100; b.gold=0; b.owner=p.id;
+                  log(`<b>${cnt?.n}</b>에 도시를 건설했습니다. Mayor를 임명하십시오.`,'good');
+                }},
+              {t:'⛪ 사원 건설 (금 100)', d:'경건·chaplain 연동 · Bishop 봉신 필요',
+                f:()=>{
+                  if((BARONIES[capBid]?.gold||0)<100){log('금이 부족합니다.');return;}
+                  BARONIES[capBid].gold-=100;
+                  b.type='temple'; b.n=cnt?.n+'의 사원'; b.cap=150; b.troops=120; b.gold=0; b.owner=p.id;
+                  log(`<b>${cnt?.n}</b>에 사원을 건설했습니다. Bishop을 임명하십시오.`,'good');
+                }},
+              {t:'취소', f:()=>{}}
             ]});
         }});
     } else if(isDirect&&isWrong){
@@ -3900,42 +3884,21 @@ function buildProfileHTML(c){
     <div>${traitChips||'<span style="color:var(--parch-dim);font-size:.75rem">없음</span>'}</div>
     <div style="margin-top:6px">${eduChip}${lifeChip}</div>`;
 
-  /* C. 가족·영지·자문회 */
+  /* C. 가족·봉신·명분 */
   const kids=Object.values(chars).filter(k=>!k.dead&&(k.father===c.id||k.mother===c.id));
   const kidsHtml=kids.length
     ?kids.map(k=>`<div class="pm-kv"><span>${k.sex==='m'?'아들':'딸'} ${k.name}</span><span>${age(k)}세</span></div>`).join('')
     :'<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>';
-  const myCounties=directCountiesOf(c.id);
-  const myBaroniesCnt=directBaroniesOf(c.id);
-  const myDomLim=domainLimit(c);
-  const domOver=myBaroniesCnt>myDomLim;
-  const countiesHtml=(myCounties.length
-    ?'<div class="pm-kv" style="margin-bottom:4px"><span style="color:var(--parch-dim)">남작령</span><span style="color:'+(domOver?'#d05a4a':'var(--gold)')+'">'+myBaroniesCnt+'/'+myDomLim+(domOver?' ⚠':'')+' <span style="color:var(--parch-dim);font-size:.68rem">(백작령 '+myCounties.length+')</span></span></div>'
-    +myCounties.map(cid2=>{
-        const bids2=COUNTIES[cid2]?.baronies||[];
-        const totalT=bids2.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
-        return '<div class="pm-kv"><span>'+( COUNTIES[cid2]?.n||cid2)+'</span><span>'+bids2.length+'남작령 ⚔'+totalT+'</span></div>';
-      }).join('')
-    :'<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>');
   const vassals=vassalsOf(c.id);
   const claimsHtml=isPlayer&&state.claims.length
     ?state.claims.map(cl=>{
         const cb=CB_TYPES[cl.type];
         return `<div class="pm-kv"><span>${cb.icon} ${claimName(cl.rid)}</span><span style="color:${cb.color}">${cb.n}</span></div>`;
       }).join(''):'';
-  const councilSrc=isPlayer?state.council:c.council;
-  const councilHtml=Object.entries(COUNCIL_ROLES).map(([role,info])=>{
-    const cid2=councilSrc[role];
-    const name=cid2&&chars[cid2]&&!chars[cid2].dead?chars[cid2].name.split(' ')[0]:'공석';
-    const color=cid2&&chars[cid2]&&!chars[cid2].dead?'var(--parch)':'var(--parch-dim)';
-    return `<div class="pm-kv"><span>${info.icon} ${info.n}</span><span style="color:${color}">${name}</span></div>`;
-  }).join('');
   const secC=`
     <div class="pm-sec-title">자녀</div>${kidsHtml}
-    <div class="pm-sec-title" style="margin-top:12px">직할 백작령</div>${countiesHtml}
-    ${vassals.length?`<div class="pm-kv" style="margin-top:4px"><span>봉신</span><span>${vassals.length}명</span></div>`:''}
-    ${claimsHtml?`<div class="pm-sec-title" style="margin-top:12px">보유 명분</div>${claimsHtml}`:''}
-    <div class="pm-sec-title" style="margin-top:12px">자문회</div>${councilHtml}`;
+    ${vassals.length?`<div class="pm-kv" style="margin-top:8px"><span>봉신</span><span>${vassals.length}명</span></div>`:''}
+    ${claimsHtml?`<div class="pm-sec-title" style="margin-top:12px">보유 명분</div>${claimsHtml}`:''}`;
 
   return `
     <div class="pm-header">
@@ -5226,139 +5189,8 @@ function renderCourt(){
   const fam=Object.values(chars).filter(c=>!c.dead&&(c.id===p.id||c.spouse===p.id||c.father===p.id||c.mother===p.id||c.courtOf===p.region));
   const reg=REGIONS[p.region]; const rn=reg?reg.n:'—';
 
-  let html=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line)">자문회</div>`;
-
-  for(const role in COUNCIL_ROLES){
-    const rinfo=COUNCIL_ROLES[role];
-    const cid=state.council[role];
-    const councilor=cid&&chars[cid]&&!chars[cid].dead?chars[cid]:null;
-    if(!councilor&&cid) state.council[role]=null;
-
-    const curTask = state.councilTasks[role]||Object.keys(rinfo.tasks)[0];
-    const taskInfo = rinfo.tasks[curTask];
-    const assignedIds=Object.values(state.council).filter(Boolean);
-    const candidates=fam.filter(c=>c.id!==p.id&&c.courtOf===p.region&&age(c)>=16&&!assignedIds.includes(c.id));
-
-    html+=`<div style="padding:7px 0;border-bottom:1px dotted #2c2316">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:1.1rem;width:22px;text-align:center">${rinfo.icon}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:.82rem;color:var(--parch);font-weight:600">${rinfo.n}</div>`;
-
-    if(councilor){
-      const sk=stat(councilor,rinfo.skill);
-      const op=opinion(councilor,p);
-      const opColor=op>=0?'#7a9a6a':'#9e5a5a';
-      html+=`<div style="font-size:.75rem;color:var(--gold);margin-top:1px">${councilor.name}
-        <span style="color:var(--parch-dim);font-size:.68rem"> ${rinfo.skill.toUpperCase()}${sk}</span>
-        <span style="color:${opColor};font-size:.65rem"> 호감 ${op>0?'+':''}${op}</span></div>`;
-
-      /* 태스크 드롭다운 */
-      html+=`<div style="margin-top:4px;display:flex;align-items:center;gap:4px">
-        <span style="font-size:.65rem;color:var(--parch-dim)">임무:</span>
-        <select style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.68rem;padding:1px 3px;flex:1;max-width:150px"
-          onchange="setCouncilTask('${role}',this.value)">`;
-      for(const tk in rinfo.tasks){
-        html+=`<option value="${tk}"${tk===curTask?' selected':''}>${rinfo.tasks[tk].n}</option>`;
-      }
-      html+=`</select></div>`;
-
-      /* 현재 임무 설명 */
-      html+=`<div style="font-size:.65rem;color:#7aaa8a;margin-top:2px">▶ ${taskInfo.desc}</div>`;
-
-      /* 진행형 태스크 프로그레스 바 */
-      if(taskInfo.progressive){
-        /* fabricate_claim: CK3 방식 — 대상 county 지정 후 진행 */
-        if(curTask==='fabricate_claim'){
-          const p2=playerChar();
-          const adjBids2=(ADJ[p2.region]||[]);
-          const adjCids2=[...new Set(adjBids2.map(b=>countyOf(b)).filter(Boolean))];
-          const availCids=adjCids2.filter(cid2=>{ const h=countyHolder(cid2); return h&&h.id!==p2.id&&!hasClaim(cid2); });
-          window._fabricateTargets=availCids;
-          window._fabricateSk=councilor?stat(councilor,rinfo.skill):5;
-          if(state.fabricateTarget && COUNTIES[state.fabricateTarget]){
-            /* 대상 지정됨 — 진행도 + 대상 정보 표시 */
-            const tCname = COUNTIES[state.fabricateTarget].n;
-            const tHolder = countyHolder(state.fabricateTarget);
-            const prog=Math.round(state.councilProgress[role]||0);
-            html+=`<div style="margin-top:4px;background:#12100a;border:1px solid #2c2316;border-radius:3px;padding:5px 7px">
-              <div style="font-size:.68rem;color:var(--gold)">📜 위조 대상: <b>${tCname}</b>
-                <span style="color:var(--parch-dim);font-weight:400"> (${tHolder?.name||'—'})</span></div>
-              <div style="margin-top:4px;background:#1a140a;border-radius:2px;height:5px;overflow:hidden">
-                <div style="background:var(--gold);height:100%;width:${prog}%"></div></div>
-              <div style="display:flex;justify-content:space-between;margin-top:2px">
-                <span style="font-size:.6rem;color:var(--parch-dim)">진행: ${prog}%</span>
-                <span style="font-size:.6rem;color:var(--parch-dim)">완료까지 약 ${Math.ceil((100-prog)/(3+stat(councilor,'learn')/5))}개월</span>
-              </div>
-            </div>`;
-            html+=`<button class="p-action" style="margin-top:3px;padding:2px 8px;font-size:.63rem"
-              onclick="pause();_showFabricateTargetPicker(window._fabricateSk,window._fabricateTargets,0)">
-              대상 변경</button>`;
-          } else {
-            /* 대상 미지정 — 선택 유도 */
-            html+=`<div style="margin-top:4px;background:#1a100a;border:1px solid #6a3a1a;border-radius:3px;padding:5px 7px;font-size:.68rem;color:#c97a3a">
-              ⚠ 위조할 영지를 선택하세요</div>`;
-            if(availCids.length){
-              html+=`<button class="p-action" style="margin-top:3px;padding:2px 8px;font-size:.65rem;background:#3a1a0a;border-color:#c97a3a"
-                onclick="pause();_showFabricateTargetPicker(window._fabricateSk,window._fabricateTargets,0)">
-                📜 영지 선택 (${availCids.length}곳)</button>`;
-            } else {
-              html+=`<div style="font-size:.63rem;color:#5a4a3a;margin-top:2px">인접 명분 위조 가능 영지 없음</div>`;
-            }
-          }
-        } else {
-          /* 다른 progressive 태스크 (develop, culture, convert) — 기존 진행바 */
-          const prog=Math.round(state.councilProgress[role]||0);
-          html+=`<div style="margin-top:3px;background:#1a140a;border-radius:2px;height:5px;width:100%;overflow:hidden">
-            <div style="background:var(--gold);height:100%;width:${prog}%"></div></div>
-            <div style="font-size:.62rem;color:var(--parch-dim);text-align:right">${prog}%</div>`;
-        }
-      }
-
-      html+=`<button class="p-action" style="margin-top:4px;padding:2px 8px;font-size:.68rem" onclick="appointCouncilor('${role}',null)">해임</button>`;
-    } else {
-      html+=`<div style="font-size:.72rem;color:var(--parch-dim);margin-top:2px">공석 — ${rinfo.desc}</div>`;
-      if(candidates.length){
-        html+=`<select style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.7rem;padding:2px 4px;max-width:160px;margin-top:4px"
-          onchange="if(this.value)appointCouncilor('${role}',this.value)">
-          <option value="">임명...</option>`;
-        candidates.sort((a,b)=>stat(b,rinfo.skill)-stat(a,rinfo.skill)).forEach(c=>{
-          html+=`<option value="${c.id}">${c.name} (${rinfo.skill.slice(0,1).toUpperCase()}${stat(c,rinfo.skill)})</option>`;
-        });
-        html+=`</select>`;
-      } else {
-        html+=`<div style="font-size:.68rem;color:#5a4a3a;margin-top:3px">임명 가능한 인물 없음</div>`;
-      }
-    }
-    html+=`</div></div></div>`;
-  }
-
-  /* 봉신 목록 */
-  const myVassals=vassalsOf(p.id);
-  if(myVassals.length>0){
-    html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin:10px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--line)">봉신 (${myVassals.length}명)</div>`;
-    for(const v of myVassals){
-      const vcids=directCountiesOf(v.id);
-      const vOp=opinion(v,p);
-      const opColor=vOp>=0?'#7a9a6a':'#9e5a5a';
-      html+=`<div style="display:flex;justify-content:space-between;font-size:.8rem;padding:5px 0;border-bottom:1px dotted #2c2316">
-        <span><b>${v.name}</b><span style="color:var(--parch-dim);font-size:.72rem"> — ${vcids.map(cid=>COUNTIES[cid].n).join('·')}</span></span>
-        <span style="color:${opColor}">호감 ${vOp>0?'+':''}${vOp}</span>
-      </div>`;
-    }
-    html+=`<div style="height:8px"></div>`;
-  }
-
-  /* 직할령 현황 — CK3 방식: 남작령(barony) 수 기준 */
-  const dLim=domainLimit(p);
-  const dBids=directBaroniesOf(p.id); // 남작령 수
-  const dCids=directCountiesOf(p.id).length; // 백작령 수 (참고용)
-  const domColor=dBids>dLim?'#d05a4a':dBids>=dLim-1?'#c8a24a':'var(--gold-dim)';
-  html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:${domColor};margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line)">직할 남작령 ${dBids}/${dLim}${dBids>dLim?' ⚠ 한도 초과 — 세금 패널티':''} <span style="color:var(--parch-dim);font-size:.62rem">(백작령 ${dCids})</span></div>`;
-  html+=`<div style="font-size:.72rem;color:var(--parch-dim);padding:3px 0 8px;border-bottom:1px solid var(--line)">🗺 건물 건설은 지도에서 내 백작령을 클릭하세요.</div>`;
-
   /* 궁정 인물 목록 */
-  html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin:12px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)">${rn} 궁정의 사람들</div>
+  let html=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--line)">${rn} 궁정의 사람들</div>
     <table style="width:100%;border-collapse:collapse;font-size:.82rem">`;
   for(const c of fam){
     const rel=c.id===p.id?'본인':c.spouse===p.id?'배우자':(c.father===p.id||c.mother===p.id)?(c.sex==='m'?'아들':'딸'):'궁정인';
@@ -5367,7 +5199,7 @@ function renderCourt(){
     const councilRole=Object.entries(state.council).find(([,v])=>v===c.id);
     html+=`<tr style="border-bottom:1px dotted #2c2316">
       <td style="padding:6px 4px">
-        <b>${c.name}</b>${councilRole?` <span style="color:var(--gold);font-size:.7rem">${COUNCIL_ROLES[councilRole[0]].icon}</span>`:''}
+        <b>${c.name}</b>${councilRole?` <span style="color:var(--gold);font-size:.7rem">${COUNCIL_ROLES[councilRole[0]]?.icon||''}</span>`:''}
         <span style="color:var(--parch-dim);font-size:.74rem"> ${age(c)}세</span><br>
         <small style="color:var(--parch-dim)">${rel}${c.pregnant>0?' · 임신중':''}</small>
       </td>
@@ -5435,22 +5267,6 @@ function renderDec(){
     REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
     log('창병 200이 소집됐습니다.','war'); renderDec();
   });
-  // 직할령 한도 표시 (CK3: 남작령 수 기준)
-  const dBidsCnt=directBaroniesOf(p.id);  // 직접 소유 남작령 수
-  const dCidsCnt=directCountiesOf(p.id).length; // 백작령 수 (참고)
-  const dLimitVal=domainLimit(p);
-  if(dBidsCnt>0||dCidsCnt>0){
-    const over=dBidsCnt>dLimitVal;
-    const overTxt=over
-      ? ` ⚠ 초과 (${dBidsCnt}/${dLimitVal}) — 세금 패널티`
-      : ` ${dBidsCnt}/${dLimitVal}`;
-    items.unshift({
-      t:`🏛 직할 남작령${overTxt}`,
-      d:`백작령 ${dCidsCnt}개 · 내정${stat(p,'stew')} → 한도 ${dLimitVal}`,
-      enabled:false, i:-1
-    });
-  }
-
   // 백작령 하사 (직할 초과 시 또는 전략적으로)
   const myCids=directCountiesOf(p.id);
   if(myCids.length>1){
