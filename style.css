@@ -180,7 +180,7 @@ button:disabled{opacity:.35; cursor:default}
   background:linear-gradient(#2e2214,#1c1408);
   border:1px solid var(--gold-dim); border-right:none;
   border-radius:8px 0 0 8px;
-  color:var(--gold); font-size:.63rem; letter-spacing:.28em;
+  color:var(--gold); font-size:.55rem; letter-spacing:.18em;
   writing-mode:vertical-rl; cursor:pointer;
   font-family:inherit;
   box-shadow:-4px 0 14px rgba(0,0,0,.65);
