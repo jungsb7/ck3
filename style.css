@@ -189,11 +189,13 @@ button:disabled{opacity:.35; cursor:default}
 }
 .panel-tab:hover{ color:var(--gold-bright,#ecd27a); background:linear-gradient(#382a1a,#231a0e) }
 
-/* 네 탭 독립 책갈피, 2px 간격으로 붙여 배치 — 연대기·자문회·궁정·결단 */
-#logTab     { top:200px; height:62px; }
-#councilTab { top:264px; height:62px; }
-#courtTab   { top:328px; height:62px; }
-#decTab     { top:392px; height:62px; }
+/* 여섯 탭 독립 책갈피, 2px 간격으로 붙여 배치 — 연대기·자문회·봉역·활동·궁정·결단 */
+#logTab     { top:118px; height:52px; }
+#councilTab { top:172px; height:52px; }
+#fiefTab    { top:226px; height:52px; }
+#actTab     { top:280px; height:52px; }
+#courtTab   { top:334px; height:52px; }
+#decTab     { top:388px; height:52px; }
 .panel-head{
   flex:0 0 auto; font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
   padding:8px 14px; border-bottom:1px solid var(--line);
