@@ -579,14 +579,61 @@ chOp(kMeath,murchad,10); chOp(murchad,kMeath,10);
 chOp(kBrei,kConn,-30); chOp(kConn,kBrei,-30);
 chOp(kDub,kLein,40); chOp(kLein,kDub,40);
 
-// 초기 남작령 소유권 일괄 설정
-seizeDuchy(murchad.id, 'd_munster');
-seizeDuchy(kLein.id,   'd_leinster');
-seizeDuchy(kDub.id,    'd_dublin');
-seizeDuchy(kMeath.id,  'd_meath');
-seizeDuchy(kConn.id,   'd_connacht');
-seizeDuchy(kBrei.id,   'd_breifne');
-seizeDuchy(kUls.id,    'd_ulster');
+// ── 초기 영지 배분 (CK3 방식: 수도 백작령만 직할, 나머지는 봉신) ──
+
+/* 헬퍼: 백작 봉신 생성 — 군주에게 county를 봉신으로 하사 */
+function mkVassal(liege, cid, name, dyn, byear, base, traits){
+  const v = mk({name, dyn, byear, bmonth:1, bday:1,
+    traits, base, edu:1, eduFocus:'mar',
+    region: COUNTIES[cid].capital, ruler:true, liege:liege.id});
+  seizeCounty(v.id, cid);
+  return v;
+}
+
+// ── 무르하드 (먼스터) ──
+// 직할: c_thomond(수도 리머릭), c_ennis
+seizeCounty(murchad.id, 'c_thomond');
+seizeCounty(murchad.id, 'c_ennis');
+// 봉신: c_ormond → 오몬드 백작, c_desmond → 데스몬드 백작
+const vOrmond  = mkVassal(murchad, 'c_ormond',  '말 우어 패러한', '우어 패러한',  1028,
+  {dip:4,mar:6,stew:4,intr:3,learn:3,prow:6}, ['brave','content']);
+const vDesmond = mkVassal(murchad, 'c_desmond', '카탈 막 핀겐',   '막 카르시그', 1031,
+  {dip:3,mar:7,stew:3,intr:5,learn:2,prow:7}, ['ambitious','wrathful']);
+
+// ── 레인스터 (kLein) ──
+// 직할: c_leinster(수도 웩스퍼드)
+seizeCounty(kLein.id, 'c_leinster');
+// 봉신: c_ossory
+const vOssory = mkVassal(kLein, 'c_ossory', '질라 파트라이크', '우어 두바', 1033,
+  {dip:4,mar:6,stew:4,intr:4,learn:3,prow:6}, ['patient','brave']);
+// 더블린(kDub)은 kLein의 아들 — 독립 군주로 유지
+seizeDuchy(kDub.id, 'd_dublin');
+
+// ── 미드 (kMeath) ──
+// 직할: c_meath(수도 트림)
+seizeCounty(kMeath.id, 'c_meath');
+// 봉신: c_athlone
+const vAthlone = mkVassal(kMeath, 'c_athlone', '콘코바르 우어 말롤린', '우어 말롤린', 1036,
+  {dip:5,mar:5,stew:6,intr:3,learn:4,prow:4}, ['diligent','content']);
+
+// ── 코노트 (kConn) ──
+// 직할: c_connacht(수도 골웨이)
+seizeCounty(kConn.id, 'c_connacht');
+// 봉신: c_mayo
+const vMayo = mkVassal(kConn, 'c_mayo', '루아이드리 우어 플라히르타', '우어 플라히르타', 1029,
+  {dip:3,mar:8,stew:3,intr:4,learn:2,prow:8}, ['brave','ambitious']);
+
+// ── 브레프네 (kBrei): 소규모 — 전체 직할 ──
+seizeDuchy(kBrei.id, 'd_breifne');
+
+// ── 얼스터 (kUls) ──
+// 직할: c_ulster(수도 다운패트릭)만
+seizeCounty(kUls.id, 'c_ulster');
+// 봉신: c_oriel, c_ailech
+const vOriel = mkVassal(kUls, 'c_oriel', '동날 우어 케르발', '우어 케르발', 1030,
+  {dip:4,mar:7,stew:4,intr:4,learn:3,prow:7}, ['brave','patient']);
+const vAilech = mkVassal(kUls, 'c_ailech', '플라히르타 우어 막라흘런', '우어 막라흘런', 1026,
+  {dip:4,mar:7,stew:4,intr:5,learn:3,prow:7}, ['brave','ambitious']);
 
 // NPC 초기 궁정인 생성 (각 NPC 군주에게 자문회 인원 풀 제공)
 [kLein,kConn,kMeath,kBrei,kUls].forEach(king=>{
@@ -1267,6 +1314,10 @@ function monthlyPulse(){
 function directCountiesOf(charId){
   return Object.keys(COUNTIES).filter(cid=>BARONIES[COUNTIES[cid].capital]?.owner===charId);
 }
+/* 직접 소유 남작령 수 — CK3 도메인 한도의 실제 측정 단위 */
+function directBaroniesOf(charId){
+  return regionsOf(charId).length; // regionsOf = 직접 소유 barony id 배열
+}
 /* 봉신이 보유한 백작령 (liege = charId) */
 function vassalCountiesOf(charId){
   const vcids=[];
@@ -1278,16 +1329,27 @@ function vassalCountiesOf(charId){
 }
 /* 봉신 목록 */
 function vassalsOf(liegeId){ return Object.values(chars).filter(c=>!c.dead&&c.liege===liegeId&&c.ruler); }
-/* 직할령 한도: 칭호 등급 기반 */
+/* 직할령 한도 (CK3 위키 기반)
+   측정 단위: 남작령(barony) 수 — 백작령(county)이 아님
+   스튜어드십 보정: +1 per 6 stewardship (v1.9 이후 기준)
+   출처: https://ck3.paradoxwikis.com/Attributes
+   에이레 1066 보정: 소왕이 공작령을 통째로 직할 보유하는 구조를 반영,
+   CK3 원본(왕 3)보다 base를 높여 게임 시작부터 패널티 없이 플레이 가능하게 조정 */
 function domainLimit(c){
-  const d=duchiesOf(c.id).length;
-  const ct=directCountiesOf(c.id).length;
-  // 소왕=6, 공작=4, 백작=2 (기본값은 보유 칭호로 판단)
-  const base = d>=1?6 : ct>=3?4 : 2;
-  return base + Math.floor(stat(c,'stew')*0.12);
+  const d  = duchiesOf(c.id).length;       // 보유 공작령 수
+  const ct = directCountiesOf(c.id).length; // 직할 백작령 수
+  /* 칭호 등급 기반 base
+     소왕(공작령 2개↑ or 백작령 5개↑): base 8
+     공작(공작령 1개):                   base 5
+     백작(공작령 없음):                  base 2              */
+  const base = (d >= 2 || ct >= 5) ? 8
+             : d >= 1              ? 5
+             : 2;
+  /* CK3: +1 per 6 effective stewardship */
+  return base + Math.floor(stat(c,'stew') / 6);
 }
-/* 직할 초과 여부 */
-function overDomainLimit(c){ return directCountiesOf(c.id).length > domainLimit(c); }
+/* 직할 초과 여부 — 남작령 수 기준 */
+function overDomainLimit(c){ return directBaroniesOf(c.id) > domainLimit(c); }
 /* 백작령 봉신 하사 */
 function grantCountyToVassal(liegeId, vassalId, cid){
   const liege=chars[liegeId], vassal=chars[vassalId];
@@ -1337,10 +1399,12 @@ function goldPulse(){
     const seat=owned.includes(c.region)?c.region:owned[0];
     const seatB=BARONIES[seat]; if(!seatB) continue;
 
-    // 직할령 초과 패널티
-    const dCnt=directCountiesOf(id).length;
+    // 직할령 초과 패널티 — CK3: 초과분 홀딩에서 세금·레비 없음
+    // 근사: 초과 남작령 비율만큼 수입 감소 (한도 내 남작령만 수입 창출)
+    const dCnt=directBaroniesOf(id);  // 남작령 수 기준
     const dLimit=domainLimit(c);
-    const overPenalty=dCnt>dLimit?Math.max(0.3,1-(dCnt-dLimit)*0.15):1;
+    // 한도 내 남작령 비율 = min(1, limit/count) → 초과시 비율대로 감소
+    const overPenalty=dCnt>dLimit ? Math.max(0.4, dLimit/dCnt) : 1;
 
     // 직할 남작령 수입
     const directIncome=owned.reduce((s,bid)=>{
@@ -3669,12 +3733,17 @@ function buildProfileHTML(c){
     ?kids.map(k=>`<div class="pm-kv"><span>${k.sex==='m'?'아들':'딸'} ${k.name}</span><span>${age(k)}세</span></div>`).join('')
     :'<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>';
   const myCounties=directCountiesOf(c.id);
-  const countiesHtml=myCounties.length
-    ?myCounties.map(cid2=>{
-        const totalT=COUNTIES[cid2]?.baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0)||0;
-        return `<div class="pm-kv"><span>${COUNTIES[cid2]?.n||cid2}</span><span>⚔${totalT}</span></div>`;
+  const myBaroniesCnt=directBaroniesOf(c.id);
+  const myDomLim=domainLimit(c);
+  const domOver=myBaroniesCnt>myDomLim;
+  const countiesHtml=(myCounties.length
+    ?'<div class="pm-kv" style="margin-bottom:4px"><span style="color:var(--parch-dim)">남작령</span><span style="color:'+(domOver?'#d05a4a':'var(--gold)')+'">'+myBaroniesCnt+'/'+myDomLim+(domOver?' ⚠':'')+' <span style="color:var(--parch-dim);font-size:.68rem">(백작령 '+myCounties.length+')</span></span></div>'
+    +myCounties.map(cid2=>{
+        const bids2=COUNTIES[cid2]?.baronies||[];
+        const totalT=bids2.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
+        return '<div class="pm-kv"><span>'+( COUNTIES[cid2]?.n||cid2)+'</span><span>'+bids2.length+'남작령 ⚔'+totalT+'</span></div>';
       }).join('')
-    :'<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>';
+    :'<div style="font-size:.75rem;color:var(--parch-dim)">없음</div>');
   const vassals=vassalsOf(c.id);
   const claimsHtml=isPlayer&&state.claims.length
     ?state.claims.map(cl=>{
@@ -3867,9 +3936,9 @@ function marriageAcceptance(candidate, targetRuler, mySelf){
   v += Math.floor(opinion(targetRuler, candidate) * 0.25);
   /* 위키: -15 if arranging own marriage */
   if(mySelf) v -= 15;
-  /* 위키: Marrying up/down — 영지 수 차이로 서열 근사 */
-  const myCount  = directCountiesOf(p.id).length;
-  const tgtCount = directCountiesOf(targetRuler.id).length;
+  /* 위키: Marrying up/down — 남작령 수 차이로 서열 근사 (CK3 기준) */
+  const myCount  = directBaroniesOf(p.id);
+  const tgtCount = directBaroniesOf(targetRuler.id);
   const rankDiff = tgtCount - myCount;
   if(rankDiff > 0) v += 30;        // 상대가 위 → 상향혼: 상대에게 유리
   else if(rankDiff < 0) v -= 30;   // 상대가 아래 → 하향혼: 상대가 꺼림
@@ -4910,9 +4979,12 @@ function renderCourt(){
     html+=`<div style="height:8px"></div>`;
   }
 
-  /* 직할령 현황 */
-  const dLim=domainLimit(p), dDir=directCountiesOf(p.id).length;
-  html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line)">직할 백작령 ${dDir}/${dLim}${dDir>dLim?' ⚠ 한도 초과':''}</div>`;
+  /* 직할령 현황 — CK3 방식: 남작령(barony) 수 기준 */
+  const dLim=domainLimit(p);
+  const dBids=directBaroniesOf(p.id); // 남작령 수
+  const dCids=directCountiesOf(p.id).length; // 백작령 수 (참고용)
+  const domColor=dBids>dLim?'#d05a4a':dBids>=dLim-1?'#c8a24a':'var(--gold-dim)';
+  html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:${domColor};margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line)">직할 남작령 ${dBids}/${dLim}${dBids>dLim?' ⚠ 한도 초과 — 세금 패널티':''} <span style="color:var(--parch-dim);font-size:.62rem">(백작령 ${dCids})</span></div>`;
   html+=`<div style="font-size:.72rem;color:var(--parch-dim);padding:3px 0 8px;border-bottom:1px solid var(--line)">🗺 건물 건설은 지도에서 내 백작령을 클릭하세요.</div>`;
 
   /* 궁정 인물 목록 */
@@ -4993,12 +5065,20 @@ function renderDec(){
     REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
     log('창병 200이 소집됐습니다.','war'); renderDec();
   });
-  // 직할령 한도 표시 및 백작령 하사
-  const dCnt=directCountiesOf(p.id).length;
-  const dLimit=domainLimit(p);
-  if(dCnt>0){
-    const overTxt=dCnt>dLimit?` ⚠ 한도 초과 (${dCnt}/${dLimit}) — 세금 패널티 적용 중`:`${dCnt}/${dLimit}`;
-    items.unshift({t:`🏛 직할 백작령 현황: ${overTxt}`, d:'', enabled:false, i:-1});
+  // 직할령 한도 표시 (CK3: 남작령 수 기준)
+  const dBidsCnt=directBaroniesOf(p.id);  // 직접 소유 남작령 수
+  const dCidsCnt=directCountiesOf(p.id).length; // 백작령 수 (참고)
+  const dLimitVal=domainLimit(p);
+  if(dBidsCnt>0||dCidsCnt>0){
+    const over=dBidsCnt>dLimitVal;
+    const overTxt=over
+      ? ` ⚠ 초과 (${dBidsCnt}/${dLimitVal}) — 세금 패널티`
+      : ` ${dBidsCnt}/${dLimitVal}`;
+    items.unshift({
+      t:`🏛 직할 남작령${overTxt}`,
+      d:`백작령 ${dCidsCnt}개 · 내정${stat(p,'stew')} → 한도 ${dLimitVal}`,
+      enabled:false, i:-1
+    });
   }
 
   // 백작령 하사 (직할 초과 시 또는 전략적으로)
