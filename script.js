@@ -248,6 +248,35 @@ const DUCHIES = {
   d_ulster:  {n:'얼스터 공작령',  counties:['c_ulster','c_oriel','c_ailech'],               color:'#8a4a3c'},
 };
 
+/* 왕국: 공작령들의 집합 (CK3 de jure 위계 — 아일랜드 왕국) */
+const KINGDOMS = {
+  k_ireland: {n:'아일랜드 왕국', duchies:['d_munster','d_leinster','d_dublin','d_meath','d_connacht','d_breifne','d_ulster'], color:'#2d8a5a'},
+};
+
+/* ══════════════════════════════════════════════════
+   작위(Titles) 시스템 — CK3 위키 기반
+   출처: https://ck3.paradoxwikis.com/Titles (v1.18)
+   ══════════════════════════════════════════════════ */
+/* 작위 등급별 수치 — 위키 Title rank 표 기준
+   create: 생성 비용(금) · prestige: 위신 보상 · grantOp: 하사 시 호감
+   domain: 직할 한도 보너스 · vassal: 봉신 한도 보너스 · monthly: 월 위신
+   reqCounties: de jure 백작령 지배율 요구치                              */
+const TITLE_TIERS = {
+  duchy:   { n:'공작', tier:3, create:250, prestige:300, grantOp:60, domain:2, vassal:20, monthly:0.2, reqCounties:0.51 },
+  kingdom: { n:'왕',   tier:4, create:500, prestige:400, grantOp:80, domain:3, vassal:40, monthly:0.8, reqCounties:0.51 },
+};
+/* 작위 id → 등급/메타 조회 */
+function titleInfo(tid){
+  if(KINGDOMS[tid]) return {kind:'kingdom', tier:TITLE_TIERS.kingdom, n:KINGDOMS[tid].n, counties:kingdomCounties(tid)};
+  if(DUCHIES[tid])  return {kind:'duchy',   tier:TITLE_TIERS.duchy,   n:DUCHIES[tid].n,  counties:DUCHIES[tid].counties};
+  return null;
+}
+/* 왕국에 속한 모든 백작령 (de jure) */
+function kingdomCounties(kid){
+  const out=[]; for(const did of (KINGDOMS[kid]?.duchies||[])) for(const cid of (DUCHIES[did]?.counties||[])) out.push(cid);
+  return out;
+}
+
 /* ══════════════════════════════════════════════════
    건물 시스템 (Phase 4)
    각 남작령: 슬롯 2개, 동일 건물 중복 불가
@@ -454,15 +483,20 @@ const COUNCIL_ROLES = {
       convert_faith:      { n:'신앙 개종',        desc:'진행 (0.5+스킬÷10)%/월 → 100%: 지역 신앙 전환', progressive:true },
     },
   },
-  /* 배우자 (Confidant) — CK3: 배우자 자동 배정 특수 자문회 역할 */
+  /* 배우자 (Confidant) — CK3: 배우자 자동 배정 특수 자문회 역할
+     출처: https://ck3.paradoxwikis.com/Council (v1.19)
+     위키 태스크 6종: Assist Ruler / Court Politics / Chivalry / Manage Domain / Court Intrigue / Patronage */
   confidant:{
     n:'배우자', skill:'dip', icon:'👑',
     desc:'군주를 보좌 — 스킬 보너스 (배우자 자동 배정)',
     spouseOnly:true,
     tasks:{
-      assist_ruler:  { n:'군주 보좌',   desc:'배우자 모든 스킬 ×0.2 보너스 부여' },
-      boost_skill:   { n:'집중 보좌',   desc:'선택 스킬 ×0.5 집중 보너스' },
-      manage_domains:{ n:'영지 관리',   desc:'배우자 내정(stew) +1 per 8 직할 한도 증가' },
+      assist_ruler:   { n:'군주 보좌',     desc:'배우자 모든 스킬 ×0.2 보너스 부여 (위키: 20% all skills → ruler)' },
+      court_politics: { n:'궁정 외교',     desc:'외교 ×0.5 보너스 · 월 0.75% 확률 외교+1 modifier · 외교관 특성 성장' },
+      chivalry:       { n:'기사도',        desc:'무예 ×0.5 보너스 · 월 0.75% 확률 무예+1 modifier · 전략가 특성 성장' },
+      manage_domains: { n:'영지 관리',     desc:'내정 ×0.5 보너스 · 월 0.75% 확률 내정+1 modifier · 직할 한도 +stew/8' },
+      court_intrigue: { n:'궁정 음모',     desc:'음모 ×0.5 보너스 · 월 0.75% 확률 음모+1 modifier · 책략가 특성 성장' },
+      patronage:      { n:'학예 후원',     desc:'학문 ×0.5 보너스 · 월 0.75% 확률 학문+1 modifier · 학자 특성 성장' },
     },
   },
 };
@@ -503,6 +537,7 @@ function mk(o){
     claims:[], // [{rid,type,obtained}]
     lastActivity:0, // 마지막 활동 연도
     betrothed:null, // 혼약 상대 charId (CK3: betrothal)
+    heldTitles:[], // 보유 작위 id 목록 (공작/왕국 — CK3 Title 시스템)
   }, o);
   chars[c.id] = c;
   return c;
@@ -513,13 +548,17 @@ function stat(c,k){
   let v = c.base[k]||0;
   for(const t of c.traits){ const m=TRAITS[t]&&TRAITS[t].mod; if(m&&m[k]) v+=m[k]; }
   if(c.edu && c.eduFocus===k) v += EDU_BONUS[c.edu];
-  /* 배우자 Confidant 보너스 (CK3: Assist Ruler — 배우자 스킬 소량 부여) */
+  /* 배우자 Confidant 보너스 (CK3 위키: 각 태스크별 50% skill 부여)
+     assist_ruler: 20% all skills / 나머지 5종: 50% 해당 skill */
   if(c.id===state?.player && c.spouse && chars[c.spouse] && !chars[c.spouse].dead){
     const sp=chars[c.spouse];
     const task=state.councilTasks?.confidant||'assist_ruler';
-    if(task==='assist_ruler') v+=Math.floor((sp.base[k]||0)*0.2);
-    else if(task==='boost_skill'){
-      const bk=state.councilBoostKey||'stew';
+    if(task==='assist_ruler'){
+      v+=Math.floor((sp.base[k]||0)*0.2); // 20% all skills
+    } else {
+      // 태스크별 집중 스킬 매핑 (위키: 50% 해당 스킬)
+      const CONF_SKILL={court_politics:'dip',chivalry:'mar',manage_domains:'stew',court_intrigue:'intr',patronage:'learn'};
+      const bk=CONF_SKILL[task]||'stew';
       if(k===bk) v+=Math.floor((sp.base[k]||0)*0.5);
     }
   }
@@ -546,6 +585,13 @@ function opinion(a,b){ // a가 b를 보는 시각
   if(a.father===b.id||a.mother===b.id||b.father===a.id||b.mother===a.id) v += 25;
   // 위신이 높은 군주는 타인에게 더 좋게 보임
   if(b.id===state.player) v += Math.round((state.prestige-120)/15);
+  /* CK3 Subjects: 강력한 봉신이 자문회에 없으면 -40 호감 (a가 b의 봉신일 때) */
+  if(a.liege===b.id && a.ruler && !a.dead){
+    const pvs=powerfulVassalsOf(b.id);
+    if(pvs.includes(a.id) && !powerfulVassalOnCouncil(b.id,a.id)) v -= 40;
+    /* CK3 Titles: 군주가 공작 작위 2개 초과 보유 시 전 봉신 -15 호감 */
+    if(overDuchyLimit(b.id)) v -= 15;
+  }
   return Math.max(-100, Math.min(100, v));
 }
 function chOp(a,b,d){ a.op[b.id]=(a.op[b.id]||0)+d; }
@@ -595,6 +641,12 @@ const kBrei = mk({name:'아드 우어 루어르크', dyn:'우어 루어르크', 
 const kUls = mk({name:'돈하드 우어 어하다', dyn:'우어 어하다', byear:1024, bmonth:10, bday:11,
   traits:['calm','greedy','shy'], base:{dip:5,mar:6,stew:8,intr:5,learn:5,prow:5},
   edu:3, eduFocus:'stew', region:'b_downpatrick', ruler:true});
+/* 데스몬드 — 막카르히(에오간아흐트) 가문, 우어 브리언의 숙적
+   역사: 1066년 데스몬드는 먼스터 패권을 두고 우어 브리언과 다투던 막카르히 세력권.
+   (데스몬드 왕국 공식 분리는 1118년 글랜마이어 조약 — 본 게임은 1066년 독립 백작으로 설정) */
+const kDesmond = mk({name:'무이레다흐 막 카르하', dyn:'막 카르하', byear:1028, bmonth:4, bday:17,
+  traits:['ambitious','wrathful','brave'], base:{dip:4,mar:8,stew:4,intr:5,learn:3,prow:8},
+  edu:2, eduFocus:'mar', region:'b_cork', ruler:true});
 
 // 초기 관계도
 chOp(kLein,murchad,-25); chOp(murchad,kLein,-25);   // 패권 라이벌
@@ -603,6 +655,7 @@ chOp(kDub,murchad,-10);
 chOp(kMeath,murchad,10); chOp(murchad,kMeath,10);
 chOp(kBrei,kConn,-30); chOp(kConn,kBrei,-30);
 chOp(kDub,kLein,40); chOp(kLein,kDub,40);
+chOp(kDesmond,murchad,-35); chOp(murchad,kDesmond,-35); // 막카르히 vs 우어 브리언 — 먼스터 패권 숙적
 
 // ── 초기 영지 배분 (CK3 방식: 수도 백작령만 직할, 나머지는 봉신) ──
 
@@ -619,11 +672,13 @@ function mkVassal(liege, cid, name, dyn, byear, base, traits){
 // 직할: c_thomond(수도 리머릭), c_ennis
 seizeCounty(murchad.id, 'c_thomond');
 seizeCounty(murchad.id, 'c_ennis');
-// 봉신: c_ormond → 오몬드 백작, c_desmond → 데스몬드 백작
+// 봉신: c_ormond → 오몬드 백작
 const vOrmond  = mkVassal(murchad, 'c_ormond',  '말 우어 패러한', '우어 패러한',  1028,
   {dip:4,mar:6,stew:4,intr:3,learn:3,prow:6}, ['brave','content']);
-const vDesmond = mkVassal(murchad, 'c_desmond', '카탈 막 핀겐',   '막 카르시그', 1031,
-  {dip:3,mar:7,stew:3,intr:5,learn:2,prow:7}, ['ambitious','wrathful']);
+
+// ── 데스몬드 (kDesmond): 독립 백작 — 막카르히 가문 ──
+// 직할: c_desmond(수도 코크)
+seizeCounty(kDesmond.id, 'c_desmond');
 
 // ── 레인스터 (kLein) ──
 // 직할: c_leinster(수도 웩스퍼드)
@@ -660,8 +715,19 @@ const vOriel = mkVassal(kUls, 'c_oriel', '동날 우어 케르발', '우어 케�
 const vAilech = mkVassal(kUls, 'c_ailech', '플라히르타 우어 막라흘런', '우어 막라흘런', 1026,
   {dip:4,mar:7,stew:4,intr:5,learn:3,prow:7}, ['brave','ambitious']);
 
+// ── 초기 공작 작위 부여 (CK3: de jure 다수 지배 군주가 공작위 보유) ──
+// 무르하드: 먼스터 공작 (톰몬드/에니스/오몬드 = 4개 중 3개 지배, 데스몬드는 독립)
+murchad.heldTitles.push('d_munster');
+kLein.heldTitles.push('d_leinster');   // 레인스터 공작 (레인스터/오서리)
+kDub.heldTitles.push('d_dublin');      // 더블린 공작
+kMeath.heldTitles.push('d_meath');     // 미드 공작 (미드/애슬론)
+kConn.heldTitles.push('d_connacht');   // 코노트 공작 (코노트/마요)
+kBrei.heldTitles.push('d_breifne');    // 브레프네 공작
+kUls.heldTitles.push('d_ulster');      // 얼스터 공작 (얼스터/오리얼/애일라흐)
+// 데스몬드(kDesmond)는 백작령 1개만 보유 → 공작 작위 없음 (독립 백작)
+
 // NPC 초기 궁정인 생성 (각 NPC 군주에게 자문회 인원 풀 제공)
-[kLein,kConn,kMeath,kBrei,kUls].forEach(king=>{
+[kLein,kConn,kMeath,kBrei,kUls,kDesmond].forEach(king=>{
   const names=['피르가스','로르칸','케르발','플란','에오한','니얼'];
   const skills=[
     {dip:8,mar:4,stew:5,intr:4,learn:5,prow:3},
@@ -701,6 +767,103 @@ function seatCounty(c){ return countyOf(c.region)||null; }
 function seatDuchy(c){ return duchyOf(c.region)||null; }
 function playerChar(){ return chars[state.player]; }
 
+/* ════════════════════════════════════════════════════
+   작위 보유/생성/하사 — CK3 Titles 시스템
+   ════════════════════════════════════════════════════ */
+/* 보유한 공작 작위 목록 */
+function heldDuchiesOf(charId){ const c=chars[charId]; return c?(c.heldTitles||[]).filter(t=>DUCHIES[t]):[]; }
+/* 보유한 왕국 작위 목록 */
+function heldKingdomsOf(charId){ const c=chars[charId]; return c?(c.heldTitles||[]).filter(t=>KINGDOMS[t]):[]; }
+/* 특정 작위 보유 여부 */
+function holdsTitle(charId, tid){ const c=chars[charId]; return !!(c&&(c.heldTitles||[]).includes(tid)); }
+/* 작위 보유자 (없으면 null) */
+function titleHolder(tid){ for(const id in chars){ if(!chars[id].dead&&(chars[id].heldTitles||[]).includes(tid)) return chars[id]; } return null; }
+
+/* realm 내(직할+봉신) 백작령 — 작위 생성 지배율 계산용 */
+function realmCountiesOf(charId){
+  const set=new Set(directCountiesOf(charId));
+  for(const v of vassalsOf(charId)) directCountiesOf(v.id).forEach(cid=>set.add(cid));
+  return [...set];
+}
+/* de jure 백작령 중 realm이 지배하는 비율 */
+function deJureControl(charId, tid){
+  const info=titleInfo(tid); if(!info||!info.counties.length) return 0;
+  const realm=new Set(realmCountiesOf(charId));
+  const owned=info.counties.filter(cid=>realm.has(cid)).length;
+  return owned/info.counties.length;
+}
+/* 작위 생성 가능 여부 — CK3: de jure 51%+ 지배 + (하위 2개 또는 동급/상위 1개) */
+function canCreateTitle(charId, tid){
+  const c=chars[charId]; if(!c||c.dead) return {ok:false, reason:'무효'};
+  if(holdsTitle(charId,tid)) return {ok:false, reason:'이미 보유'};
+  if(titleHolder(tid)) return {ok:false, reason:'타인이 보유 중'};
+  const info=titleInfo(tid); if(!info) return {ok:false, reason:'알 수 없는 작위'};
+  /* 지배율 */
+  const ctrl=deJureControl(charId,tid);
+  if(ctrl<info.tier.reqCounties) return {ok:false, reason:`백작령 ${Math.round(info.tier.reqCounties*100)}% 지배 필요 (현재 ${Math.round(ctrl*100)}%)`};
+  /* 하위 작위 조건: 공작은 백작령 2개+, 왕국은 공작 작위 2개+ 또는 왕국 작위 보유 */
+  if(info.kind==='duchy'){
+    if(directCountiesOf(charId).length<2 && heldDuchiesOf(charId).length<1)
+      return {ok:false, reason:'백작령 2개 이상 보유 필요'};
+  } else if(info.kind==='kingdom'){
+    if(heldDuchiesOf(charId).length<2 && heldKingdomsOf(charId).length<1)
+      return {ok:false, reason:'공작 작위 2개 이상 보유 필요'};
+  }
+  /* 비용 (직할 수도 금고 기준) */
+  const seatB=BARONIES[c.region];
+  const cost=info.tier.create;
+  if(!seatB||seatB.gold<cost) return {ok:false, reason:`금 ${cost} 필요`};
+  return {ok:true, cost, info};
+}
+/* 작위 생성 실행 */
+function createTitle(charId, tid){
+  const chk=canCreateTitle(charId,tid);
+  if(!chk.ok) return false;
+  const c=chars[charId];
+  BARONIES[c.region].gold-=chk.cost;
+  if(!c.heldTitles) c.heldTitles=[];
+  c.heldTitles.push(tid);
+  state.prestige += (charId===state.player ? chk.info.tier.prestige : 0);
+  /* CK3: de jure 내 하위 봉신 자동 이관 (왕국 생성 시 공작/백작 봉신이 휘하로) */
+  // 본 게임은 봉신 liege 관계가 이미 charId 기준이므로 추가 이관 불필요
+  if(charId===state.player){
+    log(`<b>${chk.info.n}</b> 작위를 창설했습니다! 위신 +${chk.info.tier.prestige}`,'good');
+  } else {
+    log(`<b>${c.name}</b>이(가) <b>${chk.info.n}</b> 작위를 창설했습니다.`,'dip');
+  }
+  return true;
+}
+/* 작위 하사 — 봉신에게 공작위 수여 (CK3: 호감 +grantOp) */
+function grantTitleToVassal(liegeId, vassalId, tid){
+  const liege=chars[liegeId], v=chars[vassalId], info=titleInfo(tid);
+  if(!liege||!v||!info) return false;
+  if(!holdsTitle(liegeId,tid)) return false; // 군주가 보유해야 하사 가능
+  liege.heldTitles=(liege.heldTitles||[]).filter(t=>t!==tid);
+  if(!v.heldTitles) v.heldTitles=[];
+  v.heldTitles.push(tid);
+  chOp(v,liege,info.tier.grantOp);
+  log(`<b>${v.name}</b>에게 <b>${info.n}</b> 작위를 하사했습니다. 호감 +${info.tier.grantOp}`,'good');
+  return true;
+}
+/* 공작 작위 2개 초과 페널티 대상 여부 (CK3: 봉신 -15 호감) */
+function overDuchyLimit(charId){ return heldDuchiesOf(charId).length>2; }
+
+/* 캐릭터 칭호 산출 — 보유 최상위 작위 기준 (CK3 Primary Title) */
+function charTitle(c){
+  if(!c) return '';
+  const kingdoms=heldKingdomsOf(c.id);
+  if(kingdoms.length) return KINGDOMS[kingdoms[0]].n.replace(' 왕국','')+' 왕'; // 예: 아일랜드 왕
+  const duchies=heldDuchiesOf(c.id);
+  if(duchies.length){
+    // 공작령명에서 '공작령' 제거 후 '공작' (예: 먼스터 공작)
+    return DUCHIES[duchies[0]].n.replace(' 공작령','')+' 공작';
+  }
+  // 백작: 수도 백작령명 기준 (예: 톰몬드 백작)
+  const cn=COUNTIES[countyOf(c.region)]?.n||BARONIES[c.region]?.n||'';
+  return cn?cn+' 백작':'영주';
+}
+
+
 /* ---------- 게임 상태 ---------- */
 const state = {
   year:1066, month:9, day:15,
@@ -717,6 +880,7 @@ const state = {
     steward:'collect_taxes',
     spymaster:'disrupt_schemes',
     chaplain:'religious_relations',
+    confidant:'assist_ruler',   // CK3 위키: 기본 태스크 Assist Ruler
   },
   /* 진행형 태스크 진행도 0~100 */
   councilProgress:{ steward:0, chaplain:0 },
@@ -725,6 +889,8 @@ const state = {
   popupQ:[], modalOpen:false,
   over:false, victory:false,
   introDone:false,
+  activeActivity:null, // 진행 중인 활동 (CK3 Activity: {type,tier,phase,invited,arrived,monthsLeft,...})
+  activityCooldowns:{}, // 활동별 마지막 개최 연도 (재사용 대기)
 };
 const MDAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
 const SEASONS=['겨울','겨울','봄','봄','봄','여름','여름','여름','가을','가을','가을','겨울'];
@@ -1076,10 +1242,12 @@ function togglePause(){ state.paused?resume():pause(); }
 const PANELS={
   log:    {wrap:'logWrap',     render:null},
   council:{wrap:'councilWrap', render:'renderCouncil'},
+  fief:   {wrap:'fiefWrap',    render:'renderFief'},
+  act:    {wrap:'actWrap',     render:'renderActivity'},
   court:  {wrap:'courtWrap',   render:'renderCourt'},
   dec:    {wrap:'decWrap',     render:'renderDec'},
 };
-const PANEL_TAB_IDS={log:'logTab',council:'councilTab',court:'courtTab',dec:'decTab'};
+const PANEL_TAB_IDS={log:'logTab',council:'councilTab',fief:'fiefTab',act:'actTab',court:'courtTab',dec:'decTab'};
 
 function _showAllTabs(){
   Object.values(PANEL_TAB_IDS).forEach(tid=>{
@@ -1325,12 +1493,21 @@ function monthlyPulse(){
   fertilityPulse();
   naturalDeathPulse();
   councilPulse();
-  buildingPulse();
+  councilBenefitsPulse(); // 자문회원 보직 혜택 (위키: Benefits from being a councilor)
   schemePulse();
   warPulse();
   aiPulse();
   randomEventPulse();
   goldPulse();
+  /* 작위 월간 위신 (CK3 Titles: 작위당 prestige per month) */
+  {
+    const p=playerChar();
+    if(p){
+      let mp=0;
+      for(const tid of (p.heldTitles||[])){ const info=titleInfo(tid); if(info) mp+=info.tier.monthly; }
+      if(mp>0) state.prestige+=mp;
+    }
+  }
   // 플레이어 관직자 사망 → 공석
   for(const role in COUNCIL_ROLES){
     const cid=state.council[role];
@@ -1344,6 +1521,7 @@ function monthlyPulse(){
     worldEventPulse();
     opinionDecayPulse(); // 관계도 자연 감소
   }
+  activityPulse(); // 진행 중인 활동 단계 처리
   renderMap();
 }
 /* ════════════════════════════════════════════════════
@@ -1369,17 +1547,157 @@ function vassalCountiesOf(charId){
 }
 /* 봉신 목록 */
 function vassalsOf(liegeId){ return Object.values(chars).filter(c=>!c.dead&&c.liege===liegeId&&c.ruler); }
+
+/* ════════════════════════════════════════════════════
+   봉신(Subjects) 시스템 — CK3 위키 기반
+   출처: https://ck3.paradoxwikis.com/Subjects (v1.19)
+   ════════════════════════════════════════════════════ */
+
+/* 봉신 한도 (Vassal Limit) — CK3: 작위 등급 기준
+   위키: 백작 등급은 작위 rank로 결정. 본 게임은 직할 백작령/공작령 수로 등급 근사
+   백작급=동급, 공작급(공작령 1+), 왕급(공작령 2+ 또는 백작령 5+)               */
+function vassalLimit(c){
+  /* CK3: 백작급 base 5 + 보유 작위 봉신 한도 보너스 (공작 +20 위키→본게임 +4 근사, 왕국 +40→+8)
+     본 게임 스케일에 맞춰 공작 +4 / 왕국 +8로 축소 적용 */
+  let base = 5;
+  for(const tid of (c.heldTitles||[])){
+    if(KINGDOMS[tid]) base += 8;
+    else if(DUCHIES[tid]) base += 4;
+  }
+  /* 외교 능력치 보정 (CK3: 외교 스킬이 봉신 한도에 영향) */
+  return base + Math.floor(stat(c,'dip')/8);
+}
+/* 한도 초과 봉신 수 — 남작(barony만 보유) 봉신은 제외 (위키: Baron vassals don't count) */
+function countedVassals(c){
+  return vassalsOf(c.id).filter(v=>directCountiesOf(v.id).length>0); // county+ 보유 봉신만 카운트
+}
+/* 봉신 한도 초과 페널티 — 위키: 초과 1명당 -5%, 최대 -95% */
+function vassalLimitPenalty(c){
+  const over=countedVassals(c).length - vassalLimit(c);
+  if(over<=0) return 0;
+  return Math.min(0.95, over*0.05);
+}
+
+/* 강력한 봉신 (Powerful Vassals) — CK3 위키
+   백작급 3명 / 공작급 4명 / 왕급 5명. 수입·병력 상위 N명
+   자문회 미포함 시 -40 호감 페널티                                 */
+function powerfulVassalCount(c){
+  /* CK3: 백작 3 / 공작 4 / 왕 이상 5 — 보유 최상위 작위 기준 */
+  if(heldKingdomsOf(c.id).length>0) return 5; // 왕급
+  if(heldDuchiesOf(c.id).length>0)  return 4; // 공작급
+  return 3;                                   // 백작급
+}
+/* 봉신 군사·경제력 점수 (강력한 봉신 선정 기준) */
+function vassalPowerScore(v){
+  let troops=0, gold=0;
+  for(const bid of regionsOf(v.id)){ const b=BARONIES[bid]; if(b){ troops+=b.troops||0; gold+=b.gold||0; } }
+  return troops + gold*0.5;
+}
+/* 강력한 봉신 id 목록 — 상위 N명 */
+function powerfulVassalsOf(liegeId){
+  const c=chars[liegeId]; if(!c) return [];
+  const n=powerfulVassalCount(c);
+  return vassalsOf(liegeId)
+    .filter(v=>directCountiesOf(v.id).length>0)  // county+ 보유 봉신만
+    .sort((a,b)=>vassalPowerScore(b)-vassalPowerScore(a))
+    .slice(0,n)
+    .map(v=>v.id);
+}
+/* 강력한 봉신이 자문회에 있는지 — 없으면 -40 호감 페널티 적용 대상 */
+function powerfulVassalOnCouncil(liegeId, vId){
+  const c=chars[liegeId]; if(!c) return false;
+  return Object.values(c.council||{}).includes(vId);
+}
+
+/* 봉신 스탠스 (Vassal Stances) — CK3 위키 7종
+   성격 AI 가중치(aiW) 기반 매핑. 좋아하는/싫어하는 군주 행동 결정      */
+const VASSAL_STANCES={
+  belligerent:{ n:'호전적', icon:'⚔', desc:'고압적 통치·결투 승리·사냥 선호. 무예 높은 후계자 선호',  pref:'mar' },
+  courtly:    { n:'궁정적', icon:'👑', desc:'궁정직·작위 하사·연회 선호. 외교 높은 후계자 선호',       pref:'dip' },
+  glory:      { n:'영광추구', icon:'🏆', desc:'분할상속·정복 전쟁 승리 선호. 무예 높은 후계자 선호',   pref:'mar' },
+  parochial:  { n:'편협',   icon:'🏰', desc:'건물 건설·내정 담당 선호. 고압적 통치 싫어함. 내정 높은 후계자 선호', pref:'stew' },
+  zealot:     { n:'광신도', icon:'✝', desc:'미덕 특성·사원 건설·순례 선호. 죄악 특성 싫어함. 학문 높은 후계자 선호', pref:'learn' },
+  landholder: { n:'소영주', icon:'🛡', desc:'낮은 왕권 선호. 작위 회수 싫어함 (남작 기본)',          pref:null },
+  minority:   { n:'소수파', icon:'🌐', desc:'문화 수용 정책 선호. 개종·개화 싫어함 (이민족·이교도)',   pref:null },
+};
+/* 봉신 스탠스 판정 — 성격 가중치 + 작위 타입 기반 */
+function vassalStance(v){
+  /* 남작(barony만, county 없음) → 소영주 */
+  if(directCountiesOf(v.id).length===0) return 'landholder';
+  /* 이민족 (다른 가문/문화 근사: 우어 브리언 외) → 소수파 가능성 */
+  const bold=aiW(v,'bold'), greed=aiW(v,'greed'), venge=aiW(v,'venge'),
+        honor=aiW(v,'honor'), rat=aiW(v,'rat'), energy=aiW(v,'energy');
+  const zeal=v.traits.includes('zealous')||v.traits.includes('chaste')||v.traits.includes('temperate')?2:0;
+  /* 가중치 최대값으로 스탠스 결정 */
+  const scores={
+    belligerent: honor+venge-aiW(v,'soc'),
+    courtly:     aiW(v,'soc')+honor-greed,
+    glory:       bold-honor,
+    parochial:   rat-bold,
+    zealot:      zeal+venge,
+  };
+  let best='courtly', bv=-99;
+  for(const k in scores){ if(scores[k]>bv){ bv=scores[k]; best=k; } }
+  return best;
+}
+/* 봉신 계약 의무 단계 (Obligations) — CK3 위키 5단계
+   세금/레비 별도 단계. 기본 Feudal: 세금 보통(25%) · 레비 낮음(10%)   */
+const OBLIGATION_TAX={
+  exempt:{ n:'면제', rate:0.00, op:15 },
+  low:   { n:'낮음', rate:0.025,op:10 },
+  normal:{ n:'보통', rate:0.10, op:5  },
+  high:  { n:'높음', rate:0.15, op:-10 },
+  massive:{n:'막대', rate:0.25, op:-20 },
+};
+const OBLIGATION_LEVY={
+  exempt:{ n:'면제', rate:0.00, op:15 },
+  low:   { n:'낮음', rate:0.10, op:10 },
+  normal:{ n:'보통', rate:0.25, op:5  },
+  high:  { n:'높음', rate:0.35, op:-10 },
+  massive:{n:'막대', rate:0.50, op:-20 },
+};
+const OBLIG_ORDER=['exempt','low','normal','high','massive'];
+/* 봉신 계약 의무 초기화 — Feudal 기본값 (세금 보통·레비 낮음) */
+function initVassalContract(v){
+  if(!v.contract) v.contract={ tax:'normal', levy:'low', changed:false };
+  return v.contract;
+}
+/* 계약 의무 단계 조정 — CK3: 한 단계씩, 인상 시 폭정(여기선 호감 페널티로 근사) */
+function setVassalObligation(vId, kind, level){
+  const v=chars[vId]; if(!v) return false;
+  const ct=initVassalContract(v);
+  const cur=ct[kind];
+  const curIdx=OBLIG_ORDER.indexOf(cur), newIdx=OBLIG_ORDER.indexOf(level);
+  if(newIdx<0||curIdx<0) return false;
+  /* 위키: 인상 시 +20 폭정. 본 게임엔 폭정 미구현 → 봉신 호감 -20으로 근사 */
+  if(newIdx>curIdx){
+    chOp(v, playerChar(), -20*(newIdx-curIdx));
+    log(`<b>${v.name}</b>의 ${kind==='tax'?'세금':'레비'} 의무를 <b>${(kind==='tax'?OBLIGATION_TAX:OBLIGATION_LEVY)[level].n}</b>(으)로 인상했습니다. 호감이 하락했습니다.`,'dip');
+  } else {
+    chOp(v, playerChar(), 8*(curIdx-newIdx));
+    log(`<b>${v.name}</b>의 ${kind==='tax'?'세금':'레비'} 의무를 <b>${(kind==='tax'?OBLIGATION_TAX:OBLIGATION_LEVY)[level].n}</b>(으)로 인하했습니다.`,'good');
+  }
+  ct[kind]=level;
+  renderFief();
+  return true;
+}
 /* 직할령 한도 (CK3 위키 기반, 남작령 수 기준)
    출처: https://ck3.paradoxwikis.com/Attributes */
 function domainLimit(c){
-  const d  = duchiesOf(c.id).length;
-  const ct = directCountiesOf(c.id).length;
-  const base = (d >= 2 || ct >= 5) ? 8 : d >= 1 ? 5 : 2;
+  /* CK3: 백작령 base 2 + 보유 작위별 직할 한도 보너스 (공작 +2 · 왕국 +3) */
+  let base = 2;
+  for(const tid of (c.heldTitles||[])){
+    const info=titleInfo(tid); if(info) base += info.tier.domain;
+  }
   let limit = base + Math.floor(stat(c,'stew') / 6);
   /* 배우자 manage_domains 임무: stew +1 per 8 추가 */
   if(c.id===state?.player && c.spouse && chars[c.spouse] && !chars[c.spouse].dead){
-    if((state.councilTasks?.confidant||'assist_ruler')==='manage_domains')
-      limit += Math.floor((chars[c.spouse].base.stew||0) / 8);
+    const confTask=state.councilTasks?.confidant||'assist_ruler';
+    if(confTask==='manage_domains'){
+      /* 위키: Manage Domain — 50% stewardship → ruler. domainLimit엔 stewardship×0.5/6 반영 */
+      const spStew=stat(chars[c.spouse],'stew');
+      limit += Math.floor(spStew*0.5 / 6);
+    }
   }
   return limit;
 }
@@ -1396,6 +1714,7 @@ function grantCountyToVassal(liegeId, vassalId, cid){
   vassal.courtOf=null;
   if(!vassal.region||countyOf(vassal.region)!==cid) vassal.region=COUNTIES[cid].capital;
   chOp(vassal,liege,25); // 임명 감사 보너스
+  if(liegeId===state.player) initVassalContract(vassal); // 신규 봉신 계약 초기화
   log(`<b>${vassal.name}</b>이(가) ${COUNTIES[cid].n}의 백작으로 임명됐습니다.`,'good');
 }
 /* 봉신이 독립 선언 */
@@ -1550,8 +1869,10 @@ function goldPulse(){
     const goldCap=id===state.player?3500:2500;
     seatB.gold=Math.min(goldCap, seatB.gold+directIncome);
 
-    // ③ 봉신 세금 — 홀딩 유형별 (CK3 단계 4)
+    // ③ 봉신 세금 — 홀딩 유형별 + 계약 의무 단계 (CK3 Subjects)
     if(id===state.player||c.ruler){
+      /* 봉신 한도 초과 페널티 (위키: 초과 1명당 -5%, 최대 -95%) */
+      const vlPenalty=1 - vassalLimitPenalty(c);
       for(const v of vassalsOf(id)){
         const vSeatBid=regionsOf(v.id).find(b=>BARONIES[b])||null;
         const vSeatB=vSeatBid?BARONIES[vSeatBid]:null;
@@ -1564,7 +1885,14 @@ function goldPulse(){
           const chap=state.council?.chaplain?chars[state.council.chaplain]:null;
           const chapOpn=chap?Math.max(0,opinion(v,chap)+100)/200:0.5;
           taxMul=0.50*chapOpn;
-        } else taxMul=TAX_RATE*opn;
+        } else {
+          /* castle: 계약 의무 세금 단계 적용 (플레이어 봉신만, NPC는 TAX_RATE 기본) */
+          if(id===state.player && v.contract){
+            taxMul=(OBLIGATION_TAX[v.contract.tax]?.rate??TAX_RATE)*opn;
+          } else taxMul=TAX_RATE*opn;
+        }
+        /* 봉신 한도 페널티 적용 */
+        taxMul*=vlPenalty;
         const taxAmt=Math.round(vSeatB.gold*taxMul*0.08);
         if(taxAmt>0&&vSeatB.gold>taxAmt){ vSeatB.gold-=taxAmt; seatB.gold=Math.min(goldCap,seatB.gold+taxAmt); }
       }
@@ -1823,8 +2151,9 @@ function formAlliance(a,b){
 function power(c){
   let t=0;
   for(const bid of regionsOf(c.id)){ const b=BARONIES[bid]; if(b) t+=b.troops; }
-  /* 봉신 levy — 홀딩 유형별 (CK3 단계 4)
-     Baron 25% / Mayor 10% / Bishop chaplain 호감도 연동 */
+  /* 봉신 levy — 홀딩 유형별 + 계약 의무 (CK3 Subjects)
+     Baron(castle) 계약단계 / Mayor(city) 10% / Bishop(temple) chaplain 호감도 연동 */
+  const vlPenaltyL=1 - vassalLimitPenalty(c);
   for(const v of vassalsOf(c.id)){
     const vSeatBid=regionsOf(v.id)[0]||null;
     const vType=vSeatBid?(BARONIES[vSeatBid]?.type||'castle'):'castle';
@@ -1834,7 +2163,13 @@ function power(c){
       const chap=c.council?.chaplain?chars[c.council.chaplain]:null;
       const opn=chap?Math.max(0,opinion(v,chap)+100)/200:0.5;
       ratio=opn;
-    } else ratio=0.25;
+    } else {
+      /* castle: 플레이어 봉신은 계약 의무 레비 단계 적용 */
+      if(c.id===state.player && v.contract){
+        ratio=OBLIGATION_LEVY[v.contract.levy]?.rate??0.25;
+      } else ratio=0.25;
+    }
+    ratio*=vlPenaltyL; // 봉신 한도 페널티
     for(const bid of regionsOf(v.id)){ const b=BARONIES[bid]; if(b) t+=b.troops*ratio; }
   }
   if(!t) t=150;
@@ -2239,7 +2574,7 @@ function conquerTarget(a, d, targetCid){
       body:`<b>${cname}</b>이(가) 당신의 깃발 아래 들어왔습니다!${remCnt>0?`\n${d.name}에게는 아직 ${remCnt}개 백작령이 남아있습니다.`:'\n'+d.name+'은(는) 당신의 궁정에 무릎 꿇었습니다.'}`,
       opts:[
         ...(canVassal?[{t:`${d.name}을 봉신으로 삼는다`, d:'나머지 영지 유지, 세금 수취',
-          f:()=>{ d.liege=a.id; chOp(d,a,20); log(`${d.name}이(가) 당신의 봉신이 됐습니다.`,'dip'); checkVictoryHint(); }}]:[]),
+          f:()=>{ d.liege=a.id; chOp(d,a,20); if(a.id===state.player) initVassalContract(d); log(`${d.name}이(가) 당신의 봉신이 됐습니다.`,'dip'); checkVictoryHint(); }}]:[]),
         {t:'에이레가 지켜보고 있다', f:checkVictoryHint}
       ]});
   }
@@ -2762,6 +3097,33 @@ function npcMarriagePulse(){
   }
 }
 
+/* NPC 작위 생성 — CK3: AI도 조건 충족 시 공작/왕국 작위 창설
+   독립 군주만 (봉신은 군주 작위와 동급 생성 불가) */
+function npcTitlePulse(){
+  const rulers=Object.values(chars).filter(c=>!c.dead&&c.ruler&&c.id!==state.player&&!c.liege);
+  for(const r of rulers){
+    // 야심 성향일수록 적극적, 보수적이면 소극적
+    const ambit=0.4 + aiW(r,'bold')*0.06 + (r.traits.includes('ambitious')?0.3:0);
+    if(Math.random()>ambit) continue;
+    // 생성 가능한 공작 작위 우선 시도 (보유 안 한 것 중)
+    const duchyCandidates=Object.keys(DUCHIES).filter(did=>!holdsTitle(r.id,did));
+    let created=false;
+    for(const did of duchyCandidates){
+      // 공작 작위 2개 초과 페널티 회피: 이미 2개면 신규 생성 자제
+      if(heldDuchiesOf(r.id).length>=2) break;
+      const chk=canCreateTitle(r.id,did);
+      if(chk.ok){ createTitle(r.id,did); created=true; break; }
+    }
+    if(created) continue;
+    // 왕국 작위 시도 (공작 2개 이상 보유 시)
+    for(const kid of Object.keys(KINGDOMS)){
+      if(holdsTitle(r.id,kid)) continue;
+      const chk=canCreateTitle(r.id,kid);
+      if(chk.ok){ createTitle(r.id,kid); break; }
+    }
+  }
+}
+
 function aiPulse(){
   const p=playerChar();
 
@@ -2776,6 +3138,7 @@ function aiPulse(){
     Object.values(chars).filter(c=>!c.dead&&c.ruler&&c.id!==state.player).forEach(buildNpcCouncil);
     npcMarriagePulse();
     Object.values(chars).filter(c=>!c.dead&&c.ruler).forEach(autoGrantWrongHoldings);
+    npcTitlePulse(); // NPC 작위 생성
     cleanupGhostRulers();
   }
 
@@ -2885,7 +3248,7 @@ function rebellionEvent(rid){
     body:`해당 지역의 농민들이 창과 낫을 들었습니다.
 세금과 전쟁에 지친 그들의 눈에 분노가 타오르고 있습니다.
 
-민중의견: ${REGIONS[rid].pop}/100`,
+민중의견: ${Math.round(REGIONS[rid].pop)}/100`,
     opts:[
       {t:'무력으로 진압한다', d:'병력 -150, 민중의견 +15 (단기), 스트레스 +15',
         f:()=>{ REGIONS[rid].troops=Math.max(100,REGIONS[rid].troops-150); REGIONS[rid].pop+=15; addStress(p,15,'피로 진압한 반란'); if(p.traits.includes('kind'))addStress(p,15,'친절한 자의 잔인함'); log(`${REGIONS[rid].n}의 반란을 진압했습니다. 피가 흘렀습니다.`,'war'); }},
@@ -3669,7 +4032,7 @@ function openMyCounty(cid, dispName){
   const p=playerChar(); if(!p) return;
   const cnt=COUNTIES[cid];
   const bids=cnt?cnt.baronies:[p.region];
-  const totalTroops=bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
+  const totalTroops=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
   const seatGold=Math.round(BARONIES[p.region]?.gold||0);
   const duchy=cnt?DUCHIES[cnt.duchy]?.n||'':'';
   const opts=[];
@@ -3877,8 +4240,8 @@ function buildProfileHTML(c){
   const p=playerChar();
   const isPlayer=c.id===p.id;
   const charAge=age(c);
-  const ttl=(isPlayer&&state.kingdomFormed)?'아일랜드 왕'
-    :`${COUNTIES[countyOf(c.region)]?.n||BARONIES[c.region]?.n||''} ${c.ruler?'소왕':'궁정인'}`;
+  const ttl=c.ruler?charTitle(c)
+    :`${COUNTIES[countyOf(c.region)]?.n||BARONIES[c.region]?.n||''} 궁정인`;
 
   /* A. 기본정보 */
   const stressLv=stressLvl(c);
@@ -4012,7 +4375,7 @@ function openRegion(rid, cid_hint){
   const truce=truceBetween(p.id,c.id);
   // 상대 백작령 총 병력
   const cid=cid_hint||countyOf(rid);
-  const defTroops=cid&&COUNTIES[cid]?COUNTIES[cid].baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0):(BARONIES[rid]?.troops||0);
+  const defTroops=Math.round(cid&&COUNTIES[cid]?COUNTIES[cid].baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0):(BARONIES[rid]?.troops||0));
 
   // 혼약 현황 — 내 가족 중 이 가문과 혼약 중인 인원
   const myBetrotheds = Object.values(chars).filter(k=>
@@ -4105,7 +4468,7 @@ function openRegion(rid, cid_hint){
     <div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--line)">${dispName} 영지 정보</div>
     <div class="kv"><span>공작령</span><span>${cnt2?DUCHIES[cnt2.duchy]?.n||'—':'—'}</span></div>
     <div class="kv"><span>남작령 수</span><span>${bids2.length}개</span></div>
-    <div class="kv"><span>총 병력</span><span>${bids2.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0)}</span></div>
+    <div class="kv"><span>총 병력</span><span>${Math.round(bids2.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0))}</span></div>
     <div class="kv"><span>총 금</span><span>${Math.round(bids2.reduce((s,b)=>s+(BARONIES[b]?.gold||0),0))}</span></div>
     <div style="margin-top:10px;font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:6px">남작령 현황</div>
     ${bids2.map(bid=>{
@@ -4113,7 +4476,7 @@ function openRegion(rid, cid_hint){
       const typeIcon=b.type==='city'?'🏙':b.type==='temple'?'⛪':b.type==='empty'?'🏗':'🏰';
       const ow=b.owner&&chars[b.owner]&&!chars[b.owner].dead?chars[b.owner]:null;
       const owStr=!ow?'—':ow.id===c.id?c.name.split(' ')[0]:`${ow.name.split(' ')[0]} (봉신)`;
-      return '<div class="kv"><span>'+typeIcon+' '+b.n+'</span><span style="color:var(--parch-dim)">'+owStr+' ⚔'+b.troops+'</span></div>';
+      return '<div class="kv"><span>'+typeIcon+' '+b.n+'</span><span style="color:var(--parch-dim)">'+owStr+' ⚔'+Math.round(b.troops)+'</span></div>';
     }).join('')}
   `;
 
@@ -4494,7 +4857,7 @@ function openDeclareWar(defId){
   const myPow = Math.round(power(p));
   const defPow = Math.round(power(def));
   let html = `<div class="kv"><span>상대 전력</span><span>${defPow} vs 내 전력 ${myPow}</span></div>
-    <div class="kv"><span>위신</span><span>${state.prestige}</span></div>
+    <div class="kv"><span>위신</span><span>${Math.round(state.prestige)}</span></div>
     <div style="margin:12px 0 6px;font-size:.72rem;letter-spacing:.2em;color:var(--gold-dim)">보유 명분</div>`;
 
   const opts = [];
@@ -4504,7 +4867,7 @@ function openDeclareWar(defId){
     const rid = cl.rid;
     opts.push({
       t:`${cbInfo.icon} ${cbInfo.n} — ${claimName(rid)}`,
-      d:`위신 ${cbInfo.cost} 소모 · ${COUNTIES[rid]?`병력 ${COUNTIES[rid].baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0)} · 민심 ${Math.round(COUNTIES[rid].baronies.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/COUNTIES[rid].baronies.length)}`:''} ${canAfford?'':'(위신 부족)'}`,
+      d:`위신 ${cbInfo.cost} 소모 · ${COUNTIES[rid]?`병력 ${Math.round(COUNTIES[rid].baronies.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0))} · 민심 ${Math.round(COUNTIES[rid].baronies.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/COUNTIES[rid].baronies.length)}`:''} ${canAfford?'':'(위신 부족)'}`,
       f: canAfford ? ()=>{
         state.prestige -= cbInfo.cost;
         // pressed → unpressed 강등 후 전쟁 성공 시 pressed로 전환
@@ -4626,14 +4989,20 @@ function councilPulse(){
     const positive  = Math.random() < (0.4 + sk * 0.025);
     const canPos    = sk > 8;
     const canNeg    = sk < 15;
+    /* 위키: Friend +20% / Best Friend +30% / Rival -20% / Nemesis -30% 효율
+       호감도로 근사: op≥50 → +20%, op≥80 → +30%, op≤-40 → -20%, op≤-70 → -30% */
+    const councOp = opinion(c, p);
+    const effMul = councOp >= 80 ? 1.30 : councOp >= 50 ? 1.20 : councOp <= -70 ? 0.70 : councOp <= -40 ? 0.80 : 1.0;
+    /* effMul을 스킬 효과 계산에 적용 (스킬 실효값으로 변환) */
+    const skEff = sk * effMul;
 
     /* ── 재상 (Chancellor) ── */
     if(role === 'chancellor'){
       if(task === 'foreign_affairs'){
         /* 위키: +0.05 Prestige/skill/month · +0.5 Independent Ruler Opinion/skill/month */
-        state.prestige += sk * 0.05;
-        /* 독립 군주 호감 +0.5/스킬/월 (실질 적용: 월 0.5*sk*0.01 cap 0.2) */
-        const dipGain = Math.min(0.2, sk * 0.5 * 0.01);
+        state.prestige += skEff * 0.05;
+        /* 독립 군주 호감 +0.5/스킬/월 (실질 적용: 월 0.5*skEff*0.01 cap 0.2) */
+        const dipGain = Math.min(0.2, skEff * 0.5 * 0.01);
         Object.values(chars).filter(k=>!k.dead&&k.ruler&&k.id!==p.id&&!k.liege).forEach(k=>{
           k.op[p.id] = Math.min(100, (k.op[p.id]||0) + dipGain);
         });
@@ -4659,7 +5028,7 @@ function councilPulse(){
       } else if(task === 'domestic_affairs'){
         /* 위키: +0.5 Direct Vassal Opinion/skill/month (+0.2/month until max)
                  +1% Tyranny Loss/skill (폭정은 미구현이므로 봉신 호감으로 근사) */
-        const vasGain = Math.min(0.2, sk * 0.5 * 0.01);
+        const vasGain = Math.min(0.2, skEff * 0.5 * 0.01);
         for(const v of vassalsOf(p.id)){
           v.op[p.id] = Math.min(100, (v.op[p.id]||0) + vasGain);
         }
@@ -4680,8 +5049,8 @@ function councilPulse(){
         }
       } else if(task === 'bestow_favor'){
         /* 위키: +0.5 Vassal Prestige · +0.02 Prestige/skill/month · +0.5 Vassal Opinion/skill/month */
-        state.prestige += sk * 0.02;
-        const vasGain2 = Math.min(0.2, sk * 0.5 * 0.01);
+        state.prestige += skEff * 0.02;
+        const vasGain2 = Math.min(0.2, skEff * 0.5 * 0.01);
         for(const v of vassalsOf(p.id)){
           v.op[p.id] = Math.min(100, (v.op[p.id]||0) + vasGain2);
         }
@@ -4708,10 +5077,12 @@ function councilPulse(){
     else if(role === 'marshal'){
       if(task === 'organize_army'){
         /* 위키: -1% Maintenance/skill · +2% Levy Reinforcement/skill · +2% Garrison/skill
-           근사 구현: 병력 자연회복 보너스 +sk*0.6 (레비 보충 +2%/스킬 ≈ 매달 병력 상승) */
-        reg.troops = Math.min(reg.cap, reg.troops + Math.round(sk * 0.6));
-        /* 수비대 +2%/스킬: 병력 상한 소폭 영구 반영 (1회 최대 한도 내) */
-        reg.cap = Math.min(2000, (reg.cap||300) + Math.round(sk * 0.02));
+           근사 구현: 병력 자연회복 보너스 +sk*0.6 (레비 보충 +2%/스킬 ≈ 매달 병력 상승)
+           수비대 +2%/스킬: 초기 cap 기준 ×1.02^sk 상한 — 월 0.02%×sk 누적, 상한 2400 */
+        reg.troops = Math.min(reg.cap, reg.troops + Math.round(skEff * 0.6));
+        /* 위키 Garrison +2%/sk — 무한 누적 방지: 기본 cap 대비 최대 2400으로 제한 */
+        const capBonus = Math.round((reg.cap||300) * 0.0002 * skEff);
+        reg.cap = Math.min(2400, (reg.cap||300) + capBonus);
         if(fireEvent){
           if(positive && canPos){
             /* 긍정: Increased Military Presence — 병력 추가 */
@@ -4770,9 +5141,12 @@ function councilPulse(){
     else if(role === 'steward'){
       if(task === 'collect_taxes'){
         /* 위키: +0.5% Domain Taxes/skill/month
-           직할 남작령 수 × sk × 0.5% 근사 → 월 gold 증가 */
+           Domain Taxes = 직할 남작령 월 수입의 0.5%×sk 추가
+           현재 holdingIncome 기반 월 수입 추산: 남작령당 평균 ~(4+stew*0.5) gold
+           → 보너스 = 남작령수 × 스킬 × 0.5% × 월평균수입 */
         const myBids = regionsOf(p.id);
-        const taxBonus = Math.round(myBids.length * sk * 0.5 * 0.01 * 10); // ×10 스케일 조정
+        const avgIncome = 4 + stat(p,'stew') * 0.5;
+        const taxBonus = Math.round(myBids.length * skEff * 0.005 * avgIncome);
         reg.gold = Math.min(3500, (reg.gold||0) + taxBonus);
         if(fireEvent){
           if(positive && canPos){
@@ -4792,7 +5166,7 @@ function councilPulse(){
       } else if(task === 'increase_development'){
         /* 위키: -1% Construction Time/skill · +0.175 Development Growth/skill/month
                  At 100% → Development +1 (민심 +3, cap +20으로 근사) */
-        const rate = sk * 0.175;
+        const rate = skEff * 0.175;
         state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate);
         if(state.councilProgress.steward >= 100){
           state.councilProgress.steward = 0;
@@ -4812,7 +5186,7 @@ function councilPulse(){
         }
       } else if(task === 'promote_culture'){
         /* 위키: (0.25 + skill÷20)%/month 진행 → 100%: 문화 전환 */
-        const rate2 = 0.25 + sk/20;
+        const rate2 = 0.25 + skEff/20;
         state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate2);
         if(state.councilProgress.steward >= 100){
           state.councilProgress.steward = 0;
@@ -4914,12 +5288,13 @@ function councilPulse(){
       if(task === 'religious_relations'){
         /* 위키: +0.05 Monthly Piety/skill · +0.5 Same Faith Ruler Opinion/skill (+0.35/month until max)
            경건은 위신으로 근사, 동일신앙 군주 호감 → 독립 군주 전체 호감 소폭 상승 */
-        state.prestige += sk * 0.05;
-        const faithGain = Math.min(0.35, sk * 0.5 * 0.01);
+        state.prestige += skEff * 0.05;
+        /* 위키: +0.5 Opinion/skill/month, +0.35 cap per month */
+        const faithGain = Math.min(0.35, skEff * 0.5 * 0.01); // 상한 0.35/월 적용
         Object.values(chars).filter(k=>!k.dead&&k.ruler&&k.id!==p.id).forEach(k=>{
-          k.op[p.id] = Math.min(100, (k.op[p.id]||0) + faithGain * 0.3); // 동일신앙 근사
+          k.op[p.id] = Math.min(100, (k.op[p.id]||0) + faithGain * 0.5); // 동일신앙 근사 (전체 50% 적용)
         });
-        reg.pop = Math.min(100, (reg.pop||60) + sk * 0.05); // 민심 보조
+        reg.pop = Math.min(100, (reg.pop||60) + skEff * 0.05); // 민심 보조
         if(fireEvent){
           if(positive && canPos){
             /* 긍정: Increase Vassal Opinion */
@@ -4940,7 +5315,7 @@ function councilPulse(){
           /* 대상 미지정 상태 — 자문회 패널에서 선택 유도 */
         } else {
           /* 위키: (3 + skill÷5)%/month 진행 → 100%: 미행사 명분 획득 */
-          const rate3 = 3 + sk/5;
+          const rate3 = 3 + skEff/5;
           state.councilProgress.chaplain = Math.min(100, (state.councilProgress.chaplain||0) + rate3);
           if(state.councilProgress.chaplain >= 100){
             state.councilProgress.chaplain = 0;
@@ -4961,7 +5336,7 @@ function councilPulse(){
         }
       } else if(task === 'convert_faith'){
         /* 위키: (0.5 + skill÷10)%/month 진행 → 100%: 지역 문화 전환 */
-        const rate4 = 0.5 + sk/10;
+        const rate4 = 0.5 + skEff/10;
         state.councilProgress.chaplain = Math.min(100, (state.councilProgress.chaplain||0) + rate4);
         if(state.councilProgress.chaplain >= 100){
           state.councilProgress.chaplain = 0;
@@ -4985,10 +5360,89 @@ function councilPulse(){
         }
       }
     }
+
+    /* ── 배우자 (Confidant) — 월간 0.75% 스킬 modifier 성장 기회
+       위키: 각 집중 태스크에서 0.75%/월 확률로 +1 skill modifier 획득
+             두 번 획득 시 특성(Diplomat/Strategist/Architect/Schemer/Scholar)으로 전환 */
+    else if(role === 'confidant'){
+      const CONF_SKILL_MAP2={court_politics:'dip',chivalry:'mar',manage_domains:'stew',court_intrigue:'intr',patronage:'learn'};
+      const CONF_TRAIT_MAP={court_politics:'gregarious',chivalry:'brave',manage_domains:'diligent',court_intrigue:'deceitful',patronage:'patient'};
+      const confTask=state.councilTasks?.confidant||'assist_ruler';
+      if(confTask!=='assist_ruler'){
+        /* 0.75%/월 확률로 스킬 modifier → base 스킬 +1 근사 */
+        if(Math.random()<0.0075){
+          const bk=CONF_SKILL_MAP2[confTask]||'dip';
+          c.base[bk]=Math.min(20,(c.base[bk]||0)+1);
+          if(c.id===p.spouse)
+            log(`<b>${c.name}</b>이(가) ${{dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문'}[bk]} 역량이 향상됐습니다. (+1)`, 'fam');
+          /* 위키: 두 번 획득 후 특성 전환 근사 → 확률 1.5% */
+          if(Math.random()<0.015){
+            const tr=CONF_TRAIT_MAP[confTask];
+            if(tr&&!c.traits.includes(tr)&&TRAITS[tr]){
+              c.traits.push(tr);
+              if(c.id===p.spouse)
+                log(`<b>${c.name}</b>이(가) <b>${TRAITS[tr].n}</b> 특성을 얻었습니다.`, 'fam');
+            }
+          }
+        }
+      }
+    }
   }
 }
 
-/* 사제 명분 위조 완료 처리 */
+/* ── 자문회원 보직 혜택 (Benefits from being a councilor)
+   출처: CK3 위키 https://ck3.paradoxwikis.com/Council — County 등급 기준
+   재상/Chancellor → 위신(Scaled Prestige) · 봉신 호감 +5 · 외교 경험 +5%
+   원수/Marshal    → 용맹 +1 (특성 보정으로 표현) · 병력 유지비 -5% · 경험 +5%
+   재무관/Steward  → 금(Scaled Gold) · 직할세금 +2.5% · 건설비용 -2.5% · 경험 +5%
+   사제/Chaplain   → 경건(Scaled Piety→위신) · 민심 +5 · 학문 경험 +5%
+   첩보관/Spymaster→ Natural Dread +10 · Scheme Secrecy +5% · 음모 경험 +5%
+   (County급 보너스, 매달 자문회원 캐릭터에 직접 부여)                      */
+function councilBenefitsPulse(){
+  const p=playerChar(); if(!p) return;
+  for(const role in state.council){
+    const cid=state.council[role];
+    if(!cid) continue;
+    const c=chars[cid];
+    if(!c||c.dead) continue;
+    /* 위키: Scaled Prestige/Gold/Piety — county 등급 기준 소량 부여 */
+    switch(role){
+      case 'chancellor':
+        /* +Scaled Prestige(county: 소량) · +5 Fellow Vassal Opinion · +5% Diplomacy XP */
+        if(c.lifestyle==='dip') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.dip*0.5));
+        /* 봉신 호감 +5 → 월 0.04 근사 (연 +0.5 수준) */
+        if(p.council?.chancellor===cid){
+          const vs=vassalsOf(p.id);
+          vs.forEach(v=>{ v.op[cid]=(v.op[cid]||0)+0.04; });
+        }
+        break;
+      case 'marshal':
+        /* +1 Prowess(county) · -5% Army Maintenance · +5% Levy Size · +5% Martial XP */
+        if(c.lifestyle==='mar') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.mar*0.5));
+        /* Prowess 보정: 연간 이벤트로 prow+1 기회 (월 8.3% 확률) */
+        if(Math.random()<0.0083 && !c.traits.includes('brave'))
+          c.base.prow=Math.min(20,(c.base.prow||0)+1);
+        break;
+      case 'steward':
+        /* +Scaled Gold · +2.5% Domain Taxes · -2.5% Construction · +5% Stewardship XP */
+        if(c.lifestyle==='stew') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.stew*0.5));
+        /* Scaled Gold — county급: 월 소량 금 지급 */
+        const goldGain=Math.round(1+c.base.stew*0.08); // 내정 10 → 약 1.8금/월
+        if(BARONIES[c.region||c.courtOf]) BARONIES[c.region||c.courtOf].gold=Math.min(2500,(BARONIES[c.region||c.courtOf]?.gold||0)+goldGain);
+        break;
+      case 'chaplain':
+        /* +Scaled Piety(위신) · +5 Popular Opinion(민심) · +5% Learning XP */
+        if(c.lifestyle==='learn') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.learn*0.5));
+        /* 민심 보너스: 플레이어 영지에 +0.04/월(연 +0.5 수준) */
+        const chapReg=BARONIES[p.region]; if(chapReg) chapReg.pop=Math.min(100,(chapReg.pop||60)+0.04);
+        break;
+      case 'spymaster':
+        /* +10 Natural Dread(첩보관 위협감) · +5% Scheme Secrecy · +5% Intrigue XP */
+        if(c.lifestyle==='intr') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.intr*0.5));
+        break;
+    }
+  }
+}
 /* 사제 명분 위조 완료 — 대상 선택 UI 표시
    수정: ADJ는 barony id → county id로 변환하여 addClaim에 전달
    (addClaim/claimsForRegion 모두 county id 기준으로 통일)           */
@@ -5021,7 +5475,7 @@ function _showFabricateTargetPicker(sk, targets, idx){
   const cname = COUNTIES[cid]?.n || cid;
   const holderName = holder?.name || '—';
   const cBids = COUNTIES[cid]?.baronies||[];
-  const totalTroops = cBids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
+  const totalTroops = Math.round(cBids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
   const pop = cBids.length ? Math.round(cBids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/cBids.length) : 60;
   /* 월 진행 속도 (3+sk/5)%/월 — 완료까지 예상 개월 */
   const monthlyRate = 3 + sk/5;
@@ -5125,7 +5579,6 @@ function renderCouncil(){
     const spTask=state.councilTasks?.confidant||'assist_ruler';
     const op=opinion(spouse,p);
     const opColor=op>=0?'#7a9a6a':'#9e5a5a';
-    const boostKey=state.councilBoostKey||'stew';
     html+=`<div style="padding:7px 0;border-bottom:1px dotted #2c2316;margin-bottom:8px">
       <div style="font-size:.82rem;color:var(--gold);font-weight:600">${spouse.name}
         <span style="color:var(--parch-dim);font-size:.68rem"> ${age(spouse)}세</span>
@@ -5139,25 +5592,27 @@ function renderCouncil(){
     for(const tk in COUNCIL_ROLES.confidant.tasks)
       html+=`<option value="${tk}"${tk===spTask?' selected':''}>${COUNCIL_ROLES.confidant.tasks[tk].n}</option>`;
     html+=`</select>`;
-    if(spTask==='boost_skill'){
-      html+=`<select style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.68rem;padding:1px 3px"
-        onchange="state.councilBoostKey=this.value;renderCouncil()">`;
-      for(const [k,n] of Object.entries({dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문'}))
-        html+=`<option value="${k}"${k===boostKey?' selected':''}>${n}</option>`;
-      html+=`</select>`;
-    }
+    // boost_skill select 제거됨 (6종 태스크로 대체)
     html+=`</div><div style="font-size:.65rem;color:#7aaa8a;margin-top:3px">▶ ${COUNCIL_ROLES.confidant.tasks[spTask].desc}</div>`;
-    // 보너스 현황
+    // 보너스 현황 — CK3 위키 수치 기반
     html+=`<div style="margin-top:5px;background:#12100a;border:1px solid #2c2316;border-radius:3px;padding:4px 7px;font-size:.68rem;color:var(--parch-dim)">`;
+    const CONF_SKILL_MAP={court_politics:'dip',chivalry:'mar',manage_domains:'stew',court_intrigue:'intr',patronage:'learn'};
+    const SKILL_NAME_MAP={dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문'};
     if(spTask==='assist_ruler'){
-      for(const [k,n] of Object.entries({dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문'})){
+      /* 20% all skills */
+      for(const [k,n] of Object.entries(SKILL_NAME_MAP)){
         const b=Math.floor((spouse.base[k]||0)*0.2); if(b>0) html+=`${n}+${b} `;
       }
-    } else if(spTask==='boost_skill'){
-      const b=Math.floor((spouse.base[boostKey]||0)*0.5);
-      html+=`${{dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문'}[boostKey]}+${b} (집중)`;
     } else if(spTask==='manage_domains'){
-      html+=`직할 한도 +${Math.floor((spouse.base.stew||0)/8)}`;
+      /* 내정 50% 보너스 → 직할 한도 */
+      const spStewEff=Math.floor(stat(spouse,'stew')*0.5);
+      const limBonus=Math.floor(spStewEff/6);
+      html+=`내정+${Math.floor(stat(spouse,'stew')*0.5)} · 직할 한도 +${limBonus}`;
+    } else {
+      /* court_politics/chivalry/court_intrigue/patronage: 해당 스킬 50% */
+      const bk=CONF_SKILL_MAP[spTask]||'dip';
+      const b=Math.floor((spouse.base[bk]||0)*0.5);
+      html+=`${SKILL_NAME_MAP[bk]}+${b} · 월 0.75% 특성 성장 기회`;
     }
     html+=`</div></div>`;
   } else {
@@ -5193,6 +5648,16 @@ function renderCouncil(){
       for(const tk in rinfo.tasks)
         html+=`<option value="${tk}"${tk===curTask?' selected':''}>${rinfo.tasks[tk].n}</option>`;
       html+=`</select></div><div style="font-size:.65rem;color:#7aaa8a;margin-top:2px">▶ ${taskInfo.desc}</div>`;
+      /* 보직 혜택 표시 (위키: Benefits from being a councilor — County 등급) */
+      const BENEFIT_LINE={
+        chancellor:`위신 소폭 상승 · 봉신 호감 +5 · 외교 경험 +5%`,
+        marshal:`용맹 +1(연간) · 병력 유지비 -5% · 무예 경험 +5%`,
+        steward:`금 +${Math.round(1+stat(councilor,'stew')*0.08)}/월 · 직할세금 +2.5% · 내정 경험 +5%`,
+        spymaster:`위협감 +10 · 음모 보안 +5% · 음모 경험 +5%`,
+        chaplain:`민심 +0.5/년 · 경건 소폭 상승 · 학문 경험 +5%`,
+      };
+      if(BENEFIT_LINE[role])
+        html+=`<div style="font-size:.62rem;color:#6a8a7a;margin-top:2px;font-style:italic">혜택: ${BENEFIT_LINE[role]}</div>`;
       if(taskInfo.progressive){
         if(curTask==='fabricate_claim'){
           const p2=playerChar();
@@ -5235,32 +5700,796 @@ function renderCouncil(){
     html+=`</div></div></div>`;
   }
 
-  // 직할령 현황
-  const dLim=domainLimit(p), dBids=directBaroniesOf(p.id), dCids=directCountiesOf(p.id).length;
-  const domColor=dBids>dLim?'#d05a4a':dBids>=dLim-1?'#c8a24a':'var(--gold-dim)';
-  html+=`<div style="font-size:.7rem;color:${domColor};margin-top:10px;padding:5px 0;border-top:1px solid var(--line)">직할 남작령 ${dBids}/${dLim}${dBids>dLim?' ⚠ 한도 초과':''} <span style="color:var(--parch-dim);font-size:.62rem">(백작령 ${dCids})</span></div>`;
-
-  // 봉신 목록
-  const myVassals=vassalsOf(p.id);
-  if(myVassals.length){
-    html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--line)">봉신 (${myVassals.length}명)</div>`;
-    for(const v of myVassals){
-      const vcids=directCountiesOf(v.id);
-      const vOp=opinion(v,p); const opColor=vOp>=0?'#7a9a6a':'#9e5a5a';
-      const vSeatBid=regionsOf(v.id).find(b=>BARONIES[b])||null;
-      const vType=vSeatBid?(BARONIES[vSeatBid]?.type||'castle'):'castle';
-      const vIcon=vType==='city'?'🏙':vType==='temple'?'⛪':'🏰';
-      const vTitleN=vType==='city'?'시장':vType==='temple'?'주교':'남작';
-      const opn=Math.max(0,vOp+100)/200;
-      const taxStr=vType==='city'?'세금 20%':vType==='temple'?`세금 ${Math.round((()=>{const chap=state.council?.chaplain?chars[state.council.chaplain]:null;return chap?Math.max(0,opinion(v,chap)+100)/200:0.5;})() * 50)}%`:`세금 ${Math.round(TAX_RATE*opn*100)}%`;
-      const cnames=vcids.map(c=>COUNTIES[c]?.n||c).join('·')||'남작령';
-      html+=`<div style="display:flex;justify-content:space-between;font-size:.75rem;padding:4px 0;border-bottom:1px dotted #2c2316">
-        <span>${vIcon} <b>${v.name}</b><span style="color:var(--parch-dim);font-size:.65rem"> ${vTitleN} · ${cnames}</span></span>
-        <span><span style="color:${opColor}">호감 ${vOp>0?'+':''}${vOp}</span><span style="color:var(--parch-dim);font-size:.65rem"> · ${taxStr}</span></span></div>`;
-    }
-  }
   el.innerHTML=html;
 }
+
+/* ── 봉역 탭 렌더 — CK3 Subjects + Titles 시스템 ── */
+function renderTitleSection(p){
+  let html='';
+  const held=(p.heldTitles||[]);
+  const heldDuchies=held.filter(t=>DUCHIES[t]);
+  const heldKingdoms=held.filter(t=>KINGDOMS[t]);
+
+  html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line)">내 작위</div>`;
+
+  /* 보유 작위 표시 */
+  html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:8px 10px;margin-bottom:8px">`;
+  if(held.length){
+    const titleLabels=[];
+    for(const kid of heldKingdoms) titleLabels.push(`<span style="color:var(--gold)">👑 ${KINGDOMS[kid].n}</span>`);
+    for(const did of heldDuchies) titleLabels.push(`<span style="color:#c8a24a">⚜ ${DUCHIES[did].n}</span>`);
+    html+=`<div style="font-size:.76rem;line-height:1.6">${titleLabels.join(' · ')}</div>`;
+  } else {
+    html+=`<div style="font-size:.72rem;color:var(--parch-dim)">보유한 공작/왕국 작위 없음 (백작)</div>`;
+  }
+  /* 공작 작위 2개 초과 경고 */
+  if(overDuchyLimit(p.id)){
+    html+=`<div style="font-size:.66rem;color:#d05a4a;margin-top:4px">⚠ 공작 작위 ${heldDuchies.length}개 보유 — 2개 초과분으로 전 봉신 −15 호감</div>`;
+  }
+  html+=`</div>`;
+
+  /* 생성 가능 작위 목록 */
+  const creatable=[];
+  for(const did of Object.keys(DUCHIES)){
+    if(holdsTitle(p.id,did)||titleHolder(did)) continue;
+    const ctrl=deJureControl(p.id,did);
+    if(ctrl<=0) continue; // de jure 지배 전무하면 후보 제외
+    creatable.push({tid:did, kind:'duchy', ctrl});
+  }
+  for(const kid of Object.keys(KINGDOMS)){
+    if(holdsTitle(p.id,kid)||titleHolder(kid)) continue;
+    const ctrl=deJureControl(p.id,kid);
+    if(ctrl<=0) continue;
+    creatable.push({tid:kid, kind:'kingdom', ctrl});
+  }
+
+  if(creatable.length){
+    html+=`<div style="font-size:.66rem;letter-spacing:.1em;color:var(--parch-dim);margin:8px 0 4px">작위 창설</div>`;
+    for(const cand of creatable){
+      const info=titleInfo(cand.tid);
+      const chk=canCreateTitle(p.id,cand.tid);
+      const tierN=info.tier.n;
+      const icon=cand.kind==='kingdom'?'👑':'⚜';
+      const cost=info.tier.create;
+      const seatGold=Math.round(BARONIES[p.region]?.gold||0);
+      if(chk.ok){
+        html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px dotted #2c2316">
+          <span style="font-size:.74rem">${icon} <b>${info.n}</b><span style="color:var(--parch-dim);font-size:.64rem"> · 금 ${cost} · 위신 +${info.tier.prestige}</span></span>
+          <button onclick="onCreateTitle('${cand.tid}')" style="background:linear-gradient(#3a2c18,#241a0e);color:var(--gold);border:1px solid var(--gold-dim);border-radius:3px;font-size:.66rem;padding:3px 8px;cursor:pointer;font-family:inherit">창설</button>
+        </div>`;
+      } else {
+        html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px dotted #2c2316;opacity:.55">
+          <span style="font-size:.74rem">${icon} ${info.n}<span style="color:var(--parch-dim);font-size:.62rem"> · ${chk.reason}</span></span>
+          <span style="font-size:.6rem;color:#6a6048">불가</span>
+        </div>`;
+      }
+    }
+  }
+
+  /* 작위 하사 (봉신에게 공작위 수여) — 보유 공작위가 있고 봉신이 있을 때 */
+  if(heldDuchies.length>0){
+    const grantable=heldDuchies.filter(did=>{
+      // 해당 공작령 de jure 백작령을 보유한 봉신이 있는지
+      return vassalsOf(p.id).some(v=>directCountiesOf(v.id).some(cid=>DUCHIES[did].counties.includes(cid)));
+    });
+    if(grantable.length){
+      html+=`<div style="font-size:.66rem;letter-spacing:.1em;color:var(--parch-dim);margin:8px 0 4px">작위 하사 (봉신 호감 +60)</div>`;
+      for(const did of grantable){
+        const cands=vassalsOf(p.id).filter(v=>directCountiesOf(v.id).some(cid=>DUCHIES[did].counties.includes(cid)));
+        html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;gap:6px">
+          <span style="font-size:.72rem">⚜ ${DUCHIES[did].n}</span>
+          <select onchange="if(this.value)onGrantTitle('${did}',this.value)" style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.64rem;padding:1px 3px;max-width:55%">
+            <option value="">하사 대상…</option>
+            ${cands.map(v=>`<option value="${v.id}">${v.name}</option>`).join('')}
+          </select>
+        </div>`;
+      }
+    }
+  }
+
+  html+=`<div style="height:8px"></div>`;
+  return html;
+}
+/* 작위 창설 버튼 핸들러 */
+function onCreateTitle(tid){
+  initAudio();
+  const p=playerChar(); if(!p) return;
+  const chk=canCreateTitle(p.id,tid);
+  if(!chk.ok){ return; }
+  const info=titleInfo(tid);
+  playSynthSFX&&playSynthSFX('gold');
+  createTitle(p.id,tid);
+  renderFief(); renderChar(); renderHeader&&renderHeader();
+  popup({title:info.n, sub:'작위 창설',
+    body:`${info.n} 작위가 창설되었습니다.\n위신 +${info.tier.prestige}`,
+    opts:[{t:'영광이 드높아진다'}]});
+}
+/* 작위 하사 핸들러 */
+function onGrantTitle(tid, vId){
+  initAudio();
+  const p=playerChar(); if(!p) return;
+  grantTitleToVassal(p.id, vId, tid);
+  renderFief(); renderChar();
+}
+
+function renderFief(){
+  const p=playerChar(); if(!p) return;
+  const el=document.getElementById('fiefContent'); if(!el) return;
+  const myVassals=vassalsOf(p.id);
+  const vLim=vassalLimit(p);
+  const vCnt=countedVassals(p).length;
+  const penalty=vassalLimitPenalty(p);
+  const pvIds=powerfulVassalsOf(p.id);
+  let html='';
+
+  /* ════ 내 작위 섹션 (CK3 Titles) ════ */
+  html+=renderTitleSection(p);
+
+  /* ── 상단 요약 ── */
+  const limColor=vCnt>vLim?'#d05a4a':vCnt>=vLim?'#c8a24a':'var(--gold-dim)';
+  html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:8px 10px;margin-bottom:10px">`;
+  html+=`<div style="display:flex;justify-content:space-between;font-size:.78rem;color:${limColor}">
+    <span>봉신 한도</span><span><b>${vCnt}/${vLim}</b>${vCnt>vLim?' ⚠ 초과':''}</span></div>`;
+  if(penalty>0){
+    html+=`<div style="font-size:.68rem;color:#d05a4a;margin-top:3px">한도 초과 페널티: 전 봉신 세금·레비 −${Math.round(penalty*100)}%</div>`;
+  }
+  html+=`<div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--parch-dim);margin-top:5px">
+    <span>강력한 봉신</span><span>${pvIds.length}/${powerfulVassalCount(p)}명</span></div>`;
+  /* 강력한 봉신 중 자문회 미포함 경고 */
+  const pvNotOnCouncil=pvIds.filter(vId=>!powerfulVassalOnCouncil(p.id,vId));
+  if(pvNotOnCouncil.length){
+    html+=`<div style="font-size:.66rem;color:#c87a3a;margin-top:3px">⚠ 강력한 봉신 ${pvNotOnCouncil.length}명이 자문회에 없음 (각 −40 호감)</div>`;
+  }
+  html+=`</div>`;
+
+  if(!myVassals.length){
+    html+=`<div style="font-size:.78rem;color:var(--parch-dim);padding:12px 0;text-align:center">봉신이 없습니다.</div>`;
+    el.innerHTML=html; return;
+  }
+
+  /* ── 봉신 목록 ── */
+  html+=`<div style="font-size:.7rem;letter-spacing:.2em;color:var(--gold-dim);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--line)">봉신 (${myVassals.length}명)</div>`;
+
+  /* 강력한 봉신 → 일반 봉신 순으로 정렬 */
+  const sorted=[...myVassals].sort((a,b)=>{
+    const ap=pvIds.includes(a.id)?1:0, bp=pvIds.includes(b.id)?1:0;
+    if(ap!==bp) return bp-ap;
+    return vassalPowerScore(b)-vassalPowerScore(a);
+  });
+
+  for(const v of sorted){
+    const vcids=directCountiesOf(v.id);
+    const vOp=opinion(v,p); const opColor=vOp>=15?'#7a9a6a':vOp<=-15?'#9e5a5a':'#b0a080';
+    const vSeatBid=regionsOf(v.id).find(b=>BARONIES[b])||null;
+    const vType=vSeatBid?(BARONIES[vSeatBid]?.type||'castle'):'castle';
+    const vIcon=vType==='city'?'🏙':vType==='temple'?'⛪':'🏰';
+    const vTitleN=vType==='city'?'시장':vType==='temple'?'주교':'남작';
+    const cnames=vcids.map(c=>COUNTIES[c]?.n||c).join('·')||'남작령';
+    const isPowerful=pvIds.includes(v.id);
+    const onCouncil=powerfulVassalOnCouncil(p.id,v.id);
+    /* 봉신 병력 */
+    const vTroops=Math.round(regionsOf(v.id).reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
+    /* 스탠스 */
+    const stKey=vassalStance(v); const st=VASSAL_STANCES[stKey];
+    /* 세금·레비 표시 */
+    const opn=Math.max(0,vOp+100)/200;
+    let taxStr, levyStr;
+    if(vType==='city'){ taxStr='세금 20%'; levyStr='레비 10%'; }
+    else if(vType==='temple'){
+      const chap=state.council?.chaplain?chars[state.council.chaplain]:null;
+      const chapOpn=chap?Math.max(0,opinion(v,chap)+100)/200:0.5;
+      taxStr=`세금 ${Math.round(50*chapOpn)}%`; levyStr=`레비 ${Math.round(100*chapOpn)}%`;
+    } else {
+      const ct=v.contract||initVassalContract(v);
+      const taxRate=OBLIGATION_TAX[ct.tax]?.rate??TAX_RATE;
+      const levyRate=OBLIGATION_LEVY[ct.levy]?.rate??0.10;
+      taxStr=`세금 ${Math.round(taxRate*opn*100)}%`; levyStr=`레비 ${Math.round(levyRate*100)}%`;
+    }
+
+    html+=`<div style="padding:7px 0;border-bottom:1px dotted #2c2316">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.8rem;color:var(--parch)">${vIcon} <b>${v.name}</b>
+            ${isPowerful?`<span style="color:var(--gold);font-size:.62rem" title="강력한 봉신">${onCouncil?'👑':'👑⚠'}</span>`:''}
+          </div>
+          <div style="font-size:.65rem;color:var(--parch-dim);margin-top:1px">${vTitleN} · ${cnames} · ⚔${vTroops}</div>
+          <div style="font-size:.63rem;color:#8a8068;margin-top:1px">${st.icon} ${st.n}</div>
+        </div>
+        <div style="text-align:right;white-space:nowrap">
+          <div style="color:${opColor};font-size:.72rem">호감 ${vOp>0?'+':''}${vOp}</div>
+          <div style="font-size:.6rem;color:var(--parch-dim);margin-top:1px">${taxStr} · ${levyStr}</div>
+        </div>
+      </div>`;
+
+    /* 계약 의무 조정 — castle 봉신만 (city/temple은 고정) */
+    if(vType==='castle'){
+      const ct=v.contract||initVassalContract(v);
+      html+=`<div style="margin-top:5px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:.62rem;color:var(--parch-dim)">세금:</span>
+        <select style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.64rem;padding:1px 3px"
+          onchange="setVassalObligation('${v.id}','tax',this.value)">`;
+      for(const lv of OBLIG_ORDER)
+        html+=`<option value="${lv}"${lv===ct.tax?' selected':''}>${OBLIGATION_TAX[lv].n} (${Math.round(OBLIGATION_TAX[lv].rate*100)}%)</option>`;
+      html+=`</select>
+        <span style="font-size:.62rem;color:var(--parch-dim)">레비:</span>
+        <select style="background:#191309;color:var(--parch);border:1px solid var(--line);font-size:.64rem;padding:1px 3px"
+          onchange="setVassalObligation('${v.id}','levy',this.value)">`;
+      for(const lv of OBLIG_ORDER)
+        html+=`<option value="${lv}"${lv===ct.levy?' selected':''}>${OBLIGATION_LEVY[lv].n} (${Math.round(OBLIGATION_LEVY[lv].rate*100)}%)</option>`;
+      html+=`</select></div>
+        <div style="font-size:.58rem;color:#6a6048;margin-top:2px">${st.desc}</div>`;
+    } else {
+      html+=`<div style="font-size:.58rem;color:#6a6048;margin-top:3px">${st.desc}</div>`;
+    }
+
+    /* 반란 위험 경고 */
+    if(vOp<-40){
+      html+=`<div style="font-size:.62rem;color:#d05a4a;margin-top:3px">⚠ 반란 위험 — 호감이 매우 낮습니다</div>`;
+    }
+    html+=`</div>`;
+  }
+
+  el.innerHTML=html;
+}
+function openFief(){ togglePanel('fief'); }
+
+/* ════════════════════════════════════════════════════
+   활동(Activity) 시스템 — CK3 위키 기반 다단계 흐름
+   출처: https://ck3.paradoxwikis.com/Activity (v1.18)
+   흐름: 개최→투자등급→초대→대기(여행 추상화)→진행→보상
+   ════════════════════════════════════════════════════ */
+/* 활동 종류 3종 — 각 투자 등급(tier)별 비용·보상 배율
+   baseCost: CK3 비용표 근사 (백작30/공작60/왕국140 → 게임 스케일 축소)
+   tiers: 소박/보통/성대 — 비용 배율·보상 배율·초대 가능 인원         */
+const ACTIVITY_TYPES = {
+  feast: {
+    n:'연회', icon:'🍖', cooldown:2,
+    desc:'봉신·이웃 군주와의 유대를 다지는 성대한 잔치',
+    optionName:'요리와 코스',
+    reward:'관계·위신·스트레스 해소',
+    baseCost:40,
+    tiers:[
+      { n:'소박한 잔치', costMul:1,   rewardMul:1,   maxGuests:2, opinion:8,  prestige:15, stress:-15 },
+      { n:'성대한 잔치', costMul:2,   rewardMul:1.6, maxGuests:4, opinion:14, prestige:30, stress:-25 },
+      { n:'호화로운 잔치', costMul:3.5,rewardMul:2.4, maxGuests:6, opinion:22, prestige:50, stress:-35 },
+    ],
+  },
+  hunt: {
+    n:'사냥', icon:'🦌', cooldown:2,
+    desc:'소수의 동료와 떠나는 사냥 — 용맹과 우정을 시험',
+    optionName:'수행원 규모',
+    reward:'관계·위신·스트레스 해소',
+    baseCost:25,
+    tiers:[
+      { n:'단출한 사냥', costMul:1,   rewardMul:1,   maxGuests:1, opinion:10, prestige:12, stress:-12 },
+      { n:'성대한 사냥', costMul:2,   rewardMul:1.6, maxGuests:2, opinion:16, prestige:24, stress:-20 },
+      { n:'대규모 몰이사냥', costMul:3,rewardMul:2.3, maxGuests:3, opinion:24, prestige:40, stress:-30 },
+    ],
+  },
+  pilgrimage: {
+    n:'순례', icon:'✝', cooldown:3,
+    desc:'성지로 떠나는 신앙의 여정 — 경건과 평안을 얻음',
+    optionName:'순례 규모',
+    reward:'위신·민심·스트레스 해소',
+    baseCost:30,
+    tiers:[
+      { n:'조용한 순례', costMul:1,   rewardMul:1,   maxGuests:1, opinion:6,  prestige:20, stress:-20 },
+      { n:'경건한 순례', costMul:2,   rewardMul:1.7, maxGuests:2, opinion:10, prestige:35, stress:-30 },
+      { n:'장엄한 순례', costMul:3,   rewardMul:2.5, maxGuests:3, opinion:14, prestige:55, stress:-40 },
+    ],
+  },
+};
+/* 주 작위 등급에 따른 비용 배율 (CK3: 백작1.0 / 공작1.5 / 왕국2.0 근사) */
+function activityRankMul(c){
+  if(heldKingdomsOf(c.id).length>0) return 2.0;
+  if(heldDuchiesOf(c.id).length>0)  return 1.5;
+  return 1.0;
+}
+/* 활동 실제 비용 계산 */
+function activityCost(typeId, tierIdx){
+  const p=playerChar(); if(!p) return 0;
+  const t=ACTIVITY_TYPES[typeId]; if(!t) return 0;
+  return Math.round(t.baseCost * t.tiers[tierIdx].costMul * activityRankMul(p));
+}
+/* 활동 쿨다운 확인 (남은 연수, 0이면 가능) */
+function activityCooldownLeft(typeId){
+  const last=state.activityCooldowns[typeId];
+  if(last==null) return 0;
+  const cd=ACTIVITY_TYPES[typeId].cooldown;
+  return Math.max(0, cd-(state.year-last));
+}
+/* 초대 후보 — 이웃 군주 + 봉신 (중복 제거) */
+function activityInviteCandidates(){
+  const p=playerChar(); if(!p) return [];
+  const set=new Map();
+  // 봉신
+  for(const v of vassalsOf(p.id)) set.set(v.id,v);
+  // 이웃 군주 (인접 영지의 독립/타 군주)
+  for(const bid of regionsOf(p.id)){
+    for(const adjBid of (ADJ[bid]||[])){
+      const r=ownerOf(adjBid);
+      if(r && r.id!==p.id && !r.dead && r.ruler) set.set(r.id,r);
+    }
+  }
+  // 모든 독립 군주도 후보에 포함 (외교 범위)
+  for(const id in chars){
+    const c=chars[id];
+    if(!c.dead && c.ruler && c.id!==p.id && !c.liege) set.set(c.id,c);
+  }
+  return [...set.values()];
+}
+/* 초대 수락 확률 (호감 기반) — CK3: 관계/거리 영향 */
+function inviteAcceptChance(guest, host){
+  const op=opinion(guest,host);
+  let ch=0.5 + op*0.005; // 호감 0이면 50%, +100이면 100%
+  if(guest.liege===host.id) ch+=0.2; // 봉신은 더 잘 옴
+  return Math.max(0.05, Math.min(0.97, ch));
+}
+/* 손님이 host 수도까지 오는 데 걸리는 개월 (여행 추상화: 인접=1, 비인접=2) */
+function travelMonths(guest, host){
+  // host 영지에 인접한 곳에 guest 영지가 있으면 1개월, 아니면 2개월
+  const hostBids=regionsOf(host.id);
+  const guestBids=new Set(regionsOf(guest.id));
+  for(const hb of hostBids){
+    for(const adj of (ADJ[hb]||[])){
+      if(guestBids.has(adj)) return 1;
+    }
+  }
+  return 2;
+}
+/* 활동 개최 — 투자 등급 선택 후 호출 */
+function startActivity(typeId, tierIdx){
+  const p=playerChar(); if(!p) return false;
+  if(state.activeActivity) return false; // 이미 진행 중
+  const cost=activityCost(typeId, tierIdx);
+  const seatB=BARONIES[p.region];
+  if(!seatB || seatB.gold<cost) return false;
+  seatB.gold-=cost;
+  state.activeActivity={
+    type:typeId, tier:tierIdx,
+    phase:'inviting', // inviting → waiting → ongoing → done
+    invited:[],       // [{id, accepted, arrived, monthsLeft}]
+    started:state.year+'.'+state.month,
+    progress:0,       // 진행 단계 0~3
+    intent:(typeId==='feast'?'recreation':null), // 연회 인텐트 (recreation/befriend)
+    guestOfHonor:null, // 명예 손님 id (연회)
+    rapport:0,        // 명예 손님과의 교류도 (건배/모욕 분기 영향)
+  };
+  log(`<b>${ACTIVITY_TYPES[typeId].n}</b> 준비를 시작했습니다 (${ACTIVITY_TYPES[typeId].tiers[tierIdx].n}, 금 ${cost} 소모). 손님을 초대하세요.`,'dip');
+  renderActivity();
+  return true;
+}
+/* 손님 초대 — 토글 */
+function toggleInvite(guestId){
+  const act=state.activeActivity; if(!act||act.phase!=='inviting') return;
+  const idx=act.invited.findIndex(i=>i.id===guestId);
+  const tier=ACTIVITY_TYPES[act.type].tiers[act.tier];
+  if(idx>=0){
+    act.invited.splice(idx,1);
+    if(act.guestOfHonor===guestId) act.guestOfHonor=null; // 명예손님 해제
+  } else {
+    if(act.invited.length>=tier.maxGuests) return; // 최대 인원 초과
+    act.invited.push({id:guestId, accepted:null, arrived:false, monthsLeft:0});
+  }
+  renderActivity();
+}
+/* 연회 인텐트 설정 (recreation: 오락·스트레스 / befriend: 교우·관계) */
+function setFeastIntent(intent){
+  const act=state.activeActivity; if(!act||act.type!=='feast') return;
+  act.intent=intent;
+  renderActivity();
+}
+/* 명예 손님 지정 (연회) — 초대 목록 중 한 명 */
+function setGuestOfHonor(guestId){
+  const act=state.activeActivity; if(!act||act.type!=='feast') return;
+  if(act.guestOfHonor===guestId) act.guestOfHonor=null; // 토글 해제
+  else if(act.invited.some(i=>i.id===guestId)) act.guestOfHonor=guestId;
+  renderActivity();
+}
+/* 초대 확정 → 대기 단계 진입 */
+function confirmInvites(){
+  const p=playerChar();
+  const act=state.activeActivity; if(!act||act.phase!=='inviting') return;
+  if(act.invited.length===0) return;
+  // 각 손님 수락 판정 + 여행 시간 산정
+  for(const inv of act.invited){
+    const g=chars[inv.id]; if(!g||g.dead){ inv.accepted=false; continue; }
+    inv.accepted = Math.random() < inviteAcceptChance(g,p);
+    if(inv.accepted){
+      inv.monthsLeft = travelMonths(g,p);
+      log(`<b>${g.name}</b>이(가) 초대를 수락했습니다. (도착까지 ${inv.monthsLeft}개월)`,'dip');
+    } else {
+      log(`<b>${g.name}</b>이(가) 초대를 거절했습니다.`,'dip');
+    }
+  }
+  const anyComing=act.invited.some(i=>i.accepted);
+  if(!anyComing){
+    // 아무도 안 옴 → 취소 + 스트레스 (CK3: +20 Stress)
+    addStress(p,20,'아무도 초대에 응하지 않은 굴욕');
+    log(`아무도 ${ACTIVITY_TYPES[act.type].n}에 오지 않아 취소되었습니다. 굴욕으로 스트레스가 증가했습니다.`,'war');
+    state.activeActivity=null;
+    renderActivity();
+    return;
+  }
+  act.phase='waiting';
+  log(`손님들이 ${ACTIVITY_TYPES[act.type].n}을(를) 향해 출발했습니다. 도착을 기다립니다.`,'dip');
+  renderActivity();
+}
+/* 매월 활동 진행 (monthlyPulse에서 호출) */
+function activityPulse(){
+  const act=state.activeActivity; if(!act) return;
+  const p=playerChar(); if(!p){ state.activeActivity=null; return; }
+
+  if(act.phase==='waiting'){
+    // 손님 도착 카운트다운
+    let allArrived=true;
+    for(const inv of act.invited){
+      if(!inv.accepted) continue;
+      if(inv.arrived) continue;
+      inv.monthsLeft--;
+      if(inv.monthsLeft<=0){
+        inv.arrived=true;
+        const g=chars[inv.id];
+        if(g&&!g.dead) log(`<b>${g.name}</b>이(가) 도착했습니다.`,'dip');
+      } else {
+        allArrived=false;
+      }
+    }
+    // 도착한 손님이 죽었는지 체크
+    if(allArrived){
+      const arrived=act.invited.filter(i=>i.accepted&&i.arrived&&chars[i.id]&&!chars[i.id].dead);
+      if(arrived.length===0){
+        addStress(p,20,'손님이 끝내 오지 못한 굴욕');
+        log(`${ACTIVITY_TYPES[act.type].n}에 끝내 아무도 도착하지 못했습니다.`,'war');
+        state.activeActivity=null;
+        renderActivity(); return;
+      }
+      act.phase='ongoing';
+      act.progress=0;
+      log(`<b>${ACTIVITY_TYPES[act.type].n}</b>이(가) 시작되었습니다! (참석 ${arrived.length}명)`,'good');
+    }
+    renderActivity();
+    return;
+  }
+
+  if(act.phase==='ongoing'){
+    // 진행 단계 (3단계, 매월 1단계씩 — 단계별 이벤트)
+    act.progress++;
+    const arrived=act.invited.filter(i=>i.accepted&&i.arrived&&chars[i.id]&&!chars[i.id].dead);
+    // 단계별 소소한 이벤트 (플레이어에게 팝업)
+    activityPhaseEvent(act, arrived);
+    if(act.progress>=3){
+      finishActivity(act, arrived);
+    }
+    renderActivity();
+    return;
+  }
+}
+/* 활동 진행 단계 이벤트 — 참석자와 상호작용 */
+function activityPhaseEvent(act, arrived){
+  const p=playerChar();
+  const t=ACTIVITY_TYPES[act.type];
+  const tier=t.tiers[act.tier];
+  if(!arrived.length) return;
+  // 연회: 명예 손님이 살아있고 도착했으면 우선 등장
+  if(act.type==='feast' && act.guestOfHonor){
+    const goh=chars[act.guestOfHonor];
+    const gohArrived=arrived.some(i=>i.id===act.guestOfHonor);
+    if(goh && !goh.dead && gohArrived && Math.random()<0.6){
+      const ev=feastGuestOfHonorEvent(act, goh);
+      popup({title:`${t.n} — ${act.progress}/3단계`, sub:`명예 손님 ${goh.name}`, body:ev.body, opts:ev.opts});
+      return;
+    }
+  }
+  // 일반 단계 이벤트
+  if(Math.random()<0.4){
+    const guest=chars[arrived[Math.floor(Math.random()*arrived.length)].id];
+    if(!guest||guest.dead) return;
+    const evs=activityPhaseChoices(act, guest);
+    const ev=evs[Math.floor(Math.random()*evs.length)];
+    popup({title:`${t.n} — ${act.progress}/3단계`, sub:guest.name+'와(과)의 순간', body:ev.body, opts:ev.opts});
+  }
+}
+/* 연회 명예 손님 전용 단계 이벤트 — 인텐트별 분기, rapport 누적 */
+function feastGuestOfHonorEvent(act, goh){
+  const p=playerChar();
+  const isBefriend=act.intent==='befriend';
+  const pool=[
+    { body:`${goh.name}이(가) 상석에서 당신에게 술잔을 건넵니다. 좌중의 시선이 모입니다.`,
+      opts:[
+        {t:'따뜻하게 화답한다',d:'교류 +2, 관계 +5',f:()=>{act.rapport+=2;chOp(goh,p,5);chOp(p,goh,3);}},
+        {t:'위엄을 보인다',d:'위신 +6',f:()=>{state.prestige+=6;act.rapport+=0;}},
+      ]},
+    { body:`${goh.name}이(가) 당신의 궁정 악사를 칭찬하며 분위기를 띄웁니다.`,
+      opts:[
+        {t:'함께 즐긴다',d:'교류 +2, 스트레스 -6',f:()=>{act.rapport+=2;addStress(p,-6,'연회의 흥');}},
+        {t:'그의 재담을 받아친다',d:`교류 +${isBefriend?3:1}`,f:()=>{act.rapport+=isBefriend?3:1;chOp(goh,p,4);}},
+      ]},
+    { body:`${goh.name}이(가) 조용히 당신에게 속내를 비칩니다. 신뢰가 쌓이는 순간입니다.`,
+      opts:[
+        {t:'귀 기울인다',d:`교류 +${isBefriend?3:2}, 관계 +6`,f:()=>{act.rapport+=isBefriend?3:2;chOp(goh,p,6);}},
+        {t:'가볍게 넘긴다',d:'교류 +0',f:()=>{}},
+      ]},
+  ];
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+/* 활동 단계별 선택지 이벤트 생성 */
+function activityPhaseChoices(act, guest){
+  const p=playerChar();
+  if(act.type==='feast'){
+    return [
+      { body:`${guest.name}이(가) 술잔을 들어 당신의 건강을 빕니다.`,
+        opts:[
+          {t:'함께 건배한다',d:'관계 +6',f:()=>{chOp(guest,p,6);chOp(p,guest,4);}},
+          {t:'정중히 답례한다',d:'관계 +3, 위신 +5',f:()=>{chOp(guest,p,3);state.prestige+=5;}},
+        ]},
+      { body:`${guest.name}이(가) 무용담을 늘어놓습니다. 좌중이 주목합니다.`,
+        opts:[
+          {t:'맞장구친다',d:'관계 +5',f:()=>{chOp(guest,p,5);}},
+          {t:'더 멋진 이야기로 압도한다',d:'위신 +8, 관계 -2',f:()=>{state.prestige+=8;chOp(guest,p,-2);}},
+        ]},
+    ];
+  }
+  if(act.type==='hunt'){
+    return [
+      { body:`${guest.name}이(가) 큰 사슴의 흔적을 발견했습니다. 누가 먼저 쫓을까요?`,
+        opts:[
+          {t:'양보한다',d:'관계 +6',f:()=>{chOp(guest,p,6);}},
+          {t:'직접 추격한다',d:'위신 +8',f:()=>{state.prestige+=8; if(p.traits.includes('brave'))addStress(p,-5,'사냥의 쾌감');}},
+        ]},
+      { body:`${guest.name}과(와) 나란히 말을 달립니다. 바람이 시원합니다.`,
+        opts:[
+          {t:'대화를 나눈다',d:'관계 +5, 스트레스 -5',f:()=>{chOp(guest,p,5);addStress(p,-5,'사냥의 여유');}},
+        ]},
+    ];
+  }
+  // pilgrimage
+  return [
+    { body:`${guest.name}과(와) 함께 기도를 올립니다.`,
+      opts:[
+        {t:'경건히 임한다',d:'위신 +6',f:()=>{state.prestige+=6;chOp(guest,p,4);}},
+        {t:'그의 신앙을 칭송한다',d:'관계 +6',f:()=>{chOp(guest,p,6);}},
+      ]},
+    { body:`순례길에서 ${guest.name}이(가) 깊은 속내를 털어놓습니다.`,
+      opts:[
+        {t:'귀 기울인다',d:'관계 +7, 스트레스 -5',f:()=>{chOp(guest,p,7);addStress(p,-5,'마음의 평안');}},
+      ]},
+  ];
+}
+/* 활동 종료 + 보상 정산 */
+function finishActivity(act, arrived){
+  const p=playerChar();
+  const t=ACTIVITY_TYPES[act.type];
+  const tier=t.tiers[act.tier];
+  const n=arrived.length;
+  // 보상: 투자 등급 × 참석자 수 기반
+  const opGain=tier.opinion;
+  const prestigeGain=Math.round(tier.prestige*(1+0.15*(n-1)));
+  const stressGain=tier.stress;
+  // 참석자 관계 상승
+  for(const inv of arrived){
+    const g=chars[inv.id]; if(!g||g.dead) continue;
+    chOp(g,p,opGain); chOp(p,g,Math.round(opGain*0.6));
+  }
+  state.prestige+=prestigeGain;
+  addStress(p,stressGain,`${t.n}의 즐거움`);
+  // 순례는 민심도 상승
+  if(act.type==='pilgrimage'){
+    for(const bid of regionsOf(p.id)){ const b=BARONIES[bid]; if(b) b.pop=Math.min(100,(b.pop||60)+5); }
+  }
+  // 성향 보정
+  if(act.type==='feast'&&p.traits.includes('gregarious')) addStress(p,-8,'사교가의 기쁨');
+  if(act.type==='feast'&&p.traits.includes('shy')) addStress(p,10,'내성적인 자의 고역');
+  if(act.type==='hunt'&&p.traits.includes('brave')) addStress(p,-5,'용맹한 피의 해방');
+  if(act.type==='pilgrimage'&&(p.traits.includes('zealous')||p.traits.includes('pious'))){ state.prestige+=15; }
+
+  log(`<b>${t.n}</b>이(가) 성황리에 끝났습니다! 참석 ${n}명 · 위신 +${prestigeGain} · 봉신/이웃 호감 +${opGain}`,'good');
+  state.activityCooldowns[act.type]=state.year;
+
+  // 연회: 명예 손님이 도착·생존했으면 종료 시 건배/모욕 분기 (CK3 Feast)
+  if(act.type==='feast' && act.guestOfHonor){
+    const goh=chars[act.guestOfHonor];
+    const gohArrived=arrived.some(i=>i.id===act.guestOfHonor);
+    if(goh && !goh.dead && gohArrived){
+      const rapport=act.rapport||0;
+      const befriend=act.intent==='befriend';
+      // 교류도에 따라 건배 보상 가산
+      const toastOp=Math.round((befriend?20:14) + rapport*2);
+      const insultPrestige=Math.round(20 + rapport*1.5);
+      state.activeActivity=null; // 종료 처리 먼저
+      popup({title:'연회의 대미', sub:`명예 손님 ${goh.name}`,
+        body:`연회가 끝나갑니다. 모두의 시선이 명예 손님 ${goh.name}과(와) 당신에게 향합니다.\n(교류도 ${rapport})`,
+        opts:[
+          {t:`건배를 든다`, d:`${goh.name} 관계 +${toastOp}${befriend?' · 교우 강화':''}`, f:()=>{
+            chOp(goh,p,toastOp); chOp(p,goh,Math.round(toastOp*0.6));
+            if(befriend && opinion(goh,p)>=40 && rapport>=4){
+              log(`<b>${goh.name}</b>과(와) 더없이 가까워졌습니다. 두터운 우정이 싹틉니다.`,'good');
+            } else {
+              log(`명예 손님 <b>${goh.name}</b>을(를) 위해 건배했습니다. 관계가 깊어졌습니다.`,'good');
+            }
+          }},
+          {t:`공개적으로 모욕한다`, d:`위신 +${insultPrestige} · ${goh.name} 관계 -30`, f:()=>{
+            state.prestige+=insultPrestige; chOp(goh,p,-30); chOp(p,goh,-15);
+            // 다른 참석자도 약간 불쾌
+            for(const inv of arrived){ if(inv.id===goh.id) continue; const g=chars[inv.id]; if(g&&!g.dead) chOp(g,p,-5); }
+            log(`명예 손님 <b>${goh.name}</b>을(를) 좌중 앞에서 모욕했습니다. 위신은 올랐으나 적의를 샀습니다.`,'war');
+          }},
+        ]});
+      renderActivity();
+      return; // 아래 기본 종료 팝업 생략
+    }
+  }
+
+  state.activeActivity=null;
+  popup({title:`${t.n} 종료`, sub:'성대한 마무리',
+    body:`${tier.n}이(가) 막을 내렸습니다.\n참석자 ${n}명과의 유대가 깊어졌습니다.\n위신 +${prestigeGain}`,
+    opts:[{t:'영광스러운 날이었다'}]});
+}
+/* 진행 중 활동 취소 */
+function cancelActivity(){
+  const act=state.activeActivity; if(!act) return;
+  const p=playerChar();
+  log(`${ACTIVITY_TYPES[act.type].n}을(를) 중단했습니다.`,'dip');
+  state.activeActivity=null;
+  renderActivity();
+}
+
+/* ── 활동 탭 렌더 ── */
+function renderActivity(){
+  const p=playerChar(); if(!p) return;
+  const el=document.getElementById('actContent'); if(!el) return;
+  let html='';
+  const act=state.activeActivity;
+
+  if(!act){
+    // 개최 가능 활동 목록
+    html+=`<div style="font-size:.72rem;color:var(--parch-dim);margin-bottom:10px;line-height:1.5">CK3식 활동 — 투자 규모를 정하고 손님을 초대해 유대를 다집니다. 손님이 모두 거절하면 굴욕으로 스트레스가 오릅니다.</div>`;
+    for(const tid in ACTIVITY_TYPES){
+      const t=ACTIVITY_TYPES[tid];
+      const cdLeft=activityCooldownLeft(tid);
+      html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:9px 11px;margin-bottom:9px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.86rem;color:var(--gold)">${t.icon} <b>${t.n}</b></span>
+          ${cdLeft>0?`<span style="font-size:.64rem;color:#8a6a4a">${cdLeft}년 후 가능</span>`:''}
+        </div>
+        <div style="font-size:.66rem;color:var(--parch-dim);margin:3px 0 6px">${t.desc}</div>`;
+      if(cdLeft<=0){
+        // 투자 등급 버튼 3개
+        html+=`<div style="display:flex;flex-direction:column;gap:4px">`;
+        t.tiers.forEach((tier,i)=>{
+          const cost=activityCost(tid,i);
+          const seatGold=Math.round(BARONIES[p.region]?.gold||0);
+          const can=seatGold>=cost;
+          html+=`<button onclick="onStartActivity('${tid}',${i})" ${can?'':'disabled'}
+            style="display:flex;justify-content:space-between;align-items:center;text-align:left;
+            background:${can?'linear-gradient(#2a2014,#1a1208)':'#1a160e'};color:${can?'var(--parch)':'#5a5040'};
+            border:1px solid ${can?'var(--gold-dim)':'#2c2316'};border-radius:3px;padding:5px 8px;
+            cursor:${can?'pointer':'default'};font-family:inherit;font-size:.7rem">
+            <span>${tier.n} <span style="color:var(--parch-dim);font-size:.62rem">· 손님 최대 ${tier.maxGuests}</span></span>
+            <span style="color:${can?'var(--gold-dim)':'#5a5040'};font-size:.66rem">금 ${cost}</span>
+          </button>`;
+        });
+        html+=`</div>`;
+      }
+      html+=`</div>`;
+    }
+    el.innerHTML=html;
+    return;
+  }
+
+  // 진행 중 활동
+  const t=ACTIVITY_TYPES[act.type];
+  const tier=t.tiers[act.tier];
+  html+=`<div style="background:#1a1510;border:1px solid var(--gold-dim);border-radius:4px;padding:10px 12px;margin-bottom:10px">
+    <div style="font-size:.9rem;color:var(--gold)">${t.icon} <b>${t.n}</b> <span style="font-size:.66rem;color:var(--parch-dim)">· ${tier.n}</span></div>`;
+  const phaseN={inviting:'손님 초대 중',waiting:'손님 도착 대기',ongoing:'진행 중'}[act.phase];
+  html+=`<div style="font-size:.7rem;color:var(--parch-dim);margin-top:3px">단계: ${phaseN}</div></div>`;
+
+  if(act.phase==='inviting'){
+    const cands=activityInviteCandidates();
+    // 연회: 인텐트 선택 UI
+    if(act.type==='feast'){
+      html+=`<div style="font-size:.66rem;letter-spacing:.1em;color:var(--gold-dim);margin-bottom:5px">연회 목적 (인텐트)</div>
+        <div style="display:flex;gap:5px;margin-bottom:10px">`;
+      const intents=[
+        {id:'recreation', n:'🍷 오락', d:'스트레스 해소 중심'},
+        {id:'befriend', n:'🤝 교우', d:'명예 손님과 우정'},
+      ];
+      for(const it of intents){
+        const sel=act.intent===it.id;
+        html+=`<button onclick="setFeastIntent('${it.id}')" title="${it.d}"
+          style="flex:1;background:${sel?'linear-gradient(#3a2c18,#241a0e)':'#15110a'};
+          color:${sel?'var(--gold)':'var(--parch-dim)'};border:1px solid ${sel?'var(--gold-dim)':'#2c2316'};
+          border-radius:3px;padding:5px 4px;cursor:pointer;font-family:inherit;font-size:.68rem">${it.n}</button>`;
+      }
+      html+=`</div>`;
+    }
+    html+=`<div style="font-size:.7rem;letter-spacing:.15em;color:var(--gold-dim);margin-bottom:6px">초대 대상 (${act.invited.length}/${tier.maxGuests})</div>`;
+    if(act.type==='feast'){
+      html+=`<div style="font-size:.62rem;color:var(--parch-dim);margin-bottom:5px">☑ 체크해 초대 · ⭐ 눌러 명예 손님 지정</div>`;
+    }
+    if(!cands.length){
+      html+=`<div style="font-size:.7rem;color:var(--parch-dim)">초대할 군주가 없습니다.</div>`;
+    }
+    for(const g of cands){
+      const inv=act.invited.find(i=>i.id===g.id);
+      const op=opinion(g,p);
+      const opColor=op>=15?'#7a9a6a':op<=-15?'#9e5a5a':'#b0a080';
+      const chance=Math.round(inviteAcceptChance(g,p)*100);
+      const isV=g.liege===p.id;
+      const full=act.invited.length>=tier.maxGuests && !inv;
+      const isGoh=act.guestOfHonor===g.id;
+      html+=`<div style="display:flex;justify-content:space-between;align-items:center;
+        padding:5px 7px;margin-bottom:3px;border-radius:3px;
+        background:${inv?'#2a2416':'#15110a'};border:1px solid ${isGoh?'var(--gold)':(inv?'var(--gold-dim)':'#2c2316')};opacity:${full?0.4:1}">
+        <span onclick="${full?'':`toggleInvite('${g.id}')`}" style="font-size:.74rem;cursor:${full?'default':'pointer'};flex:1">
+          ${inv?'☑':'☐'} <b>${g.name}</b>
+          <span style="color:var(--parch-dim);font-size:.62rem">${isV?'· 봉신':'· 군주'}</span>
+          ${isGoh?'<span style="color:var(--gold);font-size:.62rem"> · ⭐명예손님</span>':''}
+        </span>
+        <span style="text-align:right;white-space:nowrap">
+          ${inv&&act.type==='feast'?`<span onclick="setGuestOfHonor('${g.id}')" style="cursor:pointer;font-size:.7rem">${isGoh?'⭐':'☆'}</span> `:''}
+          <span style="color:${opColor};font-size:.66rem">${op>0?'+':''}${op}</span>
+          <span style="color:var(--parch-dim);font-size:.6rem"> ${chance}%</span>
+        </span></div>`;
+    }
+    html+=`<div style="display:flex;gap:6px;margin-top:10px">
+      <button onclick="confirmInvites()" ${act.invited.length?'':'disabled'}
+        style="flex:1;background:${act.invited.length?'linear-gradient(#3a2c18,#241a0e)':'#1a160e'};
+        color:${act.invited.length?'var(--gold)':'#5a5040'};border:1px solid var(--gold-dim);border-radius:3px;
+        padding:7px;cursor:${act.invited.length?'pointer':'default'};font-family:inherit;font-size:.74rem">초대장 발송</button>
+      <button onclick="cancelActivity()" style="background:#1a1208;color:#9e7a5a;border:1px solid #4a3a28;border-radius:3px;padding:7px 12px;cursor:pointer;font-family:inherit;font-size:.74rem">취소</button>
+    </div>`;
+  }
+
+  else if(act.phase==='waiting'){
+    html+=`<div style="font-size:.7rem;letter-spacing:.15em;color:var(--gold-dim);margin-bottom:6px">손님 현황</div>`;
+    for(const inv of act.invited){
+      const g=chars[inv.id]; if(!g) continue;
+      let status, color;
+      if(!inv.accepted){ status='거절'; color='#9e5a5a'; }
+      else if(inv.arrived){ status='도착 완료'; color='#7a9a6a'; }
+      else { status=`이동 중 (${inv.monthsLeft}개월)`; color='#c8a24a'; }
+      html+=`<div style="display:flex;justify-content:space-between;font-size:.74rem;padding:4px 0;border-bottom:1px dotted #2c2316">
+        <span><b>${g.name}</b></span><span style="color:${color};font-size:.68rem">${status}</span></div>`;
+    }
+    html+=`<div style="font-size:.64rem;color:var(--parch-dim);margin-top:8px">시간을 진행하면 손님이 도착합니다.</div>`;
+  }
+
+  else if(act.phase==='ongoing'){
+    const arrived=act.invited.filter(i=>i.accepted&&i.arrived&&chars[i.id]&&!chars[i.id].dead);
+    html+=`<div style="font-size:.7rem;letter-spacing:.15em;color:var(--gold-dim);margin-bottom:6px">진행 ${act.progress}/3 단계</div>`;
+    // 연회: 인텐트/명예손님/교류도 표시
+    if(act.type==='feast'){
+      const intentN=act.intent==='befriend'?'🤝 교우':'🍷 오락';
+      const goh=act.guestOfHonor?chars[act.guestOfHonor]:null;
+      html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:6px 9px;margin-bottom:8px;font-size:.68rem">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--parch-dim)">목적</span><span>${intentN}</span></div>`;
+      if(goh){
+        html+=`<div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:var(--parch-dim)">명예 손님</span><span style="color:var(--gold)">⭐ ${goh.name}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:var(--parch-dim)">교류도</span><span>${act.rapport||0}</span></div>`;
+      }
+      html+=`</div>`;
+    }
+    html+=`<div style="font-size:.72rem;color:var(--parch);margin-bottom:6px">참석자 ${arrived.length}명</div>`;
+    for(const inv of arrived){
+      const g=chars[inv.id];
+      const isGoh=act.guestOfHonor===inv.id;
+      html+=`<div style="font-size:.72rem;padding:3px 0;color:${isGoh?'var(--gold)':'var(--parch-dim)'}">${isGoh?'⭐':'🍷'} ${g.name}</div>`;
+    }
+    html+=`<div style="font-size:.64rem;color:var(--parch-dim);margin-top:8px">시간을 진행하면 활동이 단계별로 진행됩니다.</div>`;
+  }
+
+  el.innerHTML=html;
+}
+function openActivity(){ togglePanel('act'); }
+/* 활동 개최 버튼 핸들러 — 투자 등급 선택 즉시 시작 */
+function onStartActivity(typeId, tierIdx){
+  initAudio();
+  playSynthSFX&&playSynthSFX('gold');
+  startActivity(typeId, tierIdx);
+}
+
 
 /* 자문회 UI 렌더 (궁정 패널) */
 function renderCourt(){
@@ -5311,36 +6540,13 @@ function renderDec(){
   }
 
   // ── 통치 결단 ──────────────────────
-  if(n>=4&&!state.kingdomFormed){
-    const canAfford=REGIONS[p.region].gold>=250;
-    addDec('⚜ 아일랜드 왕국 선포',`금 250 필요 (보유 ${Math.round(REGIONS[p.region].gold)}) · 위신 +200`, canAfford, ()=>{
-      if(REGIONS[p.region].gold<250){return;}
-      REGIONS[p.region].gold-=250; state.kingdomFormed=true; state.prestige+=200;
-      log('<b>아일랜드 왕국</b>이 선포되었습니다!','good');
-      closePanel('dec');
-      popup({title:'아일랜드 왕국', sub:'대관식',
-        body:'캐셸의 바위 위에서 주교가 왕관을 씌웁니다.\n에이레의 절반이 당신의 이름을 외칩니다.',
-        opts:[{t:'하이킹의 길은 계속된다'}]});
-    });
-  }
+  // (아일랜드 왕국 선포는 봉역 탭의 작위 창설 시스템으로 대체됨)
   if(playerDuchies().length>=7){
     addDec('☀ 하이킹에 등극한다','에이레 전토 통일 — 승리', true, ()=>{ closePanel('dec'); victory(); });
   }
 
-  // ── 연회/행사 ──────────────────────
-  addDec('연회를 연다',`금 60 · 군주 관계 +8 · 스트레스 -20`, REGIONS[p.region].gold>=60, ()=>{
-    playSynthSFX('gold');
-    REGIONS[p.region].gold-=60; addStress(p,-20,'연회의 즐거움');
-    for(const rid in REGIONS){const r=ownerOf(rid); if(r&&r.id!==p.id) chOp(r,p,8);}
-    if(p.traits.includes('gregarious'))addStress(p,-8,'사교적인 자의 기쁨');
-    if(p.traits.includes('shy'))addStress(p,12,'내성적인 자의 고역');
-    log('성대한 연회가 열렸습니다.','good'); renderDec();
-  });
-  addDec('클론맥노이즈 순례',`금 30 · 스트레스 -25 · 위신 +10`, REGIONS[p.region].gold>=30, ()=>{
-    playSynthSFX('gold');
-    REGIONS[p.region].gold-=30; addStress(p,-25,'순례의 평안'); state.prestige+=10;
-    log('섀넌 강가의 수도원에서 기도를 올렸습니다.','fam'); renderDec();
-  });
+  // ── 행사 ──────────────────────
+  // (연회·순례는 활동 탭의 CK3식 다단계 활동 시스템으로 이관됨)
   addDec('병력 소집',`금 80 · 병력 +200`, BARONIES[p.region]?.gold>=80, ()=>{
     playSynthSFX('gold');
     REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
@@ -5512,8 +6718,8 @@ function renderHeader(){
   document.getElementById('seasonTxt').textContent=`${SEASONS[state.month-1]} · ${COUNTIES[countyOf(playerChar().region)]?.n||BARONIES[playerChar().region]?.n||'—'}`;
   const reg=REGIONS[playerChar().region];
   document.getElementById('goldTxt').textContent=reg?Math.round(reg.gold):0;
-  document.getElementById('prestigeTxt').textContent=state.prestige||120;
-  const totalTroops=playerRegions().reduce((s,rid)=>s+(REGIONS[rid].troops||0),0);
+  document.getElementById('prestigeTxt').textContent=Math.round(state.prestige||120);
+  const totalTroops=Math.round(playerRegions().reduce((s,rid)=>s+(REGIONS[rid].troops||0),0));
   document.getElementById('troopTxt').textContent=totalTroops.toLocaleString();
   // 직할령 표시 (CK3 방식)
   const p=playerChar();
@@ -5532,7 +6738,7 @@ function renderChar(){
   portrait.style.cursor='pointer';
   portrait.onclick=()=>{ initAudio(); openProfile(c); };
   document.getElementById('cNm').textContent=c.name;
-  const ttl=state.kingdomFormed?'아일랜드 왕':`${COUNTIES[countyOf(c.region)]?.n||BARONIES[c.region]?.n||''} 소왕`;
+  const ttl=charTitle(c);
   document.getElementById('cTtl').textContent=`${ttl} · ${age(c)}세 · ${c.dyn} 가문`;
   let chips='';
   for(const t of c.traits) chips+=`<span class="chip">${TRAITS[t].n}</span>`;
@@ -5579,7 +6785,7 @@ function renderMap(){
     const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':(DUCHIES[C.duchy]?.color||'#555');
     const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':'#6a5836';
     const bids=C.baronies;
-    const totalT=bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0);
+    const totalT=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
     const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
     const rad=mine?22:18;
     const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
@@ -5659,6 +6865,11 @@ log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니�
   }
 
   cleanupGhostRulers();
+
+  // ⑤ 플레이어 봉신 계약 의무 초기화 (CK3 Feudal 기본: 세금 보통·레비 낮음)
+  if(p){
+    for(const v of vassalsOf(p.id)) initVassalContract(v);
+  }
 })();
 log('지도의 왕국을 클릭하면 외교를 할 수 있습니다.','dip');
 intro();
