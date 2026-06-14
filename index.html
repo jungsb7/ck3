@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>에이레 1066 — 먼스터의 소왕</title>
-<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 
@@ -35,10 +35,15 @@
   <div class="panel-head">자문회<button class="panel-close" onclick="initAudio();closePanel('council')">✕</button></div>
   <div id="councilContent" class="panel-body"></div>
 </div>
-<div id="councilWrap" class="side-panel">
-  <button class="panel-tab" id="councilTab" onclick="initAudio();togglePanel('council')">자문회</button>
-  <div class="panel-head">자문회<button class="panel-close" onclick="initAudio();closePanel('council')">✕</button></div>
-  <div id="councilContent" class="panel-body"></div>
+<div id="fiefWrap" class="side-panel">
+  <button class="panel-tab" id="fiefTab" onclick="initAudio();togglePanel('fief')">봉역</button>
+  <div class="panel-head">봉역<button class="panel-close" onclick="initAudio();closePanel('fief')">✕</button></div>
+  <div id="fiefContent" class="panel-body"></div>
+</div>
+<div id="actWrap" class="side-panel">
+  <button class="panel-tab" id="actTab" onclick="initAudio();togglePanel('act')">활동</button>
+  <div class="panel-head">활동<button class="panel-close" onclick="initAudio();closePanel('act')">✕</button></div>
+  <div id="actContent" class="panel-body"></div>
 </div>
 <div id="courtWrap" class="side-panel">
   <button class="panel-tab" id="courtTab" onclick="initAudio();togglePanel('court')">궁정</button>
@@ -84,6 +89,6 @@
 <div id="shade"><div class="modal" id="modalBox"></div></div>
 <div id="profileShade"><div id="profileModal"></div></div>
 
-<script src="script.js?v=10"></script>
+<script src="script.js?v=16"></script>
 </body>
 </html>
