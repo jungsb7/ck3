@@ -3568,6 +3568,12 @@ function skillColor(k){
    SVG 초상화 생성 — 외부 파일 불필요, 특성 기반 외모 변화
    w, h: 출력 크기 (기본 86×108)
    ══════════════════════════════════════════════════════ */
+function makePortraitImg(c, w, h){
+  const svg = makePortraitSVG(c, w, h);
+  const b64 = btoa(unescape(encodeURIComponent(svg)));
+  return '<img src="data:image/svg+xml;base64,' + b64 + '" width="' + (w||86) + '" height="' + (h||108) + '" style="display:block"/>';
+}
+
 function makePortraitSVG(c, w, h){
   w = w||86; h = h||108;
   const male = c.sex !== 'f';
@@ -3756,7 +3762,7 @@ function buildProfileHTML(c){
 
   return `
     <div class="pm-header">
-      <div class="pm-portrait">${makePortraitSVG(c, 86, 108)}</div>
+      <div class="pm-portrait">${makePortraitImg(c, 86, 108)}</div>
       <div class="pm-title">
         <h2>${c.name}</h2>
         <div class="pm-sub">${ttl} · ${c.dyn} 가문 · ${charAge}세</div>
