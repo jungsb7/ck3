@@ -49,14 +49,11 @@ body{
   border-top:2px solid var(--gold-dim);
 }
 #portrait{
-  width:86px; min-height:108px; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center;
-  border-right:1px solid var(--line); cursor:pointer;
-  background:radial-gradient(circle at 50% 35%,#2c2113,#181009);
-  overflow:hidden;
+  width:86px; min-height:108px; display:flex; align-items:center; justify-content:center;
+  font-size:2.2rem; color:var(--gold); border-right:1px solid var(--line);
+  background:radial-gradient(circle at 50% 35%, #2c2113, #181009);
+  text-shadow:0 0 18px rgba(200,162,74,.4);
 }
-#portrait:hover{ filter:brightness(1.12) }
-#portrait svg{ display:block }
 #charInfo{flex:1; padding:9px 16px}
 #charInfo .nm{font-size:1.05rem; color:var(--gold)}
 #charInfo .ttl{font-size:.78rem; color:var(--parch-dim); letter-spacing:.1em; margin-bottom:5px}
@@ -115,8 +112,8 @@ button:disabled{opacity:.35; cursor:default}
 #logTab  { display:flex; align-items:center; justify-content:center }
 #logClose{ display:none }
 .panel-tab{ display:flex; align-items:center; justify-content:center }
-#charTop{ display:flex; flex-direction:row; align-items:stretch }
-#charBot{ display:flex; flex-direction:row; align-items:center }
+#charTop { display:contents }
+#charBot { display:contents }
 
 @media (max-width:768px){
   /* 헤더 폰트 40% 축소 */
@@ -141,8 +138,7 @@ button:disabled{opacity:.35; cursor:default}
     display:flex; flex-direction:row;
     border-bottom:1px solid var(--line);
   }
-  #portrait{ width:58px; min-height:72px }
-  #portrait svg{ width:58px; height:72px }
+  #portrait{ width:58px; min-height:68px; font-size:1.5rem }
   #charInfo{ padding:6px 10px }
   #charInfo .nm{ font-size:.88rem }
   #charInfo .ttl{ font-size:.68rem }
@@ -228,109 +224,4 @@ button:disabled{opacity:.35; cursor:default}
 @media (min-width:769px){
   .panel-tab{ display:flex }
   .side-panel{ width:360px }
-}
-/* ===== 프로필 모달 ===== */
-/* ===== 프로필 모달 ===== */
-#profileShade{
-  position:fixed; inset:0; background:rgba(5,3,1,.85);
-  display:none; align-items:flex-start; justify-content:center;
-  z-index:60; padding:16px 8px; overflow-y:auto;
-}
-#profileShade.show{ display:flex }
-#profileModal{
-  width:min(800px,100%);
-  background:linear-gradient(160deg,#251c12,#1a130b);
-  border:1px solid var(--gold);
-  border-radius:4px;
-  box-shadow:0 0 60px rgba(0,0,0,.95);
-  overflow:hidden;
-  /* flex/grid 없음 — 내부 블록 흐름으로만 */
-}
-
-/* 헤더 */
-.pm-header{
-  display:flex; align-items:stretch;
-  border-bottom:2px solid var(--gold-dim);
-  background:linear-gradient(#2a1f12,#1e1509);
-}
-.pm-portrait{
-  width:86px; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center;
-  padding:8px;
-  border-right:1px solid var(--line);
-}
-.pm-title{
-  flex:1; min-width:0; padding:12px 14px;
-  display:flex; flex-direction:column; justify-content:center;
-}
-.pm-title h2{
-  font-size:1rem; color:var(--gold); font-weight:normal;
-  letter-spacing:.04em; margin:0 0 3px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.pm-title .pm-sub{
-  font-size:.7rem; color:var(--parch-dim);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.pm-close{
-  background:none; border:none; color:var(--parch-dim);
-  font-size:1.4rem; padding:10px 14px; cursor:pointer; flex-shrink:0;
-}
-.pm-close:hover{ color:var(--gold) }
-
-/* 본문 — 3열 flex (iOS Safari 호환) */
-.pm-body{
-  display:flex;
-  flex-direction:row;
-  align-items:stretch;
-}
-.pm-section{
-  flex:1;
-  min-width:0;
-  padding:12px 14px;
-  border-right:1px solid var(--line);
-}
-.pm-section:last-child{ border-right:none }
-
-/* 섹션 제목 */
-.pm-sec-title{
-  font-size:.6rem; letter-spacing:.22em; color:var(--gold-dim);
-  margin:0 0 7px; padding-bottom:4px;
-  border-bottom:1px solid var(--line);
-}
-
-/* key-value 행 */
-.pm-kv{
-  display:flex; justify-content:space-between; align-items:baseline;
-  gap:4px; font-size:.73rem; padding:2px 0;
-  border-bottom:1px dotted #2c2316;
-  line-height:1.4;
-}
-.pm-kv>span:first-child{ color:var(--parch-dim); flex-shrink:0; white-space:nowrap; }
-.pm-kv>span:last-child{ text-align:right; word-break:keep-all; overflow-wrap:anywhere; }
-
-/* 스킬 바 */
-.skill-row{ display:flex; align-items:center; gap:4px; margin-bottom:4px }
-.skill-name{ width:22px; color:var(--parch-dim); flex-shrink:0; font-size:.68rem }
-.skill-bar-wrap{ flex:1; height:5px; background:#0c0906; border:1px solid #2a2014; border-radius:2px; overflow:hidden; min-width:0; }
-.skill-bar-fill{ height:100%; border-radius:2px }
-.skill-val{ width:16px; text-align:right; color:var(--parch); font-size:.68rem; flex-shrink:0 }
-.skill-grade{ width:36px; font-size:.57rem; flex-shrink:0; color:var(--parch-dim) }
-
-/* 특성 칩 */
-.pm-chip{
-  display:inline-block; font-size:.62rem;
-  border:1px solid var(--gold-dim); border-radius:2px;
-  padding:1px 4px; color:var(--parch); background:#241b10;
-  margin:2px 2px 2px 0; white-space:nowrap;
-}
-.pm-chip.edu{ border-color:var(--steel) }
-.pm-chip.life{ border-color:var(--violet) }
-.pm-chip.neg{ border-color:var(--blood); color:#d08a82 }
-
-/* 반응형 — 500px 이하 세로 배치 */
-@media (max-width:500px){
-  .pm-body{ flex-direction:column }
-  .pm-section{ flex:none; border-right:none; border-bottom:1px solid var(--line) }
-  .pm-section:last-child{ border-bottom:none }
 }
