@@ -129,93 +129,98 @@ const EDU_BONUS = [1,2,3,5]; // 등급별 스탯 보너스 (위키 기준)
 
 /* 남작령: 소유·전투·경제의 기본 단위. owner = charId */
 const BARONIES = {
-  /* ── 먼스터 (d_munster) ──────────────────────────
-     CK3 1066: 아일랜드는 개발 초기. 바이킹 도시(리머릭·코크)에 city,
-     주요 수도원에 temple. 나머지는 빈 슬롯.
-     출처: CK3 위키 + 학습 데이터 기준                */
+  /* ── 먼스터 (d_munster) ── */
 
-  /* c_thomond — 수도 리머릭(castle), 바이킹 항구도시(city), 빈 슬롯 1 */
+  /* c_thomond — 플레이어 수도: castle(리머릭) + city(바이킹 항구) + temple(킬랄로 주교좌) + empty */
   b_limerick:  {n:'리머릭',   county:'c_thomond', type:'castle', troops:340, gold:100, pop:65, cap:340, owner:null},
   b_nenagh:    {n:'네나',     county:'c_thomond', type:'city',   troops:160, gold: 80, pop:60, cap:160, owner:null},
-  b_kilmallock:{n:'킬말록',   county:'c_thomond', type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
+  b_killaloe:  {n:'킬랄로',   county:'c_thomond', type:'temple', troops:130, gold: 55, pop:58, cap:130, owner:null},
+  b_empty_thomond:{n:'(빈 슬롯)',county:'c_thomond',type:'empty',troops:0,  gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* c_ennis — 수도(castle), 수도원(temple), 빈 슬롯 1 */
+  /* c_ennis — castle + temple + empty */
   b_ennis:     {n:'에니스',   county:'c_ennis',   type:'castle', troops:260, gold: 70, pop:62, cap:260, owner:null},
-  b_kincora:   {n:'킨코라',   county:'c_ennis',   type:'temple', troops:150, gold: 55, pop:58, cap:150, owner:null},
+  b_kincora:   {n:'킨코라',   county:'c_ennis',   type:'temple', troops:130, gold: 50, pop:55, cap:130, owner:null},
   b_empty_ennis:{n:'(빈 슬롯)',county:'c_ennis',  type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* c_ormond — 수도 워터퍼드(castle/바이킹), 빈 슬롯 1 */
+  /* c_ormond — castle + city + empty */
   b_waterford: {n:'워터퍼드', county:'c_ormond',  type:'castle', troops:280, gold: 90, pop:60, cap:280, owner:null},
-  b_clonmel:   {n:'클론멜',   county:'c_ormond',  type:'city',   troops:160, gold: 70, pop:57, cap:160, owner:null},
+  b_clonmel:   {n:'클론멜',   county:'c_ormond',  type:'city',   troops:150, gold: 65, pop:57, cap:150, owner:null},
   b_empty_ormond:{n:'(빈 슬롯)',county:'c_ormond',type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* c_desmond — 수도 코크(castle), 항구 도시, 빈 슬롯 1 */
+  /* c_desmond — castle + city + empty */
   b_cork:      {n:'코크',     county:'c_desmond', type:'castle', troops:260, gold: 75, pop:62, cap:260, owner:null},
-  b_kinsale:   {n:'킨세일',   county:'c_desmond', type:'city',   troops:140, gold: 65, pop:55, cap:140, owner:null},
-  b_empty_desmond:{n:'(빈 슬롯)',county:'c_desmond',type:'empty',troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
+  b_kinsale:   {n:'킨세일',   county:'c_desmond', type:'city',   troops:140, gold: 60, pop:55, cap:140, owner:null},
+  b_empty_desmond:{n:'(빈 슬롯)',county:'c_desmond',type:'empty',troops:0,  gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* ── 레인스터 (d_leinster) ────────────────────── */
-  /* c_leinster — 웩스퍼드(castle/바이킹), 빈 슬롯 1 */
+  /* ── 레인스터 (d_leinster) ── */
+
+  /* c_leinster — castle + temple + empty */
   b_wexford:   {n:'웩스퍼드', county:'c_leinster',type:'castle', troops:290, gold: 80, pop:58, cap:290, owner:null},
-  b_ferns:     {n:'퍼언스',   county:'c_leinster',type:'temple', troops:150, gold: 48, pop:55, cap:150, owner:null},
+  b_ferns:     {n:'퍼언스',   county:'c_leinster',type:'temple', troops:130, gold: 45, pop:55, cap:130, owner:null},
   b_empty_leinster:{n:'(빈 슬롯)',county:'c_leinster',type:'empty',troops:0,gold:0,  pop: 0, cap:  0, owner:null},
 
-  /* c_ossory — 킬케니(castle), 빈 슬롯 1 */
+  /* c_ossory — castle + city + empty */
   b_gowran:    {n:'고란',     county:'c_ossory',  type:'castle', troops:220, gold: 60, pop:57, cap:220, owner:null},
-  b_kilkenny:  {n:'킬케니',   county:'c_ossory',  type:'city',   troops:170, gold: 75, pop:58, cap:170, owner:null},
+  b_kilkenny:  {n:'킬케니',   county:'c_ossory',  type:'city',   troops:160, gold: 70, pop:58, cap:160, owner:null},
   b_empty_ossory:{n:'(빈 슬롯)',county:'c_ossory', type:'empty', troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* ── 더블린 (d_dublin) ─────────────────────────── */
-  /* c_dublin — 더블린(castle/바이킹 수도), 빈 슬롯 1 */
+  /* ── 더블린 (d_dublin) ── */
+
+  /* c_dublin — castle + city + empty */
   b_dublin:    {n:'더블린',   county:'c_dublin',  type:'castle', troops:380, gold:130, pop:65, cap:380, owner:null},
-  b_wicklow:   {n:'위클로',   county:'c_dublin',  type:'city',   troops:160, gold: 75, pop:58, cap:160, owner:null},
+  b_wicklow:   {n:'위클로',   county:'c_dublin',  type:'city',   troops:160, gold: 70, pop:58, cap:160, owner:null},
   b_empty_dublin:{n:'(빈 슬롯)',county:'c_dublin', type:'empty', troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* ── 미드 (d_meath) ────────────────────────────── */
-  /* c_meath — 트림(castle), 켈스 수도원(temple), 빈 슬롯 1 */
+  /* ── 미드 (d_meath) ── */
+
+  /* c_meath — castle + temple + empty */
   b_trim:      {n:'트림',     county:'c_meath',   type:'castle', troops:260, gold: 70, pop:60, cap:260, owner:null},
-  b_kells:     {n:'켈스',     county:'c_meath',   type:'temple', troops:155, gold: 55, pop:57, cap:155, owner:null},
+  b_kells:     {n:'켈스',     county:'c_meath',   type:'temple', troops:140, gold: 52, pop:57, cap:140, owner:null},
   b_empty_meath:{n:'(빈 슬롯)',county:'c_meath',  type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* c_athlone — 애슬론(castle), 빈 슬롯 1 */
+  /* c_athlone — castle + empty (소규모) */
   b_athlone:   {n:'애슬론',   county:'c_athlone', type:'castle', troops:250, gold: 65, pop:58, cap:250, owner:null},
   b_empty_athlone:{n:'(빈 슬롯)',county:'c_athlone',type:'empty',troops:0,  gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* ── 코노트 (d_connacht) ───────────────────────── */
-  /* c_connacht — 골웨이(castle), 빈 슬롯 1 */
+  /* ── 코노트 (d_connacht) ── */
+
+  /* c_connacht — castle + temple + empty */
   b_galway:    {n:'골웨이',   county:'c_connacht',type:'castle', troops:310, gold: 80, pop:62, cap:310, owner:null},
-  b_tuam:      {n:'투암',     county:'c_connacht',type:'temple', troops:160, gold: 58, pop:57, cap:160, owner:null},
+  b_tuam:      {n:'투암',     county:'c_connacht',type:'temple', troops:140, gold: 55, pop:57, cap:140, owner:null},
   b_empty_connacht:{n:'(빈 슬롯)',county:'c_connacht',type:'empty',troops:0,gold:0,  pop: 0, cap:  0, owner:null},
 
-  /* c_mayo — 수도(castle), 빈 슬롯 1 */
+  /* c_mayo — castle + empty */
   b_cruachu:   {n:'크루하후', county:'c_mayo',    type:'castle', troops:200, gold: 50, pop:55, cap:200, owner:null},
   b_empty_mayo:{n:'(빈 슬롯)',county:'c_mayo',    type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* ── 브레프네 (d_breifne) ──────────────────────── */
-  /* c_breifne — 수도(castle), 빈 슬롯 1 */
+  /* ── 브레프네 (d_breifne) ── */
+
+  /* c_breifne — castle + empty */
   b_dromahair: {n:'드로마헤르',county:'c_breifne', type:'castle', troops:230, gold: 58, pop:57, cap:230, owner:null},
   b_empty_breifne:{n:'(빈 슬롯)',county:'c_breifne',type:'empty',troops:0,  gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* ── 얼스터 (d_ulster) ─────────────────────────── */
-  /* c_ulster — 다운패트릭(castle), 아르마는 c_oriel로 이동 */
+  /* ── 얼스터 (d_ulster) ── */
+
+  /* c_ulster — castle + city + empty */
   b_downpatrick:{n:'다운패트릭',county:'c_ulster', type:'castle', troops:280, gold: 72, pop:60, cap:280, owner:null},
-  b_carrickfergus:{n:'캐릭퍼거스',county:'c_ulster',type:'city', troops:175, gold: 75, pop:60, cap:175, owner:null},
+  b_carrickfergus:{n:'캐릭퍼거스',county:'c_ulster',type:'city', troops:160, gold: 70, pop:60, cap:160, owner:null},
   b_empty_ulster:{n:'(빈 슬롯)',county:'c_ulster', type:'empty', troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* c_oriel — 아르디(castle), 아르마 대성당(temple — 아일랜드 대표 성지), 빈 슬롯 1 */
+  /* c_oriel — castle + temple + empty (아르마 = 아일랜드 대표 수도원) */
   b_ardee:     {n:'아르디',   county:'c_oriel',   type:'castle', troops:190, gold: 48, pop:55, cap:190, owner:null},
-  b_armagh:    {n:'아르마',   county:'c_oriel',   type:'temple', troops:210, gold: 75, pop:60, cap:210, owner:null},
+  b_armagh:    {n:'아르마',   county:'c_oriel',   type:'temple', troops:200, gold: 70, pop:60, cap:200, owner:null},
   b_empty_oriel:{n:'(빈 슬롯)',county:'c_oriel',  type:'empty',  troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 
-  /* c_ailech — 도네갈(castle), 더리(city), 빈 슬롯 1 */
+  /* c_ailech — castle + city + empty */
   b_donegal:   {n:'도네갈',   county:'c_ailech',  type:'castle', troops:220, gold: 55, pop:57, cap:220, owner:null},
-  b_derry:     {n:'더리',     county:'c_ailech',  type:'city',   troops:165, gold: 62, pop:58, cap:165, owner:null},
+  b_derry:     {n:'더리',     county:'c_ailech',  type:'city',   troops:155, gold: 60, pop:58, cap:155, owner:null},
   b_empty_ailech:{n:'(빈 슬롯)',county:'c_ailech', type:'empty', troops:0,   gold:  0, pop: 0, cap:  0, owner:null},
 };
 
+
 /* 백작령: 남작령들의 집합. capital = 수도 남작령 */
 const COUNTIES = {
-  c_thomond: {n:'톰몬드',   duchy:'d_munster',  capital:'b_limerick',  baronies:['b_limerick','b_nenagh','b_kilmallock'], x:104, y:318, poly:'72,262 118,268 162,278 168,322 148,358 118,378 85,372 58,350 48,312 58,278'},
+  c_thomond: {n:'톰몬드',   duchy:'d_munster',  capital:'b_limerick',  baronies:['b_limerick','b_nenagh','b_killaloe','b_empty_thomond'], x:104, y:318, poly:'72,262 118,268 162,278 168,322 148,358 118,378 85,372 58,350 48,312 58,278'},
   c_ennis:   {n:'에니스',   duchy:'d_munster',  capital:'b_ennis',     baronies:['b_ennis','b_kincora','b_empty_ennis'],                              x: 49, y:314, poly:'30,200 48,215 48,240 58,278 48,312 58,350 72,390 52,428 30,415'},
   c_ormond:  {n:'오몬드',   duchy:'d_munster',  capital:'b_waterford', baronies:['b_waterford','b_clonmel','b_empty_ormond'],                 x:248, y:342, poly:'198,288 238,282 262,252 228,272 212,308 222,338 198,358 172,342 162,278'},
   c_desmond: {n:'데스몬드', duchy:'d_munster',  capital:'b_cork',      baronies:['b_cork','b_kinsale','b_empty_desmond'],      x: 98, y:404, poly:'52,428 72,390 58,350 85,372 118,378 148,358 155,392 138,438 98,468 52,468'},
@@ -228,7 +233,7 @@ const COUNTIES = {
   c_mayo:    {n:'마요',     duchy:'d_connacht', capital:'b_cruachu',     baronies:['b_cruachu','b_empty_mayo'],    x: 76, y:152, poly:'30,95 72,110 112,100 132,132 108,168 80,198 48,215 30,200'},
   c_breifne: {n:'브레프네', duchy:'d_breifne',  capital:'b_dromahair', baronies:['b_dromahair','b_empty_breifne'], x:178, y:153, poly:'112,100 148,88 168,120 205,140 240,158 238,192 210,210 182,198 168,198 155,145 132,132'},
   c_ulster:  {n:'얼스터',   duchy:'d_ulster',   capital:'b_downpatrick',baronies:['b_downpatrick','b_carrickfergus','b_empty_ulster'], x:247, y: 66, poly:'150,42 225,30 300,38 330,58 305,88 270,100 225,110 168,62'},
-  c_oriel:   {n:'오리얼',   duchy:'d_ulster',   capital:'b_armagh',    baronies:['b_ardee','b_armagh','b_empty_oriel'], x:232, y:115, poly:'168,62 225,110 270,100 305,88 312,128 278,152 240,158 205,140 168,120 148,88'},
+  c_oriel:   {n:'오리얼',   duchy:'d_ulster',   capital:'b_ardee',     baronies:['b_ardee','b_armagh','b_empty_oriel'], x:232, y:115, poly:'168,62 225,110 270,100 305,88 312,128 278,152 240,158 205,140 168,120 148,88'},
   c_ailech:  {n:'애일라흐', duchy:'d_ulster',   capital:'b_donegal',   baronies:['b_donegal','b_derry','b_empty_ailech'],         x:101, y: 71, poly:'30,40 95,30 150,42 168,62 148,88 112,100 72,110 30,95'},
 };
 
@@ -1416,10 +1421,22 @@ function vassalRevolt(v, liege){
    출처: https://ck3.paradoxwikis.com/Barony
    ════════════════════════════════════════════════ */
 
-/* 잘못된 홀딩: 봉건 영주가 city/temple 직접 소유 시 수입 0 */
+/* 잘못된 홀딩: 봉건 영주가 city/temple 직접 소유 시 수입 0
+   예외: temple의 경우 chaplain(자문관)이 소유하면 정상 */
 function wrongHolding(bid, ownerId){
   const b=BARONIES[bid];
   if(!b||!b.type||b.type==='castle'||b.type==='empty') return false;
+  if(b.type==='temple'){
+    // chaplain이 소유하면 정상 (ruler가 아닌 자문관)
+    const chapId=state.council?.chaplain;
+    if(ownerId===chapId) return false;
+    // NPC ruler의 chaplain도 확인
+    const ownerChar=chars[ownerId];
+    if(ownerChar){
+      const ownerChapId=ownerChar.council?.chaplain;
+      if(ownerChapId&&ownerId===ownerChapId) return false;
+    }
+  }
   const c=chars[ownerId];
   return !!(c&&c.ruler&&!c.dead);
 }
@@ -1437,31 +1454,59 @@ function holdingIncome(bid, ownerId, stewStat, overPenalty){
   }
 }
 
-/* Mayor/Bishop 봉신 자동 생성 — NPC 전용 */
+/* Mayor 봉신 자동 생성 — NPC 전용 (CK3 방식)
+   CK3 원칙:
+   - city  → barony별 Mayor 봉신 1명 생성
+   - temple → realm의 chaplain 한 명이 전체 관리
+               chaplain 없으면 county holder 직접 보유(잘못된 홀딩)
+   플레이어는 지도 클릭으로 직접 처리 */
 function autoGrantWrongHoldings(c){
   if(!c||!c.ruler||c.dead) return;
   if(c.id===state.player) return;
   const myBids=regionsOf(c.id);
+  // chaplain: NPC council에서 찾기
+  const chapId=c.council?.chaplain;
+  const chap=chapId&&chars[chapId]&&!chars[chapId].dead?chars[chapId]:null;
   for(const bid of myBids){
-    const b=BARONIES[bid]; if(!b||b.type==='castle'||b.type==='empty') continue;
-    const curOwner=b.owner?chars[b.owner]:null;
-    if(curOwner&&!curOwner.dead&&curOwner.id!==c.id&&curOwner.ruler) continue;
-    const roleN=b.type==='city'?'시장':'주교';
-    const vassal=mk({
-      name:roleN+' '+b.n, dyn:c.dyn,
-      byear:state.year-30-Math.floor(Math.random()*15),
-      bmonth:1, bday:1,
-      traits:b.type==='temple'?['content','diligent']:['content','greedy'],
-      base:b.type==='temple'?{dip:4,mar:2,stew:4,intr:3,learn:7,prow:2}:{dip:5,mar:2,stew:7,intr:3,learn:4,prow:2},
-      edu:1, eduFocus:b.type==='temple'?'learn':'stew',
-      region:bid, ruler:true, liege:c.id
-    });
-    BARONIES[bid].owner=vassal.id;
+    const b=BARONIES[bid];
+    if(!b||b.type==='castle'||b.type==='empty') continue;
+    if(b.type==='city'){
+      // city: barony별 Mayor 봉신 생성
+      const curOwner=b.owner?chars[b.owner]:null;
+      if(curOwner&&!curOwner.dead&&curOwner.id!==c.id&&curOwner.ruler) continue;
+      const vassal=mk({
+        name:'시장 '+b.n, dyn:c.dyn,
+        byear:state.year-30-Math.floor(Math.random()*15),
+        bmonth:1, bday:1, traits:['content','greedy'],
+        base:{dip:5,mar:2,stew:7,intr:3,learn:4,prow:2},
+        edu:1, eduFocus:'stew', region:bid, ruler:true, liege:c.id
+      });
+      b.owner=vassal.id;
+    } else if(b.type==='temple'){
+      // temple: chaplain이 owner (ruler 아닌 자문관으로)
+      // chaplain이 없으면 null (county holder가 잘못된 홀딩으로 보유)
+      b.owner=chap?chap.id:null;
+    }
   }
 }
 
 /* 영지 없는 유령 ruler 정리 — 매월 호출 */
 function cleanupGhostRulers(){
+  // 플레이어 temple: chaplain이 owner로 자동 갱신
+  const p=playerChar();
+  if(p){
+    const chapId=state.council.chaplain;
+    const chap=chapId&&chars[chapId]&&!chars[chapId].dead?chars[chapId]:null;
+    for(const bid in BARONIES){
+      const b=BARONIES[bid];
+      if(b.type!=='temple') continue;
+      // 플레이어 county 소속 temple인지 확인
+      const capOwner=BARONIES[COUNTIES[b.county]?.capital||'']?.owner;
+      if(capOwner!==p.id) continue;
+      b.owner=chap?chap.id:null;
+    }
+  }
+  // 영지 없는 유령 ruler 강등
   for(const id in chars){
     const c=chars[id];
     if(c.dead||!c.ruler||c.id===state.player) continue;
@@ -3681,20 +3726,34 @@ function openMyCounty(cid, dispName){
             ]});
         }});
     } else if(isDirect&&isWrong){
-      // 잘못된 홀딩 — 임명 버튼
-      const roleN=b.type==='city'?'시장':'주교';
-      opts.push({t:`${typeIcon} ${b.n} ⚠ — ${roleN} 임명`,
-        d:'잘못된 홀딩: 수입·병력 없음',
-        f:()=>{
-          const exists=Object.values(chars).some(x=>!x.dead&&x.region===bid&&x.ruler&&x.liege===p.id);
-          if(exists){log(`${b.n}에는 이미 봉신이 있습니다.`,'dip');return;}
-          const v=mk({name:roleN+' '+b.n,dyn:p.dyn,byear:state.year-35-Math.floor(Math.random()*10),bmonth:1,bday:1,
-            traits:b.type==='temple'?['content','diligent']:['content','greedy'],
-            base:b.type==='temple'?{dip:4,mar:2,stew:4,intr:3,learn:7,prow:2}:{dip:5,mar:2,stew:7,intr:3,learn:4,prow:2},
-            edu:1,eduFocus:b.type==='temple'?'learn':'stew',region:bid,ruler:true,liege:p.id});
-          b.owner=v.id; log(`${b.n}에 ${roleN} <b>${v.name}</b>을 임명했습니다.`,'dip');
-          openMyCounty(cid,dispName);
-        }});
+      if(b.type==='city'){
+        // city 잘못된 홀딩 — Mayor 임명
+        opts.push({t:`${typeIcon} ${b.n} ⚠ — 시장 임명`,
+          d:'잘못된 홀딩: 수입·병력 없음. 시장 봉신 임명 필요',
+          f:()=>{
+            const exists=Object.values(chars).some(x=>!x.dead&&x.region===bid&&x.ruler&&x.liege===p.id);
+            if(exists){log(`${b.n}에는 이미 시장이 있습니다.`,'dip');return;}
+            const v=mk({name:'시장 '+b.n,dyn:p.dyn,byear:state.year-35-Math.floor(Math.random()*10),bmonth:1,bday:1,
+              traits:['content','greedy'],base:{dip:5,mar:2,stew:7,intr:3,learn:4,prow:2},
+              edu:1,eduFocus:'stew',region:bid,ruler:true,liege:p.id});
+            b.owner=v.id; log(`${b.n}에 시장 <b>${v.name}</b>을 임명했습니다.`,'dip');
+            openMyCounty(cid,dispName);
+          }});
+      } else if(b.type==='temple'){
+        // temple — chaplain이 관리 (CK3: 자문회 사제가 realm 내 사원 전체 관할)
+        const chaplain=state.council.chaplain?chars[state.council.chaplain]:null;
+        if(chaplain&&!chaplain.dead){
+          // chaplain 있음 → owner를 chaplain으로 자동 지정
+          b.owner=chaplain.id;
+          opts.push({t:`${typeIcon} ${b.n} ⛪ 사제 관할`,
+            d:`${chaplain.name}(사제)가 관리 중 · 자문회 사제 임무로 세금 수입 연동`,
+            f:()=>{}});
+        } else {
+          opts.push({t:`${typeIcon} ${b.n} ⚠ — 사제 공석`,
+            d:'자문회에 사제를 임명하면 사원 수입이 활성화됩니다',
+            f:()=>{ togglePanel('council'); }});
+        }
+      }
     } else if(canBuild){
       opts.push({t:`${typeIcon} ${b.n} 🔨 건설`,
         d:`${ownerStr} · 슬롯 ${slotsUsed}/${BUILDING_SLOTS} · ${doneNames}${wipText}`,
@@ -4537,7 +4596,26 @@ function councilPulse(){
     const cid = state.council[role];
     if(!cid) continue;
     const c = chars[cid];
-    if(!c || c.dead){ state.council[role]=null; continue; }
+    if(!c || c.dead){
+      state.council[role]=null;
+      // chaplain 사망: 자동 재배정 시도 (CK3: 사제는 항상 배정)
+      if(role==='chaplain'){
+        const courtMembers=Object.values(chars).filter(x=>
+          !x.dead&&x.id!==p.id&&x.courtOf===p.region&&age(x)>=16
+          &&!Object.values(state.council).filter(Boolean).includes(x.id)
+        ).sort((a,b)=>stat(b,'learn')-stat(a,'learn'));
+        if(courtMembers[0]){
+          state.council.chaplain=courtMembers[0].id;
+          log(`${c?.name||'사제'}이(가) 사망하여 <b>${courtMembers[0].name}</b>이 후임 사제로 배정됐습니다.`,'dip');
+        } else {
+          // 궁정에 적합한 인물 없으면 팝업으로 알림
+          popup({title:'사제 공석', sub:'자문회',
+            body:`${c?.name||'사제'}이(가) 사망했습니다.\n궁정에 후임 사제가 없습니다. 자문회 탭에서 직접 임명하십시오.`,
+            opts:[{t:'자문회로 이동', f:()=>togglePanel('council')},{t:'나중에'}]});
+        }
+      }
+      continue;
+    }
 
     const sk = stat(c, COUNCIL_ROLES[role].skill);
     const task = state.councilTasks[role] || Object.keys(COUNCIL_ROLES[role].tasks)[0];
@@ -5530,13 +5608,56 @@ function intro(){
 setSpeed(1);
 renderAll();
 log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니다.','good');
-// 게임 시작 시: city/temple 초기 Mayor/Bishop 배정 (NPC만, 빈 슬롯 제외)
+// 게임 시작 시 초기 배정
 (()=>{
-  // 빈 슬롯 owner 초기화 — seizeCounty/seizeBaronies가 빈 슬롯까지 잡아버리므로 null로 리셋
+  // 빈 슬롯 + temple owner 초기화
   for(const bid in BARONIES){
-    if(BARONIES[bid].type==='empty') BARONIES[bid].owner=null;
+    if(BARONIES[bid].type==='empty'||BARONIES[bid].type==='temple') BARONIES[bid].owner=null;
   }
+
+  // ① 플레이어 자문회 chaplain 자동 배정 (CK3: 사제는 기본 배정)
+  const p=playerChar();
+  if(p && !state.council.chaplain){
+    const courtMembers=Object.values(chars).filter(c=>
+      !c.dead&&c.id!==p.id&&c.courtOf===p.region&&age(c)>=16
+      &&!Object.values(state.council).includes(c.id)
+    );
+    // learn 최고 인물을 chaplain으로
+    courtMembers.sort((a,b)=>stat(b,'learn')-stat(a,'learn'));
+    if(courtMembers[0]) state.council.chaplain=courtMembers[0].id;
+  }
+
+  // ② 플레이어 직할 temple owner → chaplain 연동
+  cleanupGhostRulers(); // chaplain 배정 후 temple owner 갱신 포함
+
+  // ③ NPC city → Mayor 봉신 생성 + NPC city Mayor 배정
   Object.values(chars).filter(c=>!c.dead&&c.ruler&&c.id!==state.player).forEach(autoGrantWrongHoldings);
+
+  // ④ 플레이어 직할 county 내 city → 시장 자동 배정 (county capital owner 기준)
+  if(p){
+    for(const cid in COUNTIES){
+      const cnt=COUNTIES[cid];
+      const capOwner=BARONIES[cnt.capital||'']?.owner;
+      if(capOwner!==p.id) continue; // 플레이어 county만
+      for(const bid of cnt.baronies){
+        const b=BARONIES[bid];
+        if(b?.type!=='city') continue;
+        const existMayor=Object.values(chars).find(x=>!x.dead&&x.ruler&&x.region===bid&&x.liege===p.id);
+        if(existMayor) continue;
+        const mayor=mk({
+          name:'시장 '+b.n, dyn:p.dyn,
+          byear:state.year-35-Math.floor(Math.random()*10),
+          bmonth:1, bday:1, traits:['content','greedy'],
+          base:{dip:5,mar:2,stew:7,intr:3,learn:4,prow:2},
+          edu:1, eduFocus:'stew', region:bid, ruler:true, liege:p.id
+        });
+        b.owner=mayor.id;
+        log(`${b.n}에 시장 <b>${mayor.name}</b>을 자동 배정했습니다.`,'dip');
+      }
+    }
+  }
+
+  cleanupGhostRulers();
 })();
 log('지도의 왕국을 클릭하면 외교를 할 수 있습니다.','dip');
 intro();
