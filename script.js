@@ -1462,7 +1462,7 @@ function autoGrantWrongHoldings(c){
   if(c.id===state.player) return;
   const myBids=regionsOf(c.id);
   for(const bid of myBids){
-    const b=BARONIES[bid]; if(!b||b.type==='castle') continue;
+    const b=BARONIES[bid]; if(!b||b.type==='castle'||b.type==='empty') continue;
     const curOwner=b.owner?chars[b.owner]:null;
     if(curOwner&&!curOwner.dead&&curOwner.id!==c.id&&curOwner.ruler) continue;
     const roleN=b.type==='city'?'시장':'주교';
@@ -3662,33 +3662,36 @@ function openMyCounty(cid, dispName){
     const isDirect=owner&&owner.id===p.id;
     const isWrong=wrongHolding(bid,p.id);
     const ownerStr=!owner?'비어있음':isDirect?'직접 소유'+(isWrong?' ⚠':''):`${owner.name} (봉신)`;
-    if(b.type==='empty'&&isDirect){
-      // 빈 슬롯 — 홀딩 건설
-      const buildCost={castle:150,city:120,temple:100};
+    // 빈 슬롯 — 이 백작령의 소유자가 플레이어인지 확인 (owner 무관)
+    const countyCapOwner=BARONIES[COUNTIES[cid]?.capital||'']?.owner;
+    const isMyCounty=(countyCapOwner===p.id);
+    if(b.type==='empty'&&isMyCounty){
+      // 빈 슬롯 — 홀딩 건설 (해당 county 수도 남작령의 금 차감)
+      const capBid=COUNTIES[cid]?.capital||p.region;
       opts.push({t:'🏗 빈 슬롯 — 홀딩 건설',
         d:'성(150금) · 도시(120금) · 사원(100금)',
         f:()=>{
-          const seatGold2=BARONIES[p.region]?.gold||0;
+          const capGold=BARONIES[capBid]?.gold||0;
           showModal({title:'홀딩 건설', sub:cnt?.n||dispName,
             body:'어떤 홀딩을 건설하시겠습니까?\n성은 병력, 도시는 세금, 사원은 경건에 특화됩니다.',
             opts:[
-              {t:'🏰 성 건설 (금 150)', d:'병력 중심 · 직접 소유 가능', enabled:seatGold2>=150, f:()=>{
-                if(seatGold2<150){log('금이 부족합니다.');return;}
-                BARONIES[p.region].gold-=150;
-                b.type='castle'; b.n=COUNTIES[cid]?.n+'의 성'; b.cap=200; b.troops=200;
-                log(`<b>${b.n}</b>을 건설했습니다.`,'good'); openMyCounty(cid,dispName);
+              {t:'🏰 성 건설 (금 150)', d:'병력 중심 · 직접 소유 가능', enabled:capGold>=150, f:()=>{
+                if((BARONIES[capBid]?.gold||0)<150){log('금이 부족합니다.');return;}
+                BARONIES[capBid].gold-=150;
+                b.type='castle'; b.n=cnt?.n+'의 성'; b.cap=200; b.troops=200; b.gold=0; b.owner=p.id;
+                log(`<b>${cnt?.n}</b>에 성을 건설했습니다.`,'good'); openMyCounty(cid,dispName);
               }},
-              {t:'🏙 도시 건설 (금 120)', d:'세금 특화 · Mayor 봉신 필요', enabled:seatGold2>=120, f:()=>{
-                if(seatGold2<120){log('금이 부족합니다.');return;}
-                BARONIES[p.region].gold-=120;
-                b.type='city'; b.n=COUNTIES[cid]?.n+'의 도시'; b.cap=150; b.troops=100;
-                log(`<b>${b.n}</b>을 건설했습니다.`,'good'); openMyCounty(cid,dispName);
+              {t:'🏙 도시 건설 (금 120)', d:'세금 특화 · Mayor 봉신 필요', enabled:capGold>=120, f:()=>{
+                if((BARONIES[capBid]?.gold||0)<120){log('금이 부족합니다.');return;}
+                BARONIES[capBid].gold-=120;
+                b.type='city'; b.n=cnt?.n+'의 도시'; b.cap=150; b.troops=100; b.gold=0; b.owner=p.id;
+                log(`<b>${cnt?.n}</b>에 도시를 건설했습니다. Mayor를 임명하십시오.`,'good'); openMyCounty(cid,dispName);
               }},
-              {t:'⛪ 사원 건설 (금 100)', d:'경건·chaplain 연동 · Bishop 봉신 필요', enabled:seatGold2>=100, f:()=>{
-                if(seatGold2<100){log('금이 부족합니다.');return;}
-                BARONIES[p.region].gold-=100;
-                b.type='temple'; b.n=COUNTIES[cid]?.n+'의 사원'; b.cap=150; b.troops=120;
-                log(`<b>${b.n}</b>을 건설했습니다.`,'good'); openMyCounty(cid,dispName);
+              {t:'⛪ 사원 건설 (금 100)', d:'경건·chaplain 연동 · Bishop 봉신 필요', enabled:capGold>=100, f:()=>{
+                if((BARONIES[capBid]?.gold||0)<100){log('금이 부족합니다.');return;}
+                BARONIES[capBid].gold-=100;
+                b.type='temple'; b.n=cnt?.n+'의 사원'; b.cap=150; b.troops=120; b.gold=0; b.owner=p.id;
+                log(`<b>${cnt?.n}</b>에 사원을 건설했습니다. Bishop을 임명하십시오.`,'good'); openMyCounty(cid,dispName);
               }},
               {t:'취소'}
             ]});
@@ -5617,6 +5620,15 @@ function renderHeader(){
   document.getElementById('prestigeTxt').textContent=state.prestige||120;
   const totalTroops=playerRegions().reduce((s,rid)=>s+(REGIONS[rid].troops||0),0);
   document.getElementById('troopTxt').textContent=totalTroops.toLocaleString();
+  // 직할령 표시 (CK3 방식)
+  const p=playerChar();
+  const dBids=directBaroniesOf(p.id);
+  const dLim=domainLimit(p);
+  const domEl=document.getElementById('domainTxt');
+  if(domEl){
+    domEl.textContent=`${dBids}/${dLim}`;
+    domEl.style.color=dBids>dLim?'#d05a4a':dBids>=dLim?'#c8a24a':'';
+  }
 }
 function renderChar(){
   const c=playerChar();
@@ -5702,27 +5714,13 @@ function intro(){
 setSpeed(1);
 renderAll();
 log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니다.','good');
-// 게임 시작 시: 빈 슬롯 owner 설정 + city/temple 초기 배정
+// 게임 시작 시: city/temple 초기 Mayor/Bishop 배정 (NPC만, 빈 슬롯 제외)
 (()=>{
-  // 빈 슬롯은 county capital 소유자와 동일하게
+  // 빈 슬롯 owner 초기화 — seizeCounty/seizeBaronies가 빈 슬롯까지 잡아버리므로 null로 리셋
   for(const bid in BARONIES){
-    const b=BARONIES[bid];
-    if(b.type==='empty'){
-      const cid=b.county;
-      const cap=COUNTIES[cid]?.capital;
-      b.owner=cap?BARONIES[cap]?.owner||null:null;
-    }
+    if(BARONIES[bid].type==='empty') BARONIES[bid].owner=null;
   }
-  // city/temple 자동 Mayor/Bishop (전체 ruler 대상 1회)
-  const saved=state.player;
-  state.player='__none__'; // 임시로 플레이어 우회하여 플레이어 영지도 자동 배정
-  Object.values(chars).filter(c=>!c.dead&&c.ruler).forEach(autoGrantWrongHoldings);
-  state.player=saved;
-  // 플레이어 직할 city/temple은 다시 본인 소유로 되돌림 (직접 처리 원칙)
-  const p=playerChar();
-  if(p) for(const bid of regionsOf(p.id)){
-    // 빈 슬롯만 유지, city/temple은 이미 봉신 생성됨
-  }
+  Object.values(chars).filter(c=>!c.dead&&c.ruler&&c.id!==state.player).forEach(autoGrantWrongHoldings);
 })();
 log('지도의 왕국을 클릭하면 외교를 할 수 있습니다.','dip');
 intro();
