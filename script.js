@@ -4433,6 +4433,7 @@ function claimName(rid){
 function addClaim(rid, type){
   const cid = _normClaimId(rid); // 항상 county id로 정규화
   if(!COUNTIES[cid]){ return; }   // 실존하지 않는 county는 무시
+  if(!CB_TYPES[type]){ type='unpressed'; } // 알 수 없는 type 방어
   if(hasClaim(cid)) return;
   state.claims.push({rid:cid, type, obtained:state.year});
   log(`<b>${COUNTIES[cid].n}</b>에 대한 ${CB_TYPES[type].n}을(를) 획득했습니다.`, 'dip');
