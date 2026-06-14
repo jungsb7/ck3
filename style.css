@@ -191,9 +191,9 @@ button:disabled{opacity:.35; cursor:default}
 
 /* 네 탭 독립 책갈피, 2px 간격으로 붙여 배치 — 연대기·자문회·궁정·결단 */
 #logTab     { top:200px; height:62px; }
-#councilTab { top:264px; height:52px; }
-#courtTab   { top:318px; height:52px; }
-#decTab     { top:372px; height:52px; }
+#councilTab { top:264px; height:62px; }
+#courtTab   { top:328px; height:62px; }
+#decTab     { top:392px; height:62px; }
 .panel-head{
   flex:0 0 auto; font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
   padding:8px 14px; border-bottom:1px solid var(--line);
