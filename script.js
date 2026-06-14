@@ -3599,62 +3599,52 @@ function makePortraitSVG(c, w, h){
   const cx = w/2, cy = h*0.46;
   const s = v => v * (w/86); /* 기준 86px 대비 스케일 */
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
-  <rect width="${w}" height="${h}" fill="#181009"/>
-  <!-- 의복 -->
-  <ellipse cx="${cx}" cy="${h*.88}" rx="${s(30)}" ry="${s(18)}" fill="${robeColor}"/>
-  <rect x="${cx-s(13)}" y="${h*.73}" width="${s(26)}" height="${s(18)}" fill="${robeColor}" rx="${s(3)}"/>
-  <rect x="${cx-s(5)}" y="${h*.66}" width="${s(10)}" height="${s(12)}" fill="${skin}" rx="${s(3)}"/>
-  <!-- 머리카락 -->
-  ${male
-    ? `<ellipse cx="${cx}" cy="${cy}" rx="${s(19)}" ry="${s(22)}" fill="${hairColor}"/>`
-    : `<ellipse cx="${cx}" cy="${cy}" rx="${s(21)}" ry="${s(24)}" fill="${hairColor}"/>
-       <ellipse cx="${cx-s(18)}" cy="${cy+s(10)}" rx="${s(8)}" ry="${s(14)}" fill="${hairColor}"/>
-       <ellipse cx="${cx+s(18)}" cy="${cy+s(10)}" rx="${s(8)}" ry="${s(14)}" fill="${hairColor}"/>`}
-  <!-- 얼굴 -->
-  <ellipse cx="${cx}" cy="${cy}" rx="${s(16)}" ry="${s(19)}" fill="${skin}"/>
-  <ellipse cx="${cx-s(17)}" cy="${cy}" rx="${s(3.5)}" ry="${s(4.5)}" fill="${skin}"/>
-  <ellipse cx="${cx+s(17)}" cy="${cy}" rx="${s(3.5)}" ry="${s(4.5)}" fill="${skin}"/>
-  <!-- 눈썹 -->
-  <path d="M ${cx-s(11)} ${cy-s(8)} Q ${cx-s(7)} ${cy-s(10.5)} ${cx-s(3)} ${cy-s(8)}"
-    stroke="${hairColor}" stroke-width="${s(1.6)}" fill="none" stroke-linecap="round"/>
-  <path d="M ${cx+s(3)} ${cy-s(8)} Q ${cx+s(7)} ${cy-s(10.5)} ${cx+s(11)} ${cy-s(8)}"
-    stroke="${hairColor}" stroke-width="${s(1.6)}" fill="none" stroke-linecap="round"/>
-  <!-- 눈 -->
-  <ellipse cx="${cx-s(7)}" cy="${cy-s(3.5)}" rx="${s(4.5)}" ry="${s(3.5)}" fill="#ece8e0" opacity=".9"/>
-  <ellipse cx="${cx+s(7)}" cy="${cy-s(3.5)}" rx="${s(4.5)}" ry="${s(3.5)}" fill="#ece8e0" opacity=".9"/>
-  <circle cx="${cx-s(7)}" cy="${cy-s(3.5)}" r="${s(2.5)}" fill="${eyeColor}"/>
-  <circle cx="${cx+s(7)}" cy="${cy-s(3.5)}" r="${s(2.5)}" fill="${eyeColor}"/>
-  <circle cx="${cx-s(6)}" cy="${cy-s(4.5)}" r="${s(.9)}" fill="white" opacity=".7"/>
-  <circle cx="${cx+s(8)}" cy="${cy-s(4.5)}" r="${s(.9)}" fill="white" opacity=".7"/>
-  <!-- 코 -->
-  <path d="M ${cx} ${cy+s(1)} L ${cx-s(2.5)} ${cy+s(7)} Q ${cx} ${cy+s(9)} ${cx+s(2.5)} ${cy+s(7)} Z"
-    fill="${skinS}" opacity=".35"/>
-  <!-- 입 -->
-  <path d="${smileD}" stroke="${skinS}" stroke-width="${s(1.5)}" fill="none" stroke-linecap="round"/>
-  <!-- 수염 (남성 20세+) -->
-  ${male && charAge >= 20
-    ? `<path d="M ${cx-s(8)} ${cy+s(10)} Q ${cx} ${cy+s(18)} ${cx+s(8)} ${cy+s(10)} Q ${cx+s(7)} ${cy+s(14)} ${cx} ${cy+s(16)} Q ${cx-s(7)} ${cy+s(14)} Z"
-        fill="${hairColor}" opacity="${aged ? .75 : .45}"/>`
-    : ''}
-  <!-- 주름 (45세+) -->
-  ${aged
-    ? `<path d="M ${cx-s(14)} ${cy-s(2)} Q ${cx-s(12)} ${cy+s(2)} ${cx-s(13)} ${cy+s(5)}"
-        stroke="${skinS}" stroke-width="${s(.8)}" fill="none" opacity=".45"/>
-       <path d="M ${cx+s(14)} ${cy-s(2)} Q ${cx+s(12)} ${cy+s(2)} ${cx+s(13)} ${cy+s(5)}"
-        stroke="${skinS}" stroke-width="${s(.8)}" fill="none" opacity=".45"/>`
-    : ''}
-  <!-- 왕관 -->
-  <rect x="${cx-s(20)}" y="${h*.18}" width="${s(40)}" height="${s(5)}" fill="#c8a24a" rx="${s(2)}"/>
-  <polygon points="${cx},${h*.18} ${cx-s(3)},${h*.09} ${cx+s(3)},${h*.18}" fill="#c8a24a"/>
-  <polygon points="${cx-s(10)},${h*.18} ${cx-s(13)},${h*.10} ${cx-s(7)},${h*.18}" fill="#c8a24a"/>
-  <polygon points="${cx+s(10)},${h*.18} ${cx+s(13)},${h*.10} ${cx+s(7)},${h*.18}" fill="#c8a24a"/>
-  <circle cx="${cx}" cy="${h*.11}" r="${s(1.8)}" fill="#c04040"/>
-  <circle cx="${cx-s(11)}" cy="${h*.125}" r="${s(1.4)}" fill="#4060c0"/>
-  <circle cx="${cx+s(11)}" cy="${h*.125}" r="${s(1.4)}" fill="#40a060"/>
-  <!-- 테두리 -->
-  <rect width="${w}" height="${h}" fill="none" stroke="#c8a24a" stroke-width="${s(1.2)}" opacity=".3"/>
-</svg>`;
+  const beardPart = (male && charAge >= 20)
+    ? '<path d="M '+[cx-s(8),cy+s(10)].join(' ')+' Q '+[cx,cy+s(18)].join(' ')+' '+[cx+s(8),cy+s(10)].join(' ')+' Q '+[cx+s(7),cy+s(14)].join(' ')+' '+[cx,cy+s(16)].join(' ')+' Q '+[cx-s(7),cy+s(14)].join(' ')+' Z" fill="'+hairColor+'" opacity="'+(aged?.75:.45)+'"/>'
+    : '';
+  const wrinklePart = aged
+    ? '<path d="M '+[cx-s(14),cy-s(2)].join(' ')+' Q '+[cx-s(12),cy+s(2)].join(' ')+' '+[cx-s(13),cy+s(5)].join(' ')+'" stroke="'+skinS+'" stroke-width="'+s(.8)+'" fill="none" opacity=".45"/>'
+    + '<path d="M '+[cx+s(14),cy-s(2)].join(' ')+' Q '+[cx+s(12),cy+s(2)].join(' ')+' '+[cx+s(13),cy+s(5)].join(' ')+'" stroke="'+skinS+'" stroke-width="'+s(.8)+'" fill="none" opacity=".45"/>'
+    : '';
+  const hairPart = male
+    ? '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(19)+'" ry="'+s(22)+'" fill="'+hairColor+'"/>'
+    : '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(21)+'" ry="'+s(24)+'" fill="'+hairColor+'"/>'
+    + '<ellipse cx="'+(cx-s(18))+'" cy="'+(cy+s(10))+'" rx="'+s(8)+'" ry="'+s(14)+'" fill="'+hairColor+'"/>'
+    + '<ellipse cx="'+(cx+s(18))+'" cy="'+(cy+s(10))+'" rx="'+s(8)+'" ry="'+s(14)+'" fill="'+hairColor+'"/>';
+
+  const svgParts = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+w+' '+h+'" width="'+w+'" height="'+h+'">',
+    '<rect width="'+w+'" height="'+h+'" fill="#181009"/>',
+    '<ellipse cx="'+cx+'" cy="'+(h*.88)+'" rx="'+s(30)+'" ry="'+s(18)+'" fill="'+robeColor+'"/>',
+    '<rect x="'+(cx-s(13))+'" y="'+(h*.73)+'" width="'+s(26)+'" height="'+s(18)+'" fill="'+robeColor+'" rx="'+s(3)+'"/>',
+    '<rect x="'+(cx-s(5))+'" y="'+(h*.66)+'" width="'+s(10)+'" height="'+s(12)+'" fill="'+skin+'" rx="'+s(3)+'"/>',
+    hairPart,
+    '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(16)+'" ry="'+s(19)+'" fill="'+skin+'"/>',
+    '<ellipse cx="'+(cx-s(17))+'" cy="'+cy+'" rx="'+s(3.5)+'" ry="'+s(4.5)+'" fill="'+skin+'"/>',
+    '<ellipse cx="'+(cx+s(17))+'" cy="'+cy+'" rx="'+s(3.5)+'" ry="'+s(4.5)+'" fill="'+skin+'"/>',
+    '<path d="M '+(cx-s(11))+' '+(cy-s(8))+' Q '+(cx-s(7))+' '+(cy-s(10.5))+' '+(cx-s(3))+' '+(cy-s(8))+'" stroke="'+hairColor+'" stroke-width="'+s(1.6)+'" fill="none" stroke-linecap="round"/>',
+    '<path d="M '+(cx+s(3))+' '+(cy-s(8))+' Q '+(cx+s(7))+' '+(cy-s(10.5))+' '+(cx+s(11))+' '+(cy-s(8))+'" stroke="'+hairColor+'" stroke-width="'+s(1.6)+'" fill="none" stroke-linecap="round"/>',
+    '<ellipse cx="'+(cx-s(7))+'" cy="'+(cy-s(3.5))+'" rx="'+s(4.5)+'" ry="'+s(3.5)+'" fill="#ece8e0" opacity=".9"/>',
+    '<ellipse cx="'+(cx+s(7))+'" cy="'+(cy-s(3.5))+'" rx="'+s(4.5)+'" ry="'+s(3.5)+'" fill="#ece8e0" opacity=".9"/>',
+    '<circle cx="'+(cx-s(7))+'" cy="'+(cy-s(3.5))+'" r="'+s(2.5)+'" fill="'+eyeColor+'"/>',
+    '<circle cx="'+(cx+s(7))+'" cy="'+(cy-s(3.5))+'" r="'+s(2.5)+'" fill="'+eyeColor+'"/>',
+    '<circle cx="'+(cx-s(6))+'" cy="'+(cy-s(4.5))+'" r="'+s(.9)+'" fill="white" opacity=".7"/>',
+    '<circle cx="'+(cx+s(8))+'" cy="'+(cy-s(4.5))+'" r="'+s(.9)+'" fill="white" opacity=".7"/>',
+    '<path d="M '+cx+' '+(cy+s(1))+' L '+(cx-s(2.5))+' '+(cy+s(7))+' Q '+cx+' '+(cy+s(9))+' '+(cx+s(2.5))+' '+(cy+s(7))+' Z" fill="'+skinS+'" opacity=".35"/>',
+    '<path d="'+smileD+'" stroke="'+skinS+'" stroke-width="'+s(1.5)+'" fill="none" stroke-linecap="round"/>',
+    beardPart,
+    wrinklePart,
+    '<rect x="'+(cx-s(20))+'" y="'+(h*.18)+'" width="'+s(40)+'" height="'+s(5)+'" fill="#c8a24a" rx="'+s(2)+'"/>',
+    '<polygon points="'+cx+','+(h*.18)+' '+(cx-s(3))+','+(h*.09)+' '+(cx+s(3))+','+(h*.18)+'" fill="#c8a24a"/>',
+    '<polygon points="'+(cx-s(10))+','+(h*.18)+' '+(cx-s(13))+','+(h*.10)+' '+(cx-s(7))+','+(h*.18)+'" fill="#c8a24a"/>',
+    '<polygon points="'+(cx+s(10))+','+(h*.18)+' '+(cx+s(13))+','+(h*.10)+' '+(cx+s(7))+','+(h*.18)+'" fill="#c8a24a"/>',
+    '<circle cx="'+cx+'" cy="'+(h*.11)+'" r="'+s(1.8)+'" fill="#c04040"/>',
+    '<circle cx="'+(cx-s(11))+'" cy="'+(h*.125)+'" r="'+s(1.4)+'" fill="#4060c0"/>',
+    '<circle cx="'+(cx+s(11))+'" cy="'+(h*.125)+'" r="'+s(1.4)+'" fill="#40a060"/>',
+    '<rect width="'+w+'" height="'+h+'" fill="none" stroke="#c8a24a" stroke-width="'+s(1.2)+'" opacity=".3"/>',
+    '</svg>'
+  ];
+  return svgParts.join('');
 }
 
 function buildProfileHTML(c){
