@@ -30,6 +30,33 @@ body{
   padding:8px 14px; border-bottom:1px solid var(--line); font-weight:normal;
 }
 #map{width:100%; height:calc(100% - 33px); display:block}
+
+/* ===== 원형 활동 위젯 (좌측 상단, 활동 중에만 표시) ===== */
+#actWidget{
+  position:absolute; top:46px; left:14px; width:64px; height:64px;
+  border-radius:50%; cursor:pointer; display:none;
+  align-items:center; justify-content:center; flex-direction:column;
+  background:radial-gradient(circle at 50% 38%, #2a2014, #14100b);
+  border:2px solid var(--gold-dim);
+  box-shadow:0 0 0 3px rgba(8,5,2,.6), 0 4px 14px rgba(0,0,0,.55);
+  z-index:30; transition:transform .15s, box-shadow .15s;
+  animation:actPulse 2.4s ease-in-out infinite;
+}
+#actWidget.show{display:flex}
+#actWidget:hover{transform:scale(1.08); box-shadow:0 0 0 3px rgba(8,5,2,.6), 0 0 18px rgba(200,162,74,.5)}
+#actWidget .aw-icon{font-size:1.5rem; line-height:1}
+#actWidget .aw-phase{font-size:.5rem; color:var(--gold); letter-spacing:.05em; margin-top:1px; text-align:center; max-width:60px}
+#actWidget .aw-ring{position:absolute; inset:-2px; transform:rotate(-90deg); pointer-events:none}
+#actWidget .aw-ring circle{fill:none; stroke-width:3}
+#actWidget .aw-ring .bg{stroke:rgba(60,46,29,.5)}
+#actWidget .aw-ring .fg{stroke:var(--gold); stroke-linecap:round; transition:stroke-dashoffset .4s}
+#actWidget .aw-badge{position:absolute; top:-2px; right:-2px; width:14px; height:14px;
+  border-radius:50%; background:var(--blood); border:2px solid #14100b; display:none}
+#actWidget.alert .aw-badge{display:block}
+@keyframes actPulse{
+  0%,100%{box-shadow:0 0 0 3px rgba(8,5,2,.6), 0 4px 14px rgba(0,0,0,.55)}
+  50%{box-shadow:0 0 0 3px rgba(8,5,2,.6), 0 0 16px rgba(200,162,74,.35)}
+}
 .node{cursor:pointer}
 .node circle.body{stroke-width:2.5}
 .node:hover circle.body{filter:brightness(1.3)}
@@ -110,6 +137,57 @@ button:disabled{opacity:.35; cursor:default}
 .relGood{color:#8fbf8f}.relBad{color:#d08a82}.relMid{color:var(--parch-dim)}
 ::-webkit-scrollbar{width:9px}::-webkit-scrollbar-track{background:#100b07}
 ::-webkit-scrollbar-thumb{background:#3a2e1d}
+
+/* ===== 활동 전용 모달 (CK3식 활동 창) ===== */
+#actShade{position:fixed; inset:0; background:rgba(5,3,1,.8); display:none;
+  align-items:center; justify-content:center; z-index:55}
+#actShade.show{display:flex}
+#actModal{
+  width:min(600px, 94vw); max-height:88vh; overflow-y:auto;
+  border:2px solid var(--gold); position:relative;
+  box-shadow:0 0 70px rgba(0,0,0,.85), inset 0 0 50px rgba(200,162,74,.06);
+}
+/* 활동별 배경 색조 헤더 */
+.act-hero{
+  padding:20px 26px 16px; position:relative; overflow:hidden;
+  border-bottom:1px solid var(--gold-dim);
+}
+.act-hero.feast{ background:linear-gradient(135deg,#3a2410,#231505) }
+.act-hero.hunt{ background:linear-gradient(135deg,#2a3018,#16200a) }
+.act-hero.pilgrimage{ background:linear-gradient(135deg,#1c2438,#0e1320) }
+.act-hero .ah-icon{font-size:2.4rem; line-height:1; margin-bottom:6px}
+.act-hero .ah-title{font-size:1.3rem; color:var(--gold); letter-spacing:.04em; font-weight:normal}
+.act-hero .ah-tier{font-size:.74rem; color:var(--parch-dim); letter-spacing:.1em; margin-top:2px}
+.act-hero .ah-stage{position:absolute; top:18px; right:24px; font-size:.7rem;
+  color:var(--gold-dim); letter-spacing:.15em; text-align:right}
+/* 진행 정보 바 */
+.act-info{display:flex; gap:0; background:#15110a; border-bottom:1px solid var(--line)}
+.act-info .ai-cell{flex:1; padding:9px 12px; text-align:center; border-right:1px solid var(--line)}
+.act-info .ai-cell:last-child{border-right:none}
+.act-info .ai-k{font-size:.62rem; color:var(--parch-dim); letter-spacing:.1em; display:block; margin-bottom:3px}
+.act-info .ai-v{font-size:.84rem; color:var(--gold)}
+/* 진행 게이지 (사냥 추적도·순례 신심도) */
+.act-gauge{height:6px; background:#2c2316; margin:0; overflow:hidden}
+.act-gauge>div{height:100%; background:var(--gold); transition:width .4s}
+/* 본문 (이벤트 내러티브 + 선택지) */
+.act-body{padding:20px 26px}
+.act-body .ab-narr{font-size:.94rem; line-height:1.7; margin-bottom:18px; white-space:pre-line; color:var(--parch)}
+.act-body .ab-sub{font-size:.72rem; color:var(--parch-dim); letter-spacing:.15em; margin-bottom:12px}
+.act-opts{display:flex; flex-direction:column; gap:8px}
+.act-opts button{text-align:left; padding:11px 15px; line-height:1.4;
+  background:linear-gradient(#2a2014,#1a1208); color:var(--parch);
+  border:1px solid var(--gold-dim); border-radius:3px; cursor:pointer;
+  font-family:inherit; font-size:.92rem; transition:background .12s, border-color .12s}
+.act-opts button:hover{background:linear-gradient(#3a2c18,#241a0e); border-color:var(--gold)}
+.act-opts button small{display:block; color:var(--parch-dim); font-size:.74rem; margin-top:3px}
+/* 참석자 칩 */
+.act-guests{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px}
+.act-guests .ag-chip{font-size:.7rem; padding:3px 9px; border-radius:12px;
+  background:#15110a; border:1px solid #2c2316; color:var(--parch-dim)}
+.act-guests .ag-chip.goh{border-color:var(--gold); color:var(--gold)}
+.act-close{position:absolute; top:14px; right:16px; background:none; border:none;
+  color:var(--parch-dim); font-size:1.1rem; cursor:pointer; z-index:2; line-height:1}
+.act-close:hover{color:var(--gold)}
 
 /* ===== 모바일 전용 ===== */
 #logTab  { display:flex; align-items:center; justify-content:center }
