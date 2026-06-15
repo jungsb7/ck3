@@ -8159,7 +8159,7 @@ function renderMap(){
     const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
     const rad=mine?22:18;
     const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
-    const strokeW=underSiege?2:(pettyRealm?1.2:2.5);
+    const strokeW=underSiege?2:(pettyRealm?0.7:2.5);
     h+=`<g class="node" onclick="openCounty('${cid}')">
       <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}"/>
       ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
