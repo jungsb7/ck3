@@ -10,7 +10,7 @@ function initAudio(){
   if(_audioCtx) return;
   try{ _audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
   catch(e){ _audioCtx = null; }
-}
+
 function playSynthSFX(type){
   if(!_audioCtx){ initAudio(); if(!_audioCtx) return; }
   if(_audioCtx.state==='suspended'){ _audioCtx.resume().then(()=>_doSynth(type)); return; }
