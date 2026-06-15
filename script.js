@@ -1053,7 +1053,9 @@ const REALM_STROKE_PALETTE = [
 const _realmStrokeColor = {}; // charId → color (게임 시작 시 배정)
 /* 독립 군주들에게 겹치지 않는 테두리 색을 시드 셔플로 배정 */
 function assignRealmColors(){
-  const indep = Object.values(chars).filter(c=>c.ruler&&!c.dead&&isIndependent(c));
+  // 공작·왕국 작위를 보유한 독립 군주(=realm 수장)에게만 고유색 배정. 독립 백작은 회색이므로 제외
+  const indep = Object.values(chars).filter(c=>c.ruler&&!c.dead&&isIndependent(c)
+    && (heldDuchiesOf(c.id).length||heldKingdomsOf(c.id).length));
   // 시드 기반 셔플 (재현 가능한 랜덤)
   let seed = 1066;
   const rng = ()=>{ seed=(seed*9301+49297)%233280; return seed/233280; };
@@ -1061,9 +1063,15 @@ function assignRealmColors(){
   for(let i=pal.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [pal[i],pal[j]]=[pal[j],pal[i]]; }
   indep.forEach((c,i)=>{ _realmStrokeColor[c.id]=pal[i%pal.length]; });
 }
-/* 캐릭터의 최상위 주군 테두리 색 — 미배정 시 즉시 배정 */
+/* 최상위 주군이 공작·왕국 작위 없는 '독립 백작'인지 — 맵 테두리 회색 처리용 */
+function isPettyRealm(c){
+  const tl=topLiege(c); if(!tl) return false;
+  return !heldDuchiesOf(tl.id).length && !heldKingdomsOf(tl.id).length;
+}
+/* 캐릭터의 최상위 주군 테두리 색 — 독립 백작은 일반 얇은 회색, 그 외 realm 고유색 */
 function realmStrokeColor(c){
   const tl=topLiege(c); if(!tl) return '#6a5836';
+  if(isPettyRealm(c)) return '#8a8278'; // 독립 백작(공작·왕국 작위 없음) → 일반 회색
   if(!_realmStrokeColor[tl.id]){
     // 신규 독립 군주(정복/사망 상속 등으로 생긴) → 빈 색 배정
     const used=new Set(Object.values(_realmStrokeColor));
@@ -8143,15 +8151,17 @@ function renderMap(){
     const mine=holder&&holder.id===p.id; // 플레이어 직할
     // ① 원 내부(fill) = de jure 공작령 권역 색 (같은 공작령끼리 동일, 지배자 무관)
     const fillCol=DUCHIES[C.duchy]?.color||'#555';
-    // ② 원 테두리(stroke) = 최상위 주군(realm)에게 배정된 고유 색
+    // ② 원 테두리(stroke) = 최상위 주군(realm)에게 배정된 고유 색 (독립 백작은 얇은 회색)
     const strokeCol=holder?realmStrokeColor(holder):'#6a5836';
+    const pettyRealm=holder&&isPettyRealm(holder); // 독립 백작 → 얇은 회색
     const bids=C.baronies;
     const totalT=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
     const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
     const rad=mine?22:18;
     const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
+    const strokeW=underSiege?2:(pettyRealm?1.2:2.5);
     h+=`<g class="node" onclick="openCounty('${cid}')">
-      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${underSiege?2:2.5}"/>
+      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}"/>
       ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
       ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
       <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
