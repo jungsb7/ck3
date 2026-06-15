@@ -891,6 +891,7 @@ const state = {
   introDone:false,
   activeActivity:null, // 진행 중인 활동 (CK3 Activity: {type,tier,phase,invited,arrived,monthsLeft,...})
   activityCooldowns:{}, // 활동별 마지막 개최 연도 (재사용 대기)
+  actModalOpen:false, // 활동 전용 모달 열림 상태
 };
 const MDAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
 const SEASONS=['겨울','겨울','봄','봄','봄','여름','여름','여름','가을','가을','가을','겨울'];
@@ -1280,6 +1281,8 @@ function togglePanel(id){
     el.classList.add('open');
     if(id!=='log') pause();
     _hideOtherTabs(id);
+    // 활동 패널 열면 위젯 알림 해제
+    if(id==='act'){ const aw=document.getElementById('actWidget'); if(aw) aw.classList.remove('alert'); }
   } else {
     el.classList.remove('open');
     if(id!=='log') resume();
@@ -6054,6 +6057,13 @@ function startActivity(typeId, tierIdx){
     intent:(typeId==='feast'?'recreation':null), // 연회 인텐트 (recreation/befriend)
     guestOfHonor:null, // 명예 손님 id (연회)
     rapport:0,        // 명예 손님과의 교류도 (건배/모욕 분기 영향)
+    huntVariant:(typeId==='hunt'?'beast':null), // 사냥 변형 (beast/falconry)
+    huntPrey:null,    // 사냥감 (시작 시 결정)
+    track:0,          // 사냥감 추적도 0~100 (CK3 Hunt 진행 지표)
+    huntInjured:false,// 사냥 중 부상 여부
+    pilgVariant:(typeId==='pilgrimage'?'pious':null), // 순례 변형 (pious/worldly)
+    pilgSite:null,    // 순례 목적지 성지 (선택)
+    devotion:0,       // 순례 신심도 0~100 (이동 중 만남으로 누적)
   };
   log(`<b>${ACTIVITY_TYPES[typeId].n}</b> 준비를 시작했습니다 (${ACTIVITY_TYPES[typeId].tiers[tierIdx].n}, 금 ${cost} 소모). 손님을 초대하세요.`,'dip');
   renderActivity();
@@ -6086,10 +6096,74 @@ function setGuestOfHonor(guestId){
   else if(act.invited.some(i=>i.id===guestId)) act.guestOfHonor=guestId;
   renderActivity();
 }
+/* ── 사냥 시스템 ──
+   CK3 Hunt: 변형(일반/매사냥) + 사냥감 추적→발견→포획 단계 체인 + 부상 위험 */
+const HUNT_PREY = {
+  stag:   { n:'수사슴', icon:'🦌', danger:0.10, prestige:1.0, trophy:'장엄한 뿔' },
+  boar:   { n:'멧돼지', icon:'🐗', danger:0.30, prestige:1.4, trophy:'거대한 엄니' },
+  wolf:   { n:'늑대',   icon:'🐺', danger:0.40, prestige:1.6, trophy:'잿빛 모피' },
+  bear:   { n:'곰',     icon:'🐻', danger:0.55, prestige:2.2, trophy:'곰 가죽' },
+  falcon: { n:'매사냥감', icon:'🦅', danger:0.05, prestige:0.8, trophy:'길들인 매' }, // 매사냥 전용
+};
+/* 사냥 변형 설정 (beast: 맹수 사냥 / falconry: 매사냥 — 안전·저보상) */
+function setHuntVariant(variant){
+  const act=state.activeActivity; if(!act||act.type!=='hunt') return;
+  act.huntVariant=variant;
+  renderActivity();
+}
+/* 사냥 시작 시 사냥감 결정 — 변형·투자 등급에 따라 */
+function rollHuntPrey(act){
+  if(act.huntVariant==='falconry'){ act.huntPrey='falcon'; return; }
+  // 맹수 사냥: 투자 등급 높을수록 위험한 사냥감 출현
+  const pool = act.tier>=2 ? ['boar','wolf','bear','bear'] :
+               act.tier>=1 ? ['stag','boar','wolf'] :
+                             ['stag','stag','boar'];
+  act.huntPrey = pool[Math.floor(Math.random()*pool.length)];
+}
+/* ── 순례 시스템 ──
+   CK3 Pilgrimage: 변형(경건/세속) + 성지 선택(거리 비례 보상) + 이동 중 만남 이벤트 + 성지 신앙 의식 */
+const PILG_SITES = {
+  clonmacnoise: { n:'클론맥노이즈', icon:'⛪', travel:1, piety:1.0, desc:'섀넌 강가의 성 키어런 수도원 — 가까운 성지' },
+  armagh:       { n:'아마',         icon:'✝', travel:2, piety:1.4, desc:'성 패트릭의 도시 — 아일랜드 교회의 수좌' },
+  glendalough:  { n:'글렌달록',     icon:'⛪', travel:2, piety:1.5, desc:'성 케빈의 일곱 교회 — 위클로 산중의 성지' },
+  croaghpatrick:{ n:'크로어 패트릭', icon:'⛰', travel:3, piety:2.0, desc:'성 패트릭이 단식한 서부의 성산 — 험준한 순례길' },
+};
+/* 순례 변형 설정 (pious: 경건·신심 / worldly: 세속·위신·견문) */
+function setPilgVariant(variant){
+  const act=state.activeActivity; if(!act||act.type!=='pilgrimage') return;
+  act.pilgVariant=variant;
+  renderActivity();
+}
+/* 순례 성지 설정 */
+function setPilgSite(siteId){
+  const act=state.activeActivity; if(!act||act.type!=='pilgrimage') return;
+  act.pilgSite=siteId;
+  renderActivity();
+}
 /* 초대 확정 → 대기 단계 진입 */
 function confirmInvites(){
   const p=playerChar();
   const act=state.activeActivity; if(!act||act.phase!=='inviting') return;
+  // 순례: 손님 초대는 선택, 성지가 핵심. 손님 없이도 출발 가능
+  if(act.type==='pilgrimage'){
+    if(!act.pilgSite){ return; } // 성지 미선택 시 출발 불가
+    const site=PILG_SITES[act.pilgSite];
+    // 동행 손님 수락 판정
+    for(const inv of act.invited){
+      const g=chars[inv.id]; if(!g||g.dead){ inv.accepted=false; continue; }
+      inv.accepted = Math.random() < inviteAcceptChance(g,p);
+      inv.arrived = inv.accepted; // 순례는 동행자가 함께 출발 (도착 개념 없음)
+      if(inv.accepted) log(`<b>${g.name}</b>이(가) 순례에 동행합니다.`,'dip');
+      else log(`<b>${g.name}</b>이(가) 동행을 사양했습니다.`,'dip');
+    }
+    // 순례 여정 개월 = 성지 거리 (편도)
+    act.travelLeft = site.travel;
+    act.travelTotal = site.travel;
+    act.phase='waiting';
+    log(`<b>${site.icon} ${site.n}</b>(으)로 순례를 떠납니다. 편도 ${site.travel}개월의 여정입니다.`,'fam');
+    renderActivity();
+    return;
+  }
   if(act.invited.length===0) return;
   // 각 손님 수락 판정 + 여행 시간 산정
   for(const inv of act.invited){
@@ -6104,7 +6178,6 @@ function confirmInvites(){
   }
   const anyComing=act.invited.some(i=>i.accepted);
   if(!anyComing){
-    // 아무도 안 옴 → 취소 + 스트레스 (CK3: +20 Stress)
     addStress(p,20,'아무도 초대에 응하지 않은 굴욕');
     log(`아무도 ${ACTIVITY_TYPES[act.type].n}에 오지 않아 취소되었습니다. 굴욕으로 스트레스가 증가했습니다.`,'war');
     state.activeActivity=null;
@@ -6121,6 +6194,23 @@ function activityPulse(){
   const p=playerChar(); if(!p){ state.activeActivity=null; return; }
 
   if(act.phase==='waiting'){
+    // 순례: 성지로 이동 중 — 이동 중 만남 이벤트 + 도착 시 의식 단계
+    if(act.type==='pilgrimage'){
+      act.travelLeft--;
+      // 이동 중 만남 이벤트 (도착 전까지 매월 확률)
+      if(act.travelLeft>0){
+        pilgTravelEvent(act);
+      } else {
+        // 성지 도착 → ongoing(의식) 전환
+        const site=PILG_SITES[act.pilgSite];
+        act.phase='ongoing';
+        act.progress=0;
+        log(`<b>${site.icon} ${site.n}</b>에 도착했습니다. 성지에서 기도를 올립니다.`,'fam');
+        flashActivityWidget();
+      }
+      renderActivity();
+      return;
+    }
     // 손님 도착 카운트다운
     let allArrived=true;
     for(const inv of act.invited){
@@ -6146,7 +6236,15 @@ function activityPulse(){
       }
       act.phase='ongoing';
       act.progress=0;
-      log(`<b>${ACTIVITY_TYPES[act.type].n}</b>이(가) 시작되었습니다! (참석 ${arrived.length}명)`,'good');
+      // 사냥: 시작 시 사냥감 결정
+      if(act.type==='hunt'){
+        rollHuntPrey(act);
+        const prey=HUNT_PREY[act.huntPrey];
+        log(`<b>${ACTIVITY_TYPES[act.type].n}</b>이(가) 시작되었습니다! 사냥터에 <b>${prey.icon} ${prey.n}</b>의 흔적이 발견됐습니다.`,'good');
+      } else {
+        log(`<b>${ACTIVITY_TYPES[act.type].n}</b>이(가) 시작되었습니다! (참석 ${arrived.length}명)`,'good');
+      }
+      flashActivityWidget();
     }
     renderActivity();
     return;
@@ -6155,10 +6253,13 @@ function activityPulse(){
   if(act.phase==='ongoing'){
     // 진행 단계 (3단계, 매월 1단계씩 — 단계별 이벤트)
     act.progress++;
+    flashActivityWidget();
     const arrived=act.invited.filter(i=>i.accepted&&i.arrived&&chars[i.id]&&!chars[i.id].dead);
     // 단계별 소소한 이벤트 (플레이어에게 팝업)
     activityPhaseEvent(act, arrived);
-    if(act.progress>=3){
+    // 순례는 성지 의식 2단계 후 종료, 그 외는 3단계
+    const finishAt = act.type==='pilgrimage' ? 2 : 3;
+    if(act.progress>=finishAt){
       finishActivity(act, arrived);
     }
     renderActivity();
@@ -6170,6 +6271,14 @@ function activityPhaseEvent(act, arrived){
   const p=playerChar();
   const t=ACTIVITY_TYPES[act.type];
   const tier=t.tiers[act.tier];
+  // 순례: 성지 도착 후 신앙 의식 (혼자여도 진행)
+  if(act.type==='pilgrimage'){
+    const ev=pilgRiteEvent(act, arrived);
+    if(ev){
+      actEventPopup({sub:ev.sub||'성지 의식', body:ev.body, opts:ev.opts});
+    }
+    return;
+  }
   if(!arrived.length) return;
   // 연회: 명예 손님이 살아있고 도착했으면 우선 등장
   if(act.type==='feast' && act.guestOfHonor){
@@ -6177,9 +6286,17 @@ function activityPhaseEvent(act, arrived){
     const gohArrived=arrived.some(i=>i.id===act.guestOfHonor);
     if(goh && !goh.dead && gohArrived && Math.random()<0.6){
       const ev=feastGuestOfHonorEvent(act, goh);
-      popup({title:`${t.n} — ${act.progress}/3단계`, sub:`명예 손님 ${goh.name}`, body:ev.body, opts:ev.opts});
+      actEventPopup({sub:`명예 손님 ${goh.name}`, body:ev.body, opts:ev.opts});
       return;
     }
+  }
+  // 사냥: 단계별 추적→발견→포획 체인 (progress 1·2·3에 대응)
+  if(act.type==='hunt'){
+    const ev=huntPhaseEvent(act, arrived);
+    if(ev){
+      actEventPopup({sub:ev.sub, body:ev.body, opts:ev.opts});
+    }
+    return;
   }
   // 일반 단계 이벤트
   if(Math.random()<0.4){
@@ -6187,7 +6304,7 @@ function activityPhaseEvent(act, arrived){
     if(!guest||guest.dead) return;
     const evs=activityPhaseChoices(act, guest);
     const ev=evs[Math.floor(Math.random()*evs.length)];
-    popup({title:`${t.n} — ${act.progress}/3단계`, sub:guest.name+'와(과)의 순간', body:ev.body, opts:ev.opts});
+    actEventPopup({sub:guest.name+'와(과)의 순간', body:ev.body, opts:ev.opts});
   }
 }
 /* 연회 명예 손님 전용 단계 이벤트 — 인텐트별 분기, rapport 누적 */
@@ -6212,6 +6329,165 @@ function feastGuestOfHonorEvent(act, goh){
       ]},
   ];
   return pool[Math.floor(Math.random()*pool.length)];
+}
+/* 사냥 단계 이벤트 — 추적(1)→발견(2)→포획(3) 체인. track 누적, 부상 위험 */
+function huntPhaseEvent(act, arrived){
+  const p=playerChar();
+  const prey=HUNT_PREY[act.huntPrey]; if(!prey) return null;
+  const companion=arrived.length?chars[arrived[Math.floor(Math.random()*arrived.length)].id]:null;
+  const cName=companion&&!companion.dead?companion.name:'동료';
+  // 부상 위험 계산 — 사냥감 위험도 × 용맹 보정
+  const prowMul=Math.max(0.4, 1-(stat(p,'prow')*0.04));
+  const injuryChance=prey.danger*prowMul;
+
+  // 1단계: 추적
+  if(act.progress===1){
+    return {
+      sub:`${prey.icon} ${prey.n} 추적`,
+      body:`사냥개들이 ${prey.n}의 흔적을 쫓습니다. ${cName}이(가) 곁에서 함께 달립니다.`,
+      opts:[
+        {t:'신중히 추적한다', d:'추적 +20, 관계 +5', f:()=>{
+          act.track+=20; if(companion&&!companion.dead) chOp(companion,p,5);
+        }},
+        {t:'과감하게 몰아붙인다', d:'추적 +50, 부상 위험', f:()=>{
+          act.track+=50;
+          if(Math.random()<injuryChance*0.5) huntInjure(act,prey);
+        }},
+      ]
+    };
+  }
+  // 2단계: 발견
+  if(act.progress===2){
+    const found=act.track>=40;
+    if(found){
+      return {
+        sub:`${prey.icon} ${prey.n} 발견`,
+        body:`마침내 ${prey.n}이(가) 시야에 들어왔습니다! ${cName}이(가) 숨을 죽입니다.`,
+        opts:[
+          {t:'활을 쏜다', d:'추적 +30, 위신', f:()=>{
+            act.track+=30; state.prestige+=Math.round(6*prey.prestige);
+          }},
+          {t:'직접 돌격한다', d:'추적 +45, 위신·부상 위험', f:()=>{
+            act.track+=45; state.prestige+=Math.round(10*prey.prestige);
+            if(p.traits.includes('brave')) addStress(p,-5,'사냥의 쾌감');
+            if(Math.random()<injuryChance) huntInjure(act,prey);
+          }},
+        ]
+      };
+    } else {
+      return {
+        sub:`${prey.icon} 놓친 흔적`,
+        body:`${prey.n}이(가) 깊은 숲으로 달아났습니다. 흔적이 흐릿합니다.`,
+        opts:[
+          {t:'끈질기게 추적한다', d:'추적 +40', f:()=>{ act.track+=40; }},
+          {t:'동료에게 맡긴다', d:'추적 +25, 관계 +6', f:()=>{ act.track+=25; if(companion&&!companion.dead) chOp(companion,p,6); }},
+        ]
+      };
+    }
+  }
+  // 3단계: 포획 (finishActivity 직전 마지막 결단)
+  if(act.progress>=3){
+    const cornered=act.track>=70;
+    return {
+      sub:`${prey.icon} ${prey.n} 포획`,
+      body:cornered
+        ? `${prey.n}이(가) 막다른 곳에 몰렸습니다. 마지막 일격의 순간입니다!`
+        : `${prey.n}이(가) 거칠게 저항합니다. 쉽지 않은 마무리입니다.`,
+      opts:[
+        {t:'직접 마무리한다', d:'위신·전리품·부상 위험', f:()=>{
+          act.track+=30; state.prestige+=Math.round(8*prey.prestige);
+          if(Math.random()<injuryChance*1.2) huntInjure(act,prey);
+        }},
+        {t:'동료에게 영광을 넘긴다', d:'관계 대폭 상승', f:()=>{
+          act.track+=20; if(companion&&!companion.dead){ chOp(companion,p,12); chOp(p,companion,6); }
+        }},
+      ]
+    };
+  }
+  return null;
+}
+/* 사냥 부상 처리 — wounded → maimed 단계 */
+function huntInjure(act, prey){
+  const p=playerChar();
+  act.huntInjured=true;
+  if(!p.traits.includes('wounded') && !p.traits.includes('maimed')){
+    p.traits.push('wounded');
+    addStress(p,12,`${prey.n}에게 입은 부상`);
+    log(`사냥 중 <b>${prey.n}</b>에게 부상을 입었습니다!`,'war');
+  } else if(p.traits.includes('wounded') && Math.random()<0.4){
+    p.traits=p.traits.filter(t=>t!=='wounded');
+    p.traits.push('maimed');
+    addStress(p,20,`${prey.n}에게 입은 중상`);
+    log(`이미 다친 몸으로 사냥하다 <b>${prey.n}</b>에게 중상을 입었습니다!`,'war');
+  } else {
+    addStress(p,8,'사냥의 위험');
+  }
+}
+/* 순례 이동 중 만남 이벤트 — 은둔자·이방인·도적 등 (신심 누적) */
+function pilgTravelEvent(act){
+  const p=playerChar();
+  const site=PILG_SITES[act.pilgSite];
+  if(Math.random()>=0.55) { // 약 55% 확률로 만남
+    log(`순례길은 고요합니다. <b>${site.n}</b>까지 ${act.travelLeft}개월 남았습니다.`,'fam');
+    return;
+  }
+  const worldly=act.pilgVariant==='worldly';
+  const pool=[
+    { sub:'은둔자', body:'길가 동굴에서 한 은둔자가 나와 당신을 축복합니다. 그의 눈빛이 형형합니다.',
+      opts:[
+        {t:'가르침을 청한다', d:'신심 +20, 스트레스 -8', f:()=>{ act.devotion+=20; addStress(p,-8,'은둔자의 지혜'); }},
+        {t:'금화를 보시한다', d:'신심 +12, 위신 +6', f:()=>{ act.devotion+=12; state.prestige+=6; }},
+      ]},
+    { sub:'가난한 순례자들', body:'같은 길을 걷는 헐벗은 순례자 무리를 만났습니다. 그들은 굶주려 있습니다.',
+      opts:[
+        {t:'먹을 것을 나눈다', d:`신심 +${worldly?10:18}`, f:()=>{ act.devotion+=worldly?10:18; addStress(p,-5,'자선의 기쁨'); }},
+        {t:'그냥 지나친다', d:'신심 -5', f:()=>{ act.devotion=Math.max(0,act.devotion-5); }},
+      ]},
+    { sub:'이방인 상인', body:'동방에서 왔다는 상인이 진귀한 성유물을 팝니다. 진품인지는 알 수 없습니다.',
+      opts:[
+        {t:'성유물을 산다', d:`${worldly?'위신 +12':'신심 +10'}`, f:()=>{ if(worldly) state.prestige+=12; else act.devotion+=10; }},
+        {t:'의심하며 거절한다', d:'신심 +5', f:()=>{ act.devotion+=5; }},
+      ]},
+    { sub:'노상의 도적', body:'숲길에서 도적 떼가 앞을 막습니다! 순례자의 행색이지만 방심할 수 없습니다.',
+      opts:[
+        {t:'맞서 싸운다', d:'위신 +10, 부상 위험', f:()=>{
+          state.prestige+=10;
+          const hurt=Math.random()<Math.max(0.1,0.4-stat(p,'prow')*0.03);
+          if(hurt && !p.traits.includes('wounded') && !p.traits.includes('maimed')){
+            p.traits.push('wounded'); addStress(p,12,'도적과의 싸움에서 입은 부상');
+            log('순례길에서 도적과 싸우다 부상을 입었습니다.','war');
+          } else { log('도적을 물리쳤습니다.','good'); }
+        }},
+        {t:'통행료를 낸다', d:'신심 +6', f:()=>{ act.devotion+=6; }},
+      ]},
+  ];
+  const ev=pool[Math.floor(Math.random()*pool.length)];
+  actEventPopup({sub:`순례길 — ${ev.sub}`, body:ev.body, opts:ev.opts});
+}
+/* 순례 성지 의식 이벤트 — 도착 후 기도/봉헌 (progress 1·2) */
+function pilgRiteEvent(act, arrived){
+  const p=playerChar();
+  const site=PILG_SITES[act.pilgSite];
+  const worldly=act.pilgVariant==='worldly';
+  if(act.progress===1){
+    return {
+      sub:`${site.icon} ${site.n}`,
+      body:`${site.n}의 제단 앞에 무릎 꿇습니다. 오랜 여정의 피로가 경건함으로 씻겨 내려갑니다.`,
+      opts:[
+        {t:'밤새 기도한다', d:'신심 +20, 스트레스 -12', f:()=>{ act.devotion+=20; addStress(p,-12,'성지의 평안'); }},
+        {t:'제단에 봉헌한다', d:'신심 +12, 위신 +10', f:()=>{ act.devotion+=12; state.prestige+=10; }},
+      ]
+    };
+  }
+  // 2단계: 귀향 직전 결단
+  return {
+    sub:`${site.icon} 순례의 마무리`,
+    body:`순례를 마치고 귀향을 준비합니다. ${site.n}에서의 경험을 어떻게 간직할까요.`,
+    opts:[
+      {t:'서원을 세운다', d:`신심 +15${worldly?'':' · 경건한 마음'}`, f:()=>{ act.devotion+=15; if(!worldly) addStress(p,-8,'신앙의 결의'); }},
+      {t:'견문을 넓혔다 여긴다', d:'위신 +12', f:()=>{ state.prestige+=12; if(worldly) act.devotion+=8; }},
+    ]
+  };
 }
 /* 활동 단계별 선택지 이벤트 생성 */
 function activityPhaseChoices(act, guest){
@@ -6286,6 +6562,59 @@ function finishActivity(act, arrived){
   log(`<b>${t.n}</b>이(가) 성황리에 끝났습니다! 참석 ${n}명 · 위신 +${prestigeGain} · 봉신/이웃 호감 +${opGain}`,'good');
   state.activityCooldowns[act.type]=state.year;
 
+  // 순례: 신심도(devotion) + 성지 거리 비례 보상 정산 (CK3 Pilgrimage)
+  if(act.type==='pilgrimage'){
+    const site=PILG_SITES[act.pilgSite];
+    const dist=site?site.piety:1.0;
+    const devotion=act.devotion||0;
+    // 거리 배율 × 신심도 기반 위신 보너스 (경건은 위신으로 근사)
+    const pietyPrestige=Math.round(devotion*dist*0.8);
+    state.prestige+=pietyPrestige;
+    // 신심도 높으면 스트레스 추가 해소 + 민심 상승 (성지 순례의 평안)
+    if(devotion>=50){
+      addStress(p,-15,'깊은 신앙의 평안');
+      for(const bid of regionsOf(p.id)){ const b=BARONIES[bid]; if(b) b.pop=Math.min(100,(b.pop||60)+5); }
+    }
+    // 광신도/경건 봉신 호감 상승
+    for(const v of vassalsOf(p.id)){
+      if(vassalStance(v)==='zealot') chOp(v,p,10);
+    }
+    state.activeActivity=null;
+    const grade = devotion>=70?'더없이 경건한':devotion>=40?'뜻깊은':'무사한';
+    popup({title:'순례 완수', sub:`${site?site.icon+' '+site.n:'성지'} 순례`,
+      body:`${grade} 순례를 마치고 돌아왔습니다.\n신심도 ${devotion} · 성지 거리 보정 ×${dist}\n위신 +${pietyPrestige}${devotion>=50?'\n깊은 평안으로 스트레스가 줄고 민심이 올랐습니다.':''}`,
+      opts:[{t:'신의 가호가 함께하길'}]});
+    renderActivity();
+    return;
+  }
+
+  // 사냥: 추적도(track)에 따라 사냥 성과 정산 (CK3 Hunt 결과)
+  if(act.type==='hunt'){
+    const prey=HUNT_PREY[act.huntPrey];
+    const success=act.track>=70;
+    state.activeActivity=null;
+    if(success && prey){
+      const trophyPrestige=Math.round(25*prey.prestige);
+      state.prestige+=trophyPrestige;
+      // 영광추구 봉신 호감 상승 (CK3: Glory Hound Vassal Opinion)
+      for(const v of vassalsOf(p.id)){
+        if(vassalStance(v)==='glory'||vassalStance(v)==='belligerent') chOp(v,p,8);
+      }
+      popup({title:'사냥 성공', sub:`${prey.icon} ${prey.n} 포획`,
+        body:`${prey.n}을(를) 쓰러뜨렸습니다!\n전리품 「${prey.trophy}」을(를) 얻었습니다.\n위신 +${trophyPrestige}${act.huntInjured?'\n(부상을 입었지만 사냥은 성공했습니다)':''}`,
+        opts:[{t:'사냥꾼의 영광이다'}]});
+    } else if(prey){
+      addStress(p,8,`${prey.n}을(를) 놓친 아쉬움`);
+      popup({title:'사냥 실패', sub:`${prey.icon} ${prey.n} 놓침`,
+        body:`${prey.n}이(가) 끝내 숲으로 달아났습니다.\n빈손으로 돌아갑니다.${act.huntInjured?'\n게다가 부상까지 입었습니다.':''}`,
+        opts:[{t:'다음 기회를 기약한다'}]});
+    } else {
+      state.activeActivity=null;
+    }
+    renderActivity();
+    return;
+  }
+
   // 연회: 명예 손님이 도착·생존했으면 종료 시 건배/모욕 분기 (CK3 Feast)
   if(act.type==='feast' && act.guestOfHonor){
     const goh=chars[act.guestOfHonor];
@@ -6337,6 +6666,7 @@ function cancelActivity(){
 /* ── 활동 탭 렌더 ── */
 function renderActivity(){
   const p=playerChar(); if(!p) return;
+  renderActivityWidget(); // 원형 활동 위젯 갱신
   const el=document.getElementById('actContent'); if(!el) return;
   let html='';
   const act=state.activeActivity;
@@ -6404,7 +6734,57 @@ function renderActivity(){
       }
       html+=`</div>`;
     }
-    html+=`<div style="font-size:.7rem;letter-spacing:.15em;color:var(--gold-dim);margin-bottom:6px">초대 대상 (${act.invited.length}/${tier.maxGuests})</div>`;
+    // 사냥: 변형 선택 UI
+    if(act.type==='hunt'){
+      html+=`<div style="font-size:.66rem;letter-spacing:.1em;color:var(--gold-dim);margin-bottom:5px">사냥 방식</div>
+        <div style="display:flex;gap:5px;margin-bottom:10px">`;
+      const variants=[
+        {id:'beast', n:'🐗 맹수 사냥', d:'위험하나 큰 위신·전리품'},
+        {id:'falconry', n:'🦅 매사냥', d:'안전하나 보상이 적음'},
+      ];
+      for(const v of variants){
+        const sel=act.huntVariant===v.id;
+        html+=`<button onclick="setHuntVariant('${v.id}')" title="${v.d}"
+          style="flex:1;background:${sel?'linear-gradient(#3a2c18,#241a0e)':'#15110a'};
+          color:${sel?'var(--gold)':'var(--parch-dim)'};border:1px solid ${sel?'var(--gold-dim)':'#2c2316'};
+          border-radius:3px;padding:5px 4px;cursor:pointer;font-family:inherit;font-size:.68rem">${v.n}</button>`;
+      }
+      html+=`</div>`;
+    }
+    // 순례: 변형 + 성지 선택 UI
+    if(act.type==='pilgrimage'){
+      html+=`<div style="font-size:.66rem;letter-spacing:.1em;color:var(--gold-dim);margin-bottom:5px">순례 방식</div>
+        <div style="display:flex;gap:5px;margin-bottom:10px">`;
+      const variants=[
+        {id:'pious', n:'✝ 경건한 순례', d:'신심·평안 중심'},
+        {id:'worldly', n:'🧭 세속적 순례', d:'견문·위신 중심'},
+      ];
+      for(const v of variants){
+        const sel=act.pilgVariant===v.id;
+        html+=`<button onclick="setPilgVariant('${v.id}')" title="${v.d}"
+          style="flex:1;background:${sel?'linear-gradient(#3a2c18,#241a0e)':'#15110a'};
+          color:${sel?'var(--gold)':'var(--parch-dim)'};border:1px solid ${sel?'var(--gold-dim)':'#2c2316'};
+          border-radius:3px;padding:5px 4px;cursor:pointer;font-family:inherit;font-size:.68rem">${v.n}</button>`;
+      }
+      html+=`</div>`;
+      // 성지 선택
+      html+=`<div style="font-size:.66rem;letter-spacing:.1em;color:var(--gold-dim);margin-bottom:5px">순례 목적지 (멀수록 보상 증가)</div>
+        <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:10px">`;
+      for(const sid in PILG_SITES){
+        const s=PILG_SITES[sid];
+        const sel=act.pilgSite===sid;
+        html+=`<button onclick="setPilgSite('${sid}')" title="${s.desc}"
+          style="display:flex;justify-content:space-between;align-items:center;text-align:left;
+          background:${sel?'linear-gradient(#3a2c18,#241a0e)':'#15110a'};color:${sel?'var(--gold)':'var(--parch-dim)'};
+          border:1px solid ${sel?'var(--gold)':'#2c2316'};border-radius:3px;padding:5px 8px;
+          cursor:pointer;font-family:inherit;font-size:.68rem">
+          <span>${sel?'◉':'○'} ${s.icon} ${s.n}</span>
+          <span style="color:var(--parch-dim);font-size:.62rem">편도 ${s.travel}개월 · 보정 ×${s.piety}</span>
+        </button>`;
+      }
+      html+=`</div>`;
+    }
+    html+=`<div style="font-size:.7rem;letter-spacing:.15em;color:var(--gold-dim);margin-bottom:6px">${act.type==='pilgrimage'?'동행자 (선택)':'초대 대상'} (${act.invited.length}/${tier.maxGuests})</div>`;
     if(act.type==='feast'){
       html+=`<div style="font-size:.62rem;color:var(--parch-dim);margin-bottom:5px">☑ 체크해 초대 · ⭐ 눌러 명예 손님 지정</div>`;
     }
@@ -6433,16 +6813,40 @@ function renderActivity(){
           <span style="color:var(--parch-dim);font-size:.6rem"> ${chance}%</span>
         </span></div>`;
     }
+    // 발송 가능 여부: 순례는 성지 선택 시(손님 불필요), 그 외는 손님 1명 이상
+    const canSend = act.type==='pilgrimage' ? !!act.pilgSite : act.invited.length>0;
+    const sendLabel = act.type==='pilgrimage' ? '순례 출발' : '초대장 발송';
     html+=`<div style="display:flex;gap:6px;margin-top:10px">
-      <button onclick="confirmInvites()" ${act.invited.length?'':'disabled'}
-        style="flex:1;background:${act.invited.length?'linear-gradient(#3a2c18,#241a0e)':'#1a160e'};
-        color:${act.invited.length?'var(--gold)':'#5a5040'};border:1px solid var(--gold-dim);border-radius:3px;
-        padding:7px;cursor:${act.invited.length?'pointer':'default'};font-family:inherit;font-size:.74rem">초대장 발송</button>
+      <button onclick="confirmInvites()" ${canSend?'':'disabled'}
+        style="flex:1;background:${canSend?'linear-gradient(#3a2c18,#241a0e)':'#1a160e'};
+        color:${canSend?'var(--gold)':'#5a5040'};border:1px solid var(--gold-dim);border-radius:3px;
+        padding:7px;cursor:${canSend?'pointer':'default'};font-family:inherit;font-size:.74rem">${sendLabel}</button>
       <button onclick="cancelActivity()" style="background:#1a1208;color:#9e7a5a;border:1px solid #4a3a28;border-radius:3px;padding:7px 12px;cursor:pointer;font-family:inherit;font-size:.74rem">취소</button>
     </div>`;
+    if(act.type==='pilgrimage' && !act.pilgSite){
+      html+=`<div style="font-size:.62rem;color:#9e7a5a;margin-top:5px">⚠ 순례를 떠나려면 목적지 성지를 선택하세요.</div>`;
+    }
   }
 
   else if(act.phase==='waiting'){
+    // 순례: 성지로 이동 중 표시
+    if(act.type==='pilgrimage'){
+      const site=PILG_SITES[act.pilgSite];
+      const done=(act.travelTotal||1)-(act.travelLeft||0);
+      html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:8px 10px;margin-bottom:8px;font-size:.7rem">
+        <div style="color:var(--gold);font-size:.78rem;margin-bottom:4px">${site.icon} ${site.n}(으)로 가는 길</div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--parch-dim)">남은 여정</span><span>${act.travelLeft}개월</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:var(--parch-dim)">신심도</span><span style="color:var(--gold)">${act.devotion||0}</span></div>
+        <div style="height:5px;background:#2c2316;border-radius:3px;margin-top:5px;overflow:hidden">
+          <div style="height:100%;width:${Math.round(done/(act.travelTotal||1)*100)}%;background:#7a9a6a"></div></div>
+      </div>`;
+      const comp=act.invited.filter(i=>i.accepted&&chars[i.id]);
+      if(comp.length){
+        html+=`<div style="font-size:.66rem;color:var(--parch-dim);margin-bottom:4px">동행자</div>`;
+        for(const inv of comp){ const g=chars[inv.id]; html+=`<div style="font-size:.72rem;padding:2px 0;color:var(--parch-dim)">🧎 ${g.name}</div>`; }
+      }
+      html+=`<div style="font-size:.64rem;color:var(--parch-dim);margin-top:8px">시간을 진행하면 순례길에서 여러 만남이 기다립니다.</div>`;
+    } else {
     html+=`<div style="font-size:.7rem;letter-spacing:.15em;color:var(--gold-dim);margin-bottom:6px">손님 현황</div>`;
     for(const inv of act.invited){
       const g=chars[inv.id]; if(!g) continue;
@@ -6454,11 +6858,13 @@ function renderActivity(){
         <span><b>${g.name}</b></span><span style="color:${color};font-size:.68rem">${status}</span></div>`;
     }
     html+=`<div style="font-size:.64rem;color:var(--parch-dim);margin-top:8px">시간을 진행하면 손님이 도착합니다.</div>`;
+    }
   }
 
   else if(act.phase==='ongoing'){
     const arrived=act.invited.filter(i=>i.accepted&&i.arrived&&chars[i.id]&&!chars[i.id].dead);
-    html+=`<div style="font-size:.7rem;letter-spacing:.15em;color:var(--gold-dim);margin-bottom:6px">진행 ${act.progress}/3 단계</div>`;
+    const totalPhase=act.type==='pilgrimage'?2:3;
+    html+=`<div style="font-size:.7rem;letter-spacing:.15em;color:var(--gold-dim);margin-bottom:6px">${act.type==='pilgrimage'?'성지 의식':'진행'} ${act.progress}/${totalPhase} 단계</div>`;
     // 연회: 인텐트/명예손님/교류도 표시
     if(act.type==='feast'){
       const intentN=act.intent==='befriend'?'🤝 교우':'🍷 오락';
@@ -6471,18 +6877,234 @@ function renderActivity(){
       }
       html+=`</div>`;
     }
-    html+=`<div style="font-size:.72rem;color:var(--parch);margin-bottom:6px">참석자 ${arrived.length}명</div>`;
+    // 사냥: 변형/사냥감/추적도 표시
+    if(act.type==='hunt'){
+      const variantN=act.huntVariant==='falconry'?'🦅 매사냥':'🐗 맹수 사냥';
+      const prey=act.huntPrey?HUNT_PREY[act.huntPrey]:null;
+      const track=act.track||0;
+      const trackColor=track>=70?'#7a9a6a':track>=40?'#c8a24a':'#9e7a5a';
+      html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:6px 9px;margin-bottom:8px;font-size:.68rem">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--parch-dim)">방식</span><span>${variantN}</span></div>`;
+      if(prey){
+        html+=`<div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:var(--parch-dim)">사냥감</span><span style="color:var(--gold)">${prey.icon} ${prey.n}</span></div>`;
+      }
+      html+=`<div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:var(--parch-dim)">추적도</span><span style="color:${trackColor}">${track}/100 ${track>=70?'(포획 가능)':''}</span></div>`;
+      // 추적도 게이지
+      html+=`<div style="height:5px;background:#2c2316;border-radius:3px;margin-top:4px;overflow:hidden">
+        <div style="height:100%;width:${Math.min(100,track)}%;background:${trackColor}"></div></div>`;
+      if(act.huntInjured){
+        html+=`<div style="color:#9e5a5a;font-size:.62rem;margin-top:3px">⚠ 사냥 중 부상을 입음</div>`;
+      }
+      html+=`</div>`;
+    }
+    // 순례: 성지/방식/신심도 표시
+    if(act.type==='pilgrimage'){
+      const site=PILG_SITES[act.pilgSite];
+      const variantN=act.pilgVariant==='worldly'?'🧭 세속적':'✝ 경건한';
+      const dev=act.devotion||0;
+      const devColor=dev>=70?'#7a9a6a':dev>=40?'#c8a24a':'#9e7a5a';
+      html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:6px 9px;margin-bottom:8px;font-size:.68rem">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--parch-dim)">성지</span><span style="color:var(--gold)">${site?site.icon+' '+site.n:'—'}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:var(--parch-dim)">방식</span><span>${variantN}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-top:2px"><span style="color:var(--parch-dim)">신심도</span><span style="color:${devColor}">${dev}</span></div>
+        <div style="height:5px;background:#2c2316;border-radius:3px;margin-top:4px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(100,dev)}%;background:${devColor}"></div></div>
+      </div>`;
+    }
+    const showList = act.type==='pilgrimage' ? `동행자 ${arrived.length}명` : `참석자 ${arrived.length}명`;
+    html+=`<div style="font-size:.72rem;color:var(--parch);margin-bottom:6px">${showList}${act.type==='pilgrimage'&&arrived.length===0?' (홀로 순례 중)':''}</div>`;
     for(const inv of arrived){
       const g=chars[inv.id];
       const isGoh=act.guestOfHonor===inv.id;
-      html+=`<div style="font-size:.72rem;padding:3px 0;color:${isGoh?'var(--gold)':'var(--parch-dim)'}">${isGoh?'⭐':'🍷'} ${g.name}</div>`;
+      const icon=act.type==='hunt'?'🏹':(act.type==='pilgrimage'?'🧎':(isGoh?'⭐':'🍷'));
+      html+=`<div style="font-size:.72rem;padding:3px 0;color:${isGoh?'var(--gold)':'var(--parch-dim)'}">${icon} ${g.name}</div>`;
     }
     html+=`<div style="font-size:.64rem;color:var(--parch-dim);margin-top:8px">시간을 진행하면 활동이 단계별로 진행됩니다.</div>`;
   }
 
   el.innerHTML=html;
 }
-function openActivity(){ togglePanel('act'); }
+function openActivity(){
+  // 진행 중인 활동이 있으면 활동 전용 창, 없으면 활동 목록 패널
+  if(state.activeActivity) showActModal(null);
+  else togglePanel('act');
+}
+/* ── 활동 전용 모달 (CK3식 활동 창) ──
+   ev가 있으면 단계 이벤트(내러티브+선택지), 없으면 현재 상태 보기 */
+function showActModal(ev){
+  const act=state.activeActivity;
+  const modal=document.getElementById('actModal');
+  const shade=document.getElementById('actShade');
+  if(!act || !modal || !shade){ return; }
+  const t=ACTIVITY_TYPES[act.type];
+  const tier=t.tiers[act.tier];
+  state.actModalOpen=true;
+  pause();
+  // 위젯 알림 해제
+  const aw=document.getElementById('actWidget'); if(aw) aw.classList.remove('alert');
+
+  // 단계 라벨
+  const stageTxt = act.phase==='inviting'?'준비 단계'
+    : act.phase==='waiting'?(act.type==='pilgrimage'?`성지로 가는 길 · ${act.travelLeft||0}개월`:'손님 대기')
+    : act.phase==='ongoing'?(act.type==='pilgrimage'?`성지 의식 ${act.progress}/2`:`진행 ${act.progress}/${act.type==='hunt'?3:3}`)
+    : '';
+
+  // 헤더
+  let h=`<button class="act-close" onclick="closeActModal()">✕</button>
+    <div class="act-hero ${act.type}">
+      <div class="ah-stage">${stageTxt}</div>
+      <div class="ah-icon">${t.icon}</div>
+      <div class="ah-title">${t.n}</div>
+      <div class="ah-tier">${tier.n}</div>
+    </div>`;
+
+  // 진행 정보 바 (활동별)
+  h+=actModalInfoBar(act);
+
+  // 본문
+  h+=`<div class="act-body">`;
+
+  // 참석자 칩
+  const arrived=act.invited.filter(i=>i.accepted&&i.arrived&&chars[i.id]&&!chars[i.id].dead);
+  if(act.phase==='ongoing' && (arrived.length || act.type==='pilgrimage')){
+    h+=`<div class="act-guests">`;
+    if(arrived.length){
+      for(const inv of arrived){
+        const g=chars[inv.id]; const isGoh=act.guestOfHonor===inv.id;
+        h+=`<span class="ag-chip ${isGoh?'goh':''}">${isGoh?'⭐ ':''}${g.name}</span>`;
+      }
+    } else if(act.type==='pilgrimage'){
+      h+=`<span class="ag-chip">홀로 순례 중</span>`;
+    }
+    h+=`</div>`;
+  }
+
+  if(ev){
+    // 단계 이벤트: 내러티브 + 선택지
+    if(ev.sub) h+=`<div class="ab-sub">${ev.sub}</div>`;
+    h+=`<div class="ab-narr">${ev.body||''}</div>`;
+    h+=`<div class="act-opts">`;
+    (ev.opts||[{t:'계속'}]).forEach((o,i)=>{
+      h+=`<button onclick="actModalPick(${i})">${o.t}${o.d?`<small>${o.d}</small>`:''}</button>`;
+    });
+    h+=`</div>`;
+    modal._opts=ev.opts||[{}];
+  } else {
+    // 상태 보기 (이벤트 없이 위젯 클릭 시)
+    h+=`<div class="ab-narr">${actModalStatusText(act)}</div>`;
+    h+=`<div class="act-opts"><button onclick="closeActModal()">닫기</button></div>`;
+    modal._opts=null;
+  }
+  h+=`</div>`;
+  modal.innerHTML=h;
+  shade.classList.add('show');
+  playSynthSFX('event');
+}
+/* 활동 진행 정보 바 (활동별 지표) */
+function actModalInfoBar(act){
+  const cells=[];
+  if(act.type==='hunt'){
+    const prey=act.huntPrey?HUNT_PREY[act.huntPrey]:null;
+    const variantN=act.huntVariant==='falconry'?'🦅 매사냥':'🐗 맹수';
+    cells.push(['방식',variantN]);
+    if(prey) cells.push(['사냥감',`${prey.icon} ${prey.n}`]);
+    const track=act.track||0;
+    cells.push(['추적도',`${track}/100`]);
+    let bar=`<div class="act-gauge"><div style="width:${Math.min(100,track)}%"></div></div>`;
+    return `<div class="act-info">${cells.map(c=>`<div class="ai-cell"><span class="ai-k">${c[0]}</span><span class="ai-v">${c[1]}</span></div>`).join('')}</div>${bar}`;
+  }
+  if(act.type==='pilgrimage'){
+    const site=act.pilgSite?PILG_SITES[act.pilgSite]:null;
+    const variantN=act.pilgVariant==='worldly'?'🧭 세속':'✝ 경건';
+    if(site) cells.push(['성지',`${site.icon} ${site.n}`]);
+    cells.push(['방식',variantN]);
+    const dev=act.devotion||0;
+    cells.push(['신심도',`${dev}`]);
+    let bar=`<div class="act-gauge"><div style="width:${Math.min(100,dev)}%"></div></div>`;
+    return `<div class="act-info">${cells.map(c=>`<div class="ai-cell"><span class="ai-k">${c[0]}</span><span class="ai-v">${c[1]}</span></div>`).join('')}</div>${bar}`;
+  }
+  // feast
+  const intentN=act.intent==='befriend'?'🤝 교우':'🍷 오락';
+  cells.push(['목적',intentN]);
+  const goh=act.guestOfHonor?chars[act.guestOfHonor]:null;
+  if(goh) cells.push(['명예 손님',`⭐ ${goh.name}`]);
+  cells.push(['교류도',`${act.rapport||0}`]);
+  return `<div class="act-info">${cells.map(c=>`<div class="ai-cell"><span class="ai-k">${c[0]}</span><span class="ai-v">${c[1]}</span></div>`).join('')}</div>`;
+}
+/* 활동 상태 텍스트 (이벤트 없이 볼 때) */
+function actModalStatusText(act){
+  const t=ACTIVITY_TYPES[act.type];
+  if(act.phase==='inviting') return `${t.n} 준비 중입니다. 우측 활동 패널에서 손님을 초대하고 출발하세요.`;
+  if(act.phase==='waiting'){
+    if(act.type==='pilgrimage') return `${PILG_SITES[act.pilgSite]?.n||'성지'}(으)로 향하는 중입니다. 남은 여정 ${act.travelLeft||0}개월. 시간을 진행하면 순례길의 만남이 펼쳐집니다.`;
+    const acc=act.invited.filter(i=>i.accepted); const arr=acc.filter(i=>i.arrived).length;
+    return `손님들이 오고 있습니다 (${arr}/${acc.length} 도착). 모두 도착하면 ${t.n}이(가) 시작됩니다.`;
+  }
+  if(act.phase==='ongoing') return `${t.n}이(가) 진행 중입니다. 시간을 진행하면 다음 순간이 펼쳐집니다.`;
+  return '';
+}
+/* 활동 모달 선택지 처리 */
+function actModalPick(i){
+  const modal=document.getElementById('actModal');
+  const o=modal._opts?modal._opts[i]:null;
+  closeActModal();
+  if(o&&o.f) o.f();
+  renderActivity();
+  renderAll();
+}
+/* 활동 모달 닫기 */
+function closeActModal(){
+  state.actModalOpen=false;
+  const shade=document.getElementById('actShade');
+  if(shade) shade.classList.remove('show');
+  if(!state.modalOpen && !state.popupQ.length) resume();
+}
+/* 활동 단계 이벤트를 활동 모달로 띄움 (자동) */
+function actEventPopup(ev){
+  showActModal(ev);
+}
+/* ── 원형 활동 위젯 렌더 (좌측 상단, 활동 중에만 표시) ── */
+function renderActivityWidget(){
+  const el=document.getElementById('actWidget'); if(!el) return;
+  const act=state.activeActivity;
+  if(!act){ el.classList.remove('show','alert'); el.innerHTML=''; return; }
+  const t=ACTIVITY_TYPES[act.type];
+  // 진행도 0~1 계산 (단계별)
+  let frac=0, phaseLabel='';
+  if(act.phase==='inviting'){ frac=0.05; phaseLabel='준비'; }
+  else if(act.phase==='waiting'){
+    if(act.type==='pilgrimage'){
+      const total=act.travelTotal||1; const done=total-(act.travelLeft||0);
+      frac=0.1+0.5*(done/total); phaseLabel='여정';
+    } else {
+      // 손님 도착 비율
+      const acc=act.invited.filter(i=>i.accepted);
+      const arr=acc.filter(i=>i.arrived).length;
+      frac=0.1+0.4*(acc.length?arr/acc.length:0); phaseLabel='대기';
+    }
+  } else if(act.phase==='ongoing'){
+    const totalPhase=act.type==='pilgrimage'?2:3;
+    frac=0.6+0.4*(act.progress/totalPhase);
+    phaseLabel=act.type==='hunt'?'사냥':act.type==='pilgrimage'?'의식':'진행';
+  }
+  frac=Math.max(0,Math.min(1,frac));
+  const R=33, C=2*Math.PI*R;
+  const off=C*(1-frac);
+  el.innerHTML=`
+    <svg class="aw-ring" viewBox="0 0 70 70">
+      <circle class="bg" cx="35" cy="35" r="${R}"></circle>
+      <circle class="fg" cx="35" cy="35" r="${R}" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"></circle>
+    </svg>
+    <span class="aw-icon">${t.icon}</span>
+    <span class="aw-phase">${phaseLabel}</span>
+    <span class="aw-badge"></span>`;
+  el.classList.add('show');
+}
+/* 활동 위젯에 알림 표시 (새 단계 진입 등) */
+function flashActivityWidget(){
+  const el=document.getElementById('actWidget'); if(!el) return;
+  el.classList.add('alert');
+}
 /* 활동 개최 버튼 핸들러 — 투자 등급 선택 즉시 시작 */
 function onStartActivity(typeId, tierIdx){
   initAudio();
@@ -6801,7 +7423,7 @@ function renderMap(){
   svg.innerHTML=h;
 }
 function ownerRegionOf(c){ return c.region || regionsOf(c.id)[0] || null; }
-function renderAll(){ renderHeader(); renderChar(); renderMap(); }
+function renderAll(){ renderHeader(); renderChar(); renderMap(); renderActivityWidget(); }
 
 /* ---------- 시작 ---------- */
 function intro(){
