@@ -966,15 +966,16 @@ const vOriel = mkVassal(kUls, 'c_oriel', '동날 우어 케르발', '우어 케�
 const vAilech = mkVassal(kUls, 'c_ailech', '플라히르타 우어 막라흘런', '우어 막라흘런', 1026,
   {dip:4,mar:7,stew:4,intr:5,learn:3,prow:7}, ['brave','ambitious']);
 
-// ── 초기 공작 작위 부여 (CK3: de jure 다수 지배 군주가 공작위 보유) ──
-// 무르하드: 먼스터 공작 (톰몬드/에니스/오몬드 = 4개 중 3개 지배, 데스몬드는 독립)
+// ── 초기 공작 작위 부여 (CK3 1066 아일랜드: 공작은 먼스터·코노트 둘뿐) ──
+// 무르하드: 먼스터 공작 (톰몬드/에니스 직할 + 오몬드 봉신, 데스몬드는 독립 백작)
 murchad.heldTitles.push('d_munster');
-kLein.heldTitles.push('d_leinster');   // 레인스터 공작 (레인스터/오서리)
-kDub.heldTitles.push('d_dublin');      // 더블린 공작
-kMeath.heldTitles.push('d_meath');     // 미드 공작 (미드/애슬론)
-kConn.heldTitles.push('d_connacht');   // 코노트 공작 (코노트/마요)
-kBrei.heldTitles.push('d_breifne');    // 브레프네 공작
-kUls.heldTitles.push('d_ulster');      // 얼스터 공작 (얼스터/오리얼/애일라흐)
+kConn.heldTitles.push('d_connacht');   // 코노트 공작 (코노트 직할 + 마요 봉신)
+// CK3 1066: 레인스터·더블린·미드·브레프네·얼스터는 공작위 없는 독립 백작
+// (역사적으로 레인스터의 디어르마트조차 CK3에선 백작 작위)
+// 이들 밑의 봉신(오서리·애슬론·오리얼·애일라흐)도 독립 백작으로 해방
+[kLein, kMeath, kBrei, kUls, kDub].forEach(king=>{
+  for(const v of vassalsOf(king.id)){ v.liege=null; } // 봉신 → 독립 백작
+});
 // 데스몬드(kDesmond)는 백작령 1개만 보유 → 공작 작위 없음 (독립 백작)
 
 // NPC 초기 궁정인 생성 (각 NPC 군주에게 자문회 인원 풀 제공)
@@ -1031,6 +1032,47 @@ function topLiege(c){
 }
 /* c가 독립 군주인지 (섬기는 주군이 없음) */
 function isIndependent(c){ return c && (!c.liege || !chars[c.liege] || chars[c.liege].dead); }
+
+/* ── 최상위 주군(realm)별 고유 테두리 색 ──
+   공작령 내부 색(어둡고 탁한 톤)과 겹치지 않는 밝고 선명한 팔레트.
+   독립 군주별로 랜덤(시드 셔플) 배정하되 서로 겹치지 않음 */
+const REALM_STROKE_PALETTE = [
+  '#e8c84a', // 금
+  '#4ac8e8', // 청록
+  '#e87a4a', // 주황
+  '#b04ae8', // 자주
+  '#4ae87a', // 연두
+  '#e84a8a', // 분홍
+  '#e8e84a', // 노랑
+  '#4a7ae8', // 파랑
+  '#e84a4a', // 빨강
+  '#4ae8c8', // 민트
+  '#c8e84a', // 라임
+  '#e84ac8', // 마젠타
+];
+const _realmStrokeColor = {}; // charId → color (게임 시작 시 배정)
+/* 독립 군주들에게 겹치지 않는 테두리 색을 시드 셔플로 배정 */
+function assignRealmColors(){
+  const indep = Object.values(chars).filter(c=>c.ruler&&!c.dead&&isIndependent(c));
+  // 시드 기반 셔플 (재현 가능한 랜덤)
+  let seed = 1066;
+  const rng = ()=>{ seed=(seed*9301+49297)%233280; return seed/233280; };
+  const pal = [...REALM_STROKE_PALETTE];
+  for(let i=pal.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [pal[i],pal[j]]=[pal[j],pal[i]]; }
+  indep.forEach((c,i)=>{ _realmStrokeColor[c.id]=pal[i%pal.length]; });
+}
+/* 캐릭터의 최상위 주군 테두리 색 — 미배정 시 즉시 배정 */
+function realmStrokeColor(c){
+  const tl=topLiege(c); if(!tl) return '#6a5836';
+  if(!_realmStrokeColor[tl.id]){
+    // 신규 독립 군주(정복/사망 상속 등으로 생긴) → 빈 색 배정
+    const used=new Set(Object.values(_realmStrokeColor));
+    const free=REALM_STROKE_PALETTE.find(c=>!used.has(c))||REALM_STROKE_PALETTE[0];
+    _realmStrokeColor[tl.id]=free;
+  }
+  return _realmStrokeColor[tl.id];
+}
+assignRealmColors(); // 최상위 주군별 테두리 색 배정 (팔레트·chars 정의 이후 안전)
 function regionsOf(cid){ const out=[]; for(const bid in BARONIES) if(BARONIES[bid].owner===cid) out.push(bid); return out; }
 function countyOf(bid){ return BARONIES[bid]?.county||null; }
 function duchyOf(bid){ return COUNTIES[BARONIES[bid]?.county]?.duchy||null; }
@@ -1049,6 +1091,20 @@ function playerChar(){ return chars[state.player]; }
 function heldDuchiesOf(charId){ const c=chars[charId]; return c?(c.heldTitles||[]).filter(t=>DUCHIES[t]):[]; }
 /* 보유한 왕국 작위 목록 */
 function heldKingdomsOf(charId){ const c=chars[charId]; return c?(c.heldTitles||[]).filter(t=>KINGDOMS[t]):[]; }
+/* 플레이어 최상위 작위 등급 — CK3 자문회원 혜택 등급 결정용
+   출처: https://ck3.paradoxwikis.com/Council (1.19) — "Benefits from being a councilor"
+   County/Duchy/Kingdom/Empire 등급별 혜택 차등. 플레이어=먼스터 공작이라 기본 duchy,
+   왕국(아일랜드) 창설 시 kingdom으로 자동 상향됨 */
+function playerTitleRank(){
+  const p=playerChar(); if(!p) return 'county';
+  if(heldKingdomsOf(p.id).length) return 'kingdom';
+  if(heldDuchiesOf(p.id).length)  return 'duchy';
+  return 'county';
+}
+/* 등급 배수 (county=1, duchy=2, kingdom=3) — 위키 혜택이 등급에 선형 비례
+   Chancellor 동료봉신호감 5/10/15, Marshal 용맹 1/2/3, Chaplain 민심 5/10/15,
+   Steward 직할세금 2.5/5/7.5%, 생활방식 경험 5/10/15% */
+function councilRankMul(){ return {county:1, duchy:2, kingdom:3}[playerTitleRank()] || 1; }
 /* 특정 작위 보유 여부 */
 function holdsTitle(charId, tid){ const c=chars[charId]; return !!(c&&(c.heldTitles||[]).includes(tid)); }
 /* 작위 보유자 (없으면 null) */
@@ -1066,6 +1122,31 @@ function deJureControl(charId, tid){
   const realm=new Set(realmCountiesOf(charId));
   const owned=info.counties.filter(cid=>realm.has(cid)).length;
   return owned/info.counties.length;
+}
+/* ── de jure 탈환 명분 (CK3: 공작이 자기 권역의 남이 가진 백작령을 회수) ──
+   공격자가 보유한 공작령 중, 대상이 지배하는 (내 realm 밖) 백작령 목록 반환 */
+function dejureClaimCounties(attackerId, targetId){
+  const atk=chars[attackerId], tgt=chars[targetId];
+  if(!atk||!tgt) return [];
+  const myRealm=new Set(realmCountiesOf(attackerId));
+  const out=[];
+  for(const did of heldDuchiesOf(attackerId)){       // 내가 보유한 공작령마다
+    for(const cid of (DUCHIES[did]?.counties||[])){
+      if(myRealm.has(cid)) continue;                  // 이미 내 realm이면 제외
+      // 이 백작령을 대상이 직접 지배하는가
+      const holder=countyHolder(cid);
+      if(holder && holder.id===targetId) out.push(cid);
+    }
+  }
+  return out;
+}
+/* de jure 명분 가능 여부 + 비용(백작령당 위신 100) */
+function canDejureWar(targetId){
+  const p=playerChar();
+  const cids=dejureClaimCounties(p.id, targetId);
+  if(cids.length===0) return {ok:false, cids:[], cost:0};
+  const cost=cids.length*100; // CK3: 백작령당 위신 100
+  return {ok:true, cids, cost};
 }
 /* 작위 생성 가능 여부 — CK3: de jure 51%+ 지배 + (하위 2개 또는 동급/상위 1개) */
 function canCreateTitle(charId, tid){
@@ -1108,7 +1189,50 @@ function createTitle(charId, tid){
   }
   return true;
 }
-/* 작위 하사 — 봉신에게 공작위 수여 (CK3: 호감 +grantOp) */
+/* ── 작위 찬탈 (CK3 Usurp: 남이 가진 작위를 de jure 50%+ 지배 시 골드로 탈취, 전쟁 없음) ──
+   조건: 동일/비적대 신앙 보유자, de jure 51%+ 지배, 하위작위 2개, 내 주군 작위 아님, 비용=창설비 */
+function canUsurpTitle(charId, tid){
+  const c=chars[charId]; if(!c||c.dead) return {ok:false, reason:'무효'};
+  const holder=titleHolder(tid);
+  if(!holder) return {ok:false, reason:'보유자 없음(창설 대상)'};
+  if(holder.id===charId) return {ok:false, reason:'이미 보유'};
+  // 자기 주군의 작위는 찬탈 불가
+  if(holder.id===c.liege) return {ok:false, reason:'주군의 작위는 찬탈할 수 없습니다'};
+  const info=titleInfo(tid); if(!info) return {ok:false, reason:'알 수 없는 작위'};
+  // 신앙: 적대(이교도) 신앙 보유자는 찬탈 불가 (CK3: 동일/비적대만)
+  if(c.faith && holder.faith && faithRelation(c.faith,holder.faith)==='hostile')
+    return {ok:false, reason:'이교도의 작위는 찬탈할 수 없습니다 (전쟁 필요)'};
+  // de jure 지배율 51%+
+  const ctrl=deJureControl(charId,tid);
+  if(ctrl<0.51) return {ok:false, reason:`de jure 백작령 51% 지배 필요 (현재 ${Math.round(ctrl*100)}%)`};
+  // 하위 작위 조건 (공작: 백작령 2개+ 또는 공작위 1개+)
+  if(info.kind==='duchy'){
+    if(directCountiesOf(charId).length<2 && heldDuchiesOf(charId).length<1)
+      return {ok:false, reason:'백작령 2개 이상 보유 필요'};
+  }
+  // 비용 (창설비와 동일)
+  const seatB=BARONIES[c.region];
+  const cost=info.tier.create;
+  if(!seatB||seatB.gold<cost) return {ok:false, reason:`금 ${cost} 필요`};
+  return {ok:true, cost, info, holder};
+}
+function usurpTitle(charId, tid){
+  const chk=canUsurpTitle(charId,tid);
+  if(!chk.ok) return false;
+  const c=chars[charId], holder=chk.holder;
+  BARONIES[c.region].gold-=chk.cost;
+  holder.heldTitles=(holder.heldTitles||[]).filter(t=>t!==tid); // 이전 보유자에게서 제거
+  if(!c.heldTitles) c.heldTitles=[];
+  c.heldTitles.push(tid);
+  chOp(holder,c,-50); // CK3: 찬탈당한 자 호감 -50
+  state.prestige += (charId===state.player ? Math.round(chk.info.tier.prestige*0.5) : 0);
+  if(charId===state.player){
+    log(`<b>${chk.info.n}</b> 작위를 <b>${holder.name}</b>에게서 찬탈했습니다! (호감 -50)`,'good');
+  } else if(holder.id===state.player){
+    log(`<b>${c.name}</b>이(가) 당신의 <b>${chk.info.n}</b> 작위를 찬탈했습니다!`,'war');
+  }
+  return true;
+}
 function grantTitleToVassal(liegeId, vassalId, tid){
   const liege=chars[liegeId], v=chars[vassalId], info=titleInfo(tid);
   if(!liege||!v||!info) return false;
@@ -1403,6 +1527,34 @@ function cleanupAfterDeath(c){
     if(w.atk===c.id||w.def===c.id){ log(`${COUNTIES[countyOf(c.region)]?.n||'영지'}의 전쟁이 지배자 사망으로 종결되었습니다.`,'war'); return false;}
     return true;});
   state.schemes=state.schemes.filter(s=>s.plotter!==c.id&&s.target!==c.id);
+  // ── 작위(heldTitles) 상속/소멸 (CK3: 영지 잃은 작위는 소멸, 보유 후계자에게 이관) ──
+  const titles=(c.heldTitles||[]).slice();
+  if(titles.length){
+    // 이 사망자의 영지를 물려받은 주 후계자(작위도 함께 가져감)
+    const heir=Object.values(chars).find(h=>!h.dead&&h.ruler&&(h.father===c.id||h.mother===c.id)&&directCountiesOf(h.id).length>0);
+    for(const tid of titles){
+      const info=DUCHIES[tid]?{kind:'duchy',counties:DUCHIES[tid].counties}:(KINGDOMS[tid]?{kind:'kingdom'}:null);
+      // 작위 권역을 후계자가 51%+ 지배하면 이관, 아니면 소멸
+      if(heir && info && info.counties){
+        const realm=new Set(realmCountiesOf(heir.id));
+        const owned=info.counties.filter(cid=>realm.has(cid)).length;
+        if(owned/info.counties.length>=0.51){
+          if(!heir.heldTitles) heir.heldTitles=[];
+          heir.heldTitles.push(tid);
+          continue;
+        }
+      }
+      // 소멸 (de jure 권역은 DUCHIES 정의에 남으므로 누구든 재창설 가능)
+    }
+  }
+  c.heldTitles=[]; // 사망자 작위 비움
+  // ── 봉신 재배치 (CK3: 죽은 주군의 봉신은 그 위 주군에게, 없으면 독립) ──
+  for(const id in chars){
+    const v=chars[id];
+    if(!v.dead && v.liege===c.id){
+      v.liege = c.liege || null; // 위 주군에게 넘기거나 독립
+    }
+  }
 }
 const NAMES_M=['타드그','로르칸','피네언','콘','니얼','루어드리','케르발','플란','브란','에오한'];
 function randName(){ return NAMES_M[Math.floor(Math.random()*NAMES_M.length)]; }
@@ -2863,6 +3015,24 @@ function conquerTarget(a, d, targetCid){
   if(BARONIES[targetCid]) cid = BARONIES[targetCid].county; // barony → county
   if(!cid||!COUNTIES[cid]){ setTruce(a.id,d.id,5); return; }
   const cname = COUNTIES[cid].n;
+  // ── de jure 탈환 전쟁: 영토 점령이 아니라 대상을 봉신화 (CK3: 공작>백작 → 봉신화) ──
+  const djWar = state.wars.find(w=>((w.atk===a.id&&w.def===d.id)||(w.atk===d.id&&w.def===a.id)) && w.dejure);
+  if(djWar){
+    setTruce(a.id,d.id,5);
+    d.liege=a.id; // 봉신화 — 백작령은 그대로 두되 주군이 됨
+    if(a.id===state.player){
+      initVassalContract(d);
+      chOp(d,a,-10); // 강제 복속 불만
+      addStress(a,-10,'권역 통합의 영광');
+      popup({title:'de jure 복속', sub:cname,
+        body:`<b>${d.name}</b>이(가) de jure 권리에 굴복하여 당신의 봉신이 되었습니다!\n권역의 백작령이 당신의 휘하로 통합됩니다.`,
+        opts:[{t:'권역이 하나가 되었다', f:checkVictoryHint}]});
+    } else if(d.id===state.player){
+      gameOver(`${a.name}이(가) de jure 권리로 당신을 굴복시켰습니다. 당신은 그의 봉신이 되었습니다.`);
+    }
+    log(`<b>🏰 ${d.name}</b>이(가) ${a.name}의 봉신으로 복속됐습니다.`,'dip');
+    renderMap(); return;
+  }
   log(`<b>${a.name}</b>이(가) <b>${cname}</b>을(를) 정복했습니다!`,'war');
   setTruce(a.id,d.id,5);
   // 해당 county의 모든 barony를 공격자에게 이전
@@ -5112,6 +5282,7 @@ const CB_TYPES = {
   unpressed: { n:'미확정 주장', icon:'📜', cost:100, desc:'위조되거나 약한 영토 주장',  color:'#8a9a6a' },
   revenge:   { n:'복수 선포',   icon:'🩸', cost:0,   desc:'침략당한 영지 탈환 명분',    color:'#9e3535' },
   holy_war:  { n:'성전',        icon:'✝', cost:0,   desc:'이교도·이단에 대한 신성한 전쟁 — 승리 시 개종', color:'#d4a82a', piety:true },
+  dejure:    { n:'de jure 탈환', icon:'🏰', cost:0,   desc:'내 공작령 권역의 백작령을 정당하게 회수 — 승리 시 봉신화', color:'#7a9ac8' },
 };
 
 /* ─── 명분 시스템 핵심 헬퍼
@@ -5185,9 +5356,10 @@ function openDeclareWar(defId){
   const defCids = countiesOf(def.id);
   const myClaims = claimsForRegion(def);
   const hw = canHolyWar(def); // 성전 가능 여부
+  const dj = canDejureWar(def.id); // de jure 탈환 가능 여부
 
-  if(myClaims.length === 0 && !hw.ok){
-    // 명분도 없고 성전도 불가 — 안내 (성전 불가 사유도 신앙이 다를 때만 표시)
+  if(myClaims.length === 0 && !hw.ok && !dj.ok){
+    // 명분도 없고 성전·de jure도 불가 — 안내
     const relDiff = p.faith && def.faith && faithRelation(p.faith,def.faith)!=='same';
     showModal({title:'명분 없음', sub:'선전포고 불가',
       body:`${def.name}에 대한 명분이 없습니다.
@@ -5195,7 +5367,7 @@ function openDeclareWar(defId){
 명분을 얻는 방법:
 • 사제에게 교회법 명분 위조를 맡긴다
 • 침략을 받아 복수 명분을 얻는다
-• 전쟁 후 백색 강화로 미확정 주장을 얻는다${relDiff?`\n\n✝ 성전: ${hw.reason}`:''}`,
+• 공작위를 창설해 de jure 권역의 백작령을 회수한다${relDiff?`\n\n✝ 성전: ${hw.reason}`:''}`,
       opts:[{t:'닫기'}]}); return;
   }
 
@@ -5247,6 +5419,26 @@ function openDeclareWar(defId){
   } else if(p.faith && def.faith && faithRelation(p.faith,def.faith)!=='same' && myClaims.length>0){
     // 신앙이 다르지만 성전 조건 미충족 — 회색 안내
     opts.push({ t:`✝ 성전 (불가)`, d:hw.reason, f:()=>{ log(hw.reason,'dip'); } });
+  }
+
+  // ── de jure 탈환 명분 — 내 공작령 권역의 백작령을 대상이 가졌을 때 ──
+  if(dj.ok){
+    const cbInfo = CB_TYPES.dejure;
+    const canAfford = state.prestige >= dj.cost;
+    const cidNames = dj.cids.map(cid=>COUNTIES[cid]?.n||cid).join(', ');
+    const targetRid = dj.cids[0];
+    opts.push({
+      t:`${cbInfo.icon} de jure 탈환 — ${cidNames}`,
+      d:`위신 ${dj.cost} 소모 · 내 권역 백작령 ${dj.cids.length}개 회수 · 승리 시 ${def.name} 봉신화${canAfford?'':' (위신 부족)'}`,
+      f: canAfford ? ()=>{
+        state.prestige -= dj.cost;
+        declareWar(p, def, targetRid);
+        // de jure 표식 — 승리 시 봉신화 처리
+        const w=state.wars.find(w=>w.atk===p.id&&w.def===def.id);
+        if(w){ w.dejure=true; w.dejureCids=dj.cids.slice(); }
+        log(`<b>🏰 ${def.name}</b>에게 de jure 권리로 선전포고했습니다! 승리하면 봉신으로 복속됩니다.`,'war');
+      } : ()=>{ log('위신이 부족합니다.','dip'); }
+    });
   }
 
   // 복수 명분이 없으면 일반 공격 명분 제안 (고비용)
@@ -5615,7 +5807,7 @@ function councilPulse(){
         state.schemes.forEach(s=>{
           if(s.plotter===p.id){
             s.progress=(s.progress||0)+Math.round(sk*0.5);
-            s.successBonus=(s.successBonus||0) + 0.005 + sk*0.005; // +0.5%+0.5%/sk 추가 성공률
+            s.successBonus=(s.successBonus||0) + 0.05 + sk*0.005; // 위키: +5% base + 0.5%/skill (소비 시 0.65 상한)
           }
         });
         if(fireEvent && positive && canPos){
@@ -5660,10 +5852,11 @@ function councilPulse(){
         /* 위키: +0.05 Monthly Piety/skill · +0.5 Same Faith Ruler Opinion/skill (+0.35/month until max)
            경건은 위신으로 근사, 동일신앙 군주 호감 → 독립 군주 전체 호감 소폭 상승 */
         state.prestige += skEff * 0.05;
-        /* 위키: +0.5 Opinion/skill/month, +0.35 cap per month */
+        /* 위키: +0.5 Same Faith Ruler Opinion/skill (+0.35/month until max)
+           → 동일 신앙(faithRelation==='same') 독립 군주에게만 정확 적용 */
         const faithGain = Math.min(0.35, skEff * 0.5 * 0.01); // 상한 0.35/월 적용
-        Object.values(chars).filter(k=>!k.dead&&k.ruler&&k.id!==p.id).forEach(k=>{
-          k.op[p.id] = Math.min(100, (k.op[p.id]||0) + faithGain * 0.5); // 동일신앙 근사 (전체 50% 적용)
+        Object.values(chars).filter(k=>!k.dead&&k.ruler&&k.id!==p.id&&faithRelation(k.faith,p.faith)==='same').forEach(k=>{
+          k.op[p.id] = Math.min(100, (k.op[p.id]||0) + faithGain);
         });
         reg.pop = Math.min(100, (reg.pop||60) + skEff * 0.05); // 민심 보조
         if(fireEvent){
@@ -5762,54 +5955,56 @@ function councilPulse(){
 }
 
 /* ── 자문회원 보직 혜택 (Benefits from being a councilor)
-   출처: CK3 위키 https://ck3.paradoxwikis.com/Council — County 등급 기준
-   재상/Chancellor → 위신(Scaled Prestige) · 봉신 호감 +5 · 외교 경험 +5%
-   원수/Marshal    → 용맹 +1 (특성 보정으로 표현) · 병력 유지비 -5% · 경험 +5%
-   재무관/Steward  → 금(Scaled Gold) · 직할세금 +2.5% · 건설비용 -2.5% · 경험 +5%
-   사제/Chaplain   → 경건(Scaled Piety→위신) · 민심 +5 · 학문 경험 +5%
-   첩보관/Spymaster→ Natural Dread +10 · Scheme Secrecy +5% · 음모 경험 +5%
-   (County급 보너스, 매달 자문회원 캐릭터에 직접 부여)                      */
+   출처: CK3 위키 https://ck3.paradoxwikis.com/Council (1.19) — 작위 등급별 차등
+   플레이어=먼스터 공작 → 기본 Duchy 등급. 왕국 창설 시 Kingdom 등급 자동 상향.
+   등급 배수 rm = county 1 / duchy 2 / kingdom 3 (위키 혜택이 등급에 선형 비례)
+   재상/Chancellor → Scaled Prestige · 동료봉신 호감 5/10/15 · 외교 경험 5/10/15%
+   원수/Marshal    → 용맹 1/2/3 · 병력유지비 -5/-10/-15% · 무예 경험 5/10/15%
+   재무관/Steward  → Scaled Gold · 직할세금 2.5/5/7.5% · 내정 경험 5/10/15%
+   사제/Chaplain   → Scaled Piety · 민심 5/10/15 · 학문 경험 5/10/15%
+   첩보관/Spymaster→ Natural Dread 10/20/30 · 책략은밀 5/10/15% · 음모 경험 5/10/15% */
 function councilBenefitsPulse(){
   const p=playerChar(); if(!p) return;
+  const rm=councilRankMul(); // 1(백작)/2(공작)/3(왕)
   for(const role in state.council){
     const cid=state.council[role];
     if(!cid) continue;
     const c=chars[cid];
     if(!c||c.dead) continue;
-    /* 위키: Scaled Prestige/Gold/Piety — county 등급 기준 소량 부여 */
     switch(role){
       case 'chancellor':
-        /* +Scaled Prestige(county: 소량) · +5 Fellow Vassal Opinion · +5% Diplomacy XP */
-        if(c.lifestyle==='dip') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.dip*0.5));
-        /* 봉신 호감 +5 → 연 +1 정수 누적 (1월에만, 소수점 방지) */
+        /* Scaled Prestige · +5/10/15 Fellow Vassal Opinion · +5/10/15% Diplomacy XP */
+        if(c.lifestyle==='dip') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.dip*0.5*rm));
+        /* 동료 봉신 호감: 연 +1 누적, 등급 상한(5/10/15)까지만 (기존 더 높은 호감은 깎지 않음) */
         if(p.council?.chancellor===cid && state.month===1){
-          const vs=vassalsOf(p.id);
-          vs.forEach(v=>{ v.op[cid]=Math.round((v.op[cid]||0)+1); });
+          const cap=5*rm;
+          vassalsOf(p.id).forEach(v=>{ const cur=v.op[cid]||0; if(cur<cap) v.op[cid]=Math.round(cur+1); });
         }
         break;
       case 'marshal':
-        /* +1 Prowess(county) · -5% Army Maintenance · +5% Levy Size · +5% Martial XP */
-        if(c.lifestyle==='mar') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.mar*0.5));
-        /* Prowess 보정: 연간 이벤트로 prow+1 기회 (월 8.3% 확률) */
-        if(Math.random()<0.0083 && !c.traits.includes('brave'))
+        /* +1/2/3 Prowess · -5/-10/-15% Army Maintenance · +5/10/15% Martial XP */
+        if(c.lifestyle==='mar') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.mar*0.5*rm));
+        /* 보직 용맹 보정: 등급 상한(rm)까지만 누적 (councilProwBonus로 추적, 이중 적용 방지) */
+        c.councilProwBonus=c.councilProwBonus||0;
+        if(c.councilProwBonus<rm && Math.random()<0.0083){
           c.base.prow=Math.min(20,(c.base.prow||0)+1);
+          c.councilProwBonus++;
+        }
         break;
       case 'steward':
-        /* +Scaled Gold · +2.5% Domain Taxes · -2.5% Construction · +5% Stewardship XP */
-        if(c.lifestyle==='stew') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.stew*0.5));
-        /* Scaled Gold — county급: 월 소량 금 지급 */
-        const goldGain=Math.round(1+c.base.stew*0.08); // 내정 10 → 약 1.8금/월
+        /* Scaled Gold(등급 비례) · +2.5/5/7.5% Domain Taxes · +5/10/15% Stewardship XP */
+        if(c.lifestyle==='stew') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.stew*0.5*rm));
+        const goldGain=Math.round((1+c.base.stew*0.08)*rm); // 공작: 내정10 → 약 3.6금/월
         if(BARONIES[c.region||c.courtOf]) BARONIES[c.region||c.courtOf].gold=Math.min(2500,(BARONIES[c.region||c.courtOf]?.gold||0)+goldGain);
         break;
       case 'chaplain':
-        /* +Scaled Piety(위신) · +5 Popular Opinion(민심) · +5% Learning XP */
-        if(c.lifestyle==='learn') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.learn*0.5));
-        /* 민심 보너스: 플레이어 영지에 +0.04/월(연 +0.5 수준) */
-        const chapReg=BARONIES[p.region]; if(chapReg) chapReg.pop=Math.min(100,(chapReg.pop||60)+0.04);
+        /* Scaled Piety · +5/10/15 Popular Opinion(민심) · +5/10/15% Learning XP */
+        if(c.lifestyle==='learn') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.learn*0.5*rm));
+        const chapReg=BARONIES[p.region]; if(chapReg) chapReg.pop=Math.min(100,(chapReg.pop||60)+0.04*rm);
         break;
       case 'spymaster':
-        /* +10 Natural Dread(첩보관 위협감) · +5% Scheme Secrecy · +5% Intrigue XP */
-        if(c.lifestyle==='intr') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.intr*0.5));
+        /* +10/20/30 Natural Dread(미모델링) · +5/10/15% Scheme Secrecy · +5/10/15% Intrigue XP */
+        if(c.lifestyle==='intr') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.intr*0.5*rm));
         break;
     }
   }
@@ -7648,6 +7843,37 @@ function renderDec(){
 
   // ── 행사 ──────────────────────
   // (연회·순례는 활동 탭의 CK3식 다단계 활동 시스템으로 이관됨)
+  // ── 공작위 창설/찬탈 (CK3 Titles: de jure 51%+ 지배) ──
+  for(const did in DUCHIES){
+    if((p.heldTitles||[]).includes(did)) continue;     // 이미 보유
+    const D=DUCHIES[did];
+    const ratio=Math.round(deJureControl(p.id,did)*100);
+    if(ratio<51) continue;                              // 51% 미만은 창설·찬탈 모두 불가
+    const holder=titleHolder(did);
+    if(holder){
+      // ── 찬탈 (남이 보유 중) ──
+      const uchk=canUsurpTitle(p.id, did);
+      addDec(`⚜ ${D.n} 찬탈`, uchk.ok?`금 ${uchk.cost} · de jure ${ratio}% 지배 · ${holder.name}에게서 탈취 (호감 -50)`:`${uchk.reason}`, uchk.ok, ()=>{
+        if(usurpTitle(p.id, did)){
+          popup({title:'작위 찬탈', sub:D.n,
+            body:`<b>${D.n}</b>을(를) ${holder.name}에게서 찬탈했습니다!\n전쟁 없이 정당한 권리로 작위를 가져왔습니다.\n\n${holder.name}은(는) 깊은 원한을 품습니다 (호감 -50).`,
+            opts:[{t:'정당한 권리다'}]});
+          renderDec(); renderMap();
+        }
+      });
+    } else {
+      // ── 창설 (아무도 안 가짐) ──
+      const chk=canCreateTitle(p.id, did);
+      addDec(`👑 ${D.n} 창설`, chk.ok?`금 ${chk.cost} · de jure ${ratio}% 지배 · 공작 작위`:`${chk.reason} (현재 ${ratio}%)`, chk.ok, ()=>{
+        if(createTitle(p.id, did)){
+          popup({title:'공작위 창설', sub:D.n,
+            body:`<b>${D.n}</b>을(를) 창설했습니다!\n이 권역의 de jure 지배자로 인정받습니다.\n\n권역 내 백작들에 대한 권리가 생겼으나, 자동으로 봉신이 되지는 않습니다 — 전쟁이나 외교로 복속시켜야 합니다.`,
+            opts:[{t:'영광이로다'}]});
+          renderDec(); renderMap();
+        }
+      });
+    }
+  }
   addDec('병력 소집',`금 80 · 병력 +200`, BARONIES[p.region]?.gold>=80, ()=>{
     playSynthSFX('gold');
     REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
@@ -7914,26 +8140,18 @@ function renderMap(){
   for(const cid in COUNTIES){
     const C=COUNTIES[cid];
     const holder=countyHolder(cid);
-    const mine=holder&&holder.id===p.id;
-    // CK3: 같은 독립 군주(realm)에 속한 영지는 같은 색 — top liege 기준
-    const realmHead=holder?topLiege(holder):null;
-    const isMyRealm=realmHead&&realmHead.id===p.id; // 내 직할 또는 내 봉신
-    const isVassalOf=holder&&holder.liege===p.id;
-    // 색: 내 영토(직할/봉신) 녹색 계열 / 그 외엔 realm head의 수도 공작령 색으로 묶음
-    let realmCol='#555';
-    if(realmHead){
-      const headSeatDuchy=duchyOf(realmHead.region);
-      realmCol=DUCHIES[headSeatDuchy]?.color||DUCHIES[C.duchy]?.color||'#555';
-    }
-    const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':realmCol;
-    const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':(isMyRealm?'#6aaa7a':'#6a5836');
+    const mine=holder&&holder.id===p.id; // 플레이어 직할
+    // ① 원 내부(fill) = de jure 공작령 권역 색 (같은 공작령끼리 동일, 지배자 무관)
+    const fillCol=DUCHIES[C.duchy]?.color||'#555';
+    // ② 원 테두리(stroke) = 최상위 주군(realm)에게 배정된 고유 색
+    const strokeCol=holder?realmStrokeColor(holder):'#6a5836';
     const bids=C.baronies;
     const totalT=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
     const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
     const rad=mine?22:18;
     const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
     h+=`<g class="node" onclick="openCounty('${cid}')">
-      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${col}" stroke="${underSiege?'#c83030':stroke}"/>
+      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${underSiege?2:2.5}"/>
       ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
       ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
       <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
