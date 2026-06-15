@@ -139,12 +139,13 @@ button:disabled{opacity:.35; cursor:default}
 ::-webkit-scrollbar-thumb{background:#3a2e1d}
 
 /* ===== 활동 전용 모달 (CK3식 활동 창) ===== */
-#actShade{position:fixed; inset:0; background:rgba(5,3,1,.8); display:none;
+#actShade{position:fixed; inset:0; background:rgba(5,3,1,.72); display:none;
   align-items:center; justify-content:center; z-index:55}
 #actShade.show{display:flex}
 #actModal{
   width:min(600px, 94vw); max-height:88vh; overflow-y:auto;
   border:2px solid var(--gold); position:relative;
+  background:linear-gradient(#251c12,#1a130b);
   box-shadow:0 0 70px rgba(0,0,0,.85), inset 0 0 50px rgba(200,162,74,.06);
 }
 /* 활동별 배경 색조 헤더 */
@@ -170,7 +171,7 @@ button:disabled{opacity:.35; cursor:default}
 .act-gauge{height:6px; background:#2c2316; margin:0; overflow:hidden}
 .act-gauge>div{height:100%; background:var(--gold); transition:width .4s}
 /* 본문 (이벤트 내러티브 + 선택지) */
-.act-body{padding:20px 26px}
+.act-body{padding:20px 26px; background:linear-gradient(#251c12,#1a130b)}
 .act-body .ab-narr{font-size:.94rem; line-height:1.7; margin-bottom:18px; white-space:pre-line; color:var(--parch)}
 .act-body .ab-sub{font-size:.72rem; color:var(--parch-dim); letter-spacing:.15em; margin-bottom:12px}
 .act-opts{display:flex; flex-direction:column; gap:8px}
