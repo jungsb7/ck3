@@ -100,6 +100,240 @@ const TRAITS = {
 };
 const PERSONALITY_KEYS = Object.keys(TRAITS).filter(k=>!['wounded','maimed'].includes(k));
 
+/* ════════════════════════════════════════════════════
+   종교 시스템 — CK3 구조 (종교 Religion > 신앙 Faith 2계층)
+   출처: CK3 Wiki Faith/Religion (v1.19), 1066 아일랜드 설정
+   같은 종교 내 다른 신앙 = 이단(heresy, 약한 페널티)
+   다른 종교 = 이교도(infidel/hostile, 강한 페널티)
+   ════════════════════════════════════════════════════ */
+/* 신앙(Faith) 정의 — 각 신앙은 종교(religion)에 속하며 미덕/죄악 트레잇 보유 */
+const FAITHS = {
+  insular: {
+    n:'도서 기독교', icon:'☘', religion:'christian', color:'#3a7a4a',
+    desc:'섬의 옛 그리스도교 — 수도원 중심, 로마와 다른 관행을 지킴',
+    virtues:['temperate','chaste','diligent','just'],
+    sins:['greedy','lustful','gluttonous'],
+    head:null, // 수좌(아마 대주교) — 추후 확장
+  },
+  catholic: {
+    n:'가톨릭', icon:'✝', religion:'christian', color:'#c8a24a',
+    desc:'로마 교황을 따르는 보편 교회 — 더블린과 유럽의 신앙',
+    virtues:['temperate','chaste','just','content'],
+    sins:['greedy','lustful','wrathful'],
+    head:'pope',
+  },
+  norse: {
+    n:'아사트루', icon:'ᛏ', religion:'pagan', color:'#9e5a3a',
+    desc:'옛 북구의 신들 — 복수와 용맹을 기리는 이교',
+    virtues:['brave','wrathful','ambitious'],
+    sins:['craven','content','forgiving'],
+    head:null,
+  },
+};
+/* 신앙 간 관계 판정 — same(동일) / heresy(이단·같은 종교) / hostile(이교도·다른 종교) */
+function faithRelation(fa, fb){
+  if(!fa||!fb) return 'same';
+  if(fa===fb) return 'same';
+  const FA=FAITHS[fa], FB=FAITHS[fb];
+  if(!FA||!FB) return 'same';
+  if(FA.religion===FB.religion) return 'heresy'; // 같은 종교, 다른 신앙
+  return 'hostile'; // 다른 종교 = 이교도
+}
+/* 캐릭터/지역의 신앙 → 호감 보정값 (a가 b를 보는 시각) */
+function faithOpinion(faithA, faithB){
+  switch(faithRelation(faithA,faithB)){
+    case 'same':    return 10;  // 동일 신앙 호감
+    case 'heresy':  return -15; // 이단 (약한 적대)
+    case 'hostile': return -30; // 이교도 (강한 적대)
+  }
+  return 0;
+}
+/* 신앙이 특정 트레잇을 미덕(+1)/죄악(-1)/무관(0)으로 보는지 */
+function faithTraitView(faith, trait){
+  const F=FAITHS[faith]; if(!F) return 0;
+  if(F.virtues.includes(trait)) return 1;
+  if(F.sins.includes(trait)) return -1;
+  return 0;
+}
+/* 신앙 표시 라벨 — 아이콘+이름, 관찰자(viewer) 기준 관계 표시 */
+function faithLabel(faith, viewerFaith){
+  const F=FAITHS[faith]; if(!F) return '—';
+  let label=`<span style="color:${F.color}">${F.icon} ${F.n}</span>`;
+  if(viewerFaith && faith!==viewerFaith){
+    const rel=faithRelation(faith, viewerFaith);
+    if(rel==='heresy') label+=` <span style="color:#c89a4a;font-size:.85em">(이단)</span>`;
+    else if(rel==='hostile') label+=` <span style="color:#c85a4a;font-size:.85em">(이교도)</span>`;
+  }
+  return label;
+}
+
+/* ════════════════════════════════════════════════════
+   신앙도(Piety) 시스템 — CK3 Piety/Devotion
+   출처: CK3 Wiki Resources/Faith (v1.19)
+   ════════════════════════════════════════════════════ */
+/* 신심 단계 정의 (0~4) — CK3 Devotion Level */
+const DEVOTION_LEVELS = [
+  { n:'의무적',      need:0,   opinion:0,  pietyBonus:0,   desc:'평범한 신자' },
+  { n:'독실한',      need:100, opinion:5,  pietyBonus:0,   desc:'동일신앙 성직자·군주 호감 +5' },
+  { n:'헌신적 종복',  need:300, opinion:10, pietyBonus:0.5, desc:'호감 +10 · 월 신앙도 +0.5' },
+  { n:'미덕의 귀감',  need:600, opinion:15, pietyBonus:0.5, desc:'호감 +15 · 스트레스 저항' },
+  { n:'종교적 우상',  need:1000,opinion:20, pietyBonus:1.0, desc:'동일신앙 전체 호감 +20' },
+];
+/* 명성 단계 정의 (0~4) — CK3 Fame Level (위신과 대칭, 게임 스케일 적용)
+   출처: CK3 Wiki Resources — 위신 획득 시 명성 진행도 함께 누적, 단계가 호감·결단 해금 */
+const FAME_LEVELS = [
+  { n:'무명',        need:0,    opinion:0,  desc:'아직 이름이 알려지지 않음' },
+  { n:'존경받는',     need:300,  opinion:5,  desc:'세속 군주·봉신 호감 +5' },
+  { n:'저명한',       need:700,  opinion:10, desc:'호감 +10 · 혼인 시 위신 보너스' },
+  { n:'걸출한',       need:1300, opinion:15, desc:'호감 +15 · 정복 명분 강화' },
+  { n:'전설적',       need:2200, opinion:20, desc:'세속 전체 호감 +20 · 하이킹의 위엄' },
+];
+/* 캐릭터의 월간 신앙도 수입 계산 (CK3: 학문·미덕/죄악·광신/냉소) */
+function pietyIncome(c){
+  if(!c||!c.faith) return 0;
+  const F=FAITHS[c.faith]; if(!F) return 0;
+  let base = stat(c,'learn')*0.1; // 학문 1당 +0.1
+  // 미덕/죄악 트레잇
+  let virtues=0, sins=0;
+  for(const t of c.traits){
+    const v=faithTraitView(c.faith,t);
+    if(v>0) virtues++; else if(v<0) sins++;
+  }
+  base += virtues*0.3 - sins*0.3;
+  // 광신도/냉소가 보정
+  let mult=1.0;
+  if(c.traits.includes('zealous')) mult=1.2;
+  else if(c.traits.includes('cynical')) mult=0.8;
+  base *= mult;
+  // 신심 단계 보너스 (플레이어만 — devotionLevel은 state 기반)
+  if(c.id===state.player){
+    const lv=DEVOTION_LEVELS[state.devotionLevel];
+    if(lv) base += lv.pietyBonus;
+  }
+  return base;
+}
+/* 신앙도 획득 — 신심 단계 진행도도 함께 누적 (CK3: 경건 얻을 때 신심도 진행) */
+function gainPiety(amt, why){
+  if(amt===0) return;
+  state.piety = Math.round((state.piety||0)+amt);
+  if(amt>0){
+    state.devotionProgress = (state.devotionProgress||0)+amt;
+    updateDevotionLevel();
+  }
+  if(why && Math.abs(amt)>=1) log(`신앙도 ${amt>0?'+':''}${Math.round(amt)} — ${why}`,'fam');
+}
+/* 신앙도 소비 (부족하면 false) */
+function spendPiety(amt){
+  if((state.piety||0) < amt) return false;
+  state.piety = Math.round(state.piety - amt);
+  return true;
+}
+/* 신심 단계 갱신 — 누적 진행도로 단계 상승 */
+function updateDevotionLevel(){
+  const prog=state.devotionProgress||0;
+  let lv=0;
+  for(let i=DEVOTION_LEVELS.length-1;i>=0;i--){
+    if(prog>=DEVOTION_LEVELS[i].need){ lv=i; break; }
+  }
+  if(lv>(state.devotionLevel||0)){
+    state.devotionLevel=lv;
+    const L=DEVOTION_LEVELS[lv];
+    log(`<b>신심이 깊어졌습니다 — ${L.n}</b> (${L.desc})`,'good');
+    if(typeof popup==='function'){
+      popup({title:'신심의 상승', sub:'신앙',
+        body:`당신의 신앙이 한층 깊어졌습니다.\n새로운 단계: <b>${L.n}</b>\n${L.desc}`,
+        opts:[{t:'신의 뜻대로'}]});
+    }
+  } else if(lv<(state.devotionLevel||0)){
+    state.devotionLevel=lv; // 하락 (위반 시)
+  }
+}
+/* 신심 단계 하락 (교리 위반 — 진행도 감소) */
+function loseDevotion(amt, why){
+  state.devotionProgress = Math.max(0, (state.devotionProgress||0)-amt);
+  const before=state.devotionLevel||0;
+  updateDevotionLevel();
+  if((state.devotionLevel||0)<before){
+    log(`<b>신심이 흔들립니다</b> — ${why||'교리 위반'}`,'war');
+  }
+}
+/* 신심 단계에 따른 동일신앙 호감 보너스 (opinion에서 사용) */
+function devotionOpinionBonus(){
+  const lv=DEVOTION_LEVELS[state.devotionLevel||0];
+  return lv?lv.opinion:0;
+}
+/* ── 명성(Fame) 단계 — CK3 Fame Level (위신과 대칭) ── */
+/* 위신 증가 시 명성 진행도 누적 — monthlyPulse에서 위신 변화 추적해 호출 */
+function syncFameProgress(prestigeDelta){
+  if(prestigeDelta>0){
+    state.fameProgress = (state.fameProgress||0)+prestigeDelta;
+    updateFameLevel();
+  }
+}
+/* 명성 단계 갱신 — 누적 진행도로 단계 상승 */
+function updateFameLevel(){
+  const prog=state.fameProgress||0;
+  let lv=0;
+  for(let i=FAME_LEVELS.length-1;i>=0;i--){
+    if(prog>=FAME_LEVELS[i].need){ lv=i; break; }
+  }
+  if(lv>(state.fameLevel||0)){
+    state.fameLevel=lv;
+    const L=FAME_LEVELS[lv];
+    log(`<b>명성이 높아졌습니다 — ${L.n}</b> (${L.desc})`,'good');
+    if(typeof popup==='function'){
+      popup({title:'명성의 상승', sub:'위신',
+        body:`당신의 이름이 에이레 전역에 울려 퍼집니다.\n새로운 명성: <b>${L.n}</b>\n${L.desc}`,
+        opts:[{t:'영광이 함께하기를'}]});
+    }
+  } else if(lv<(state.fameLevel||0)){
+    state.fameLevel=lv; // 하락 (불명예 행위)
+  }
+}
+/* 명성 단계 하락 (불명예 행위) */
+function loseFame(amt, why){
+  state.fameProgress = Math.max(0, (state.fameProgress||0)-amt);
+  const before=state.fameLevel||0;
+  updateFameLevel();
+  if((state.fameLevel||0)<before){
+    log(`<b>명성에 흠집이 났습니다</b> — ${why||'불명예'}`,'war');
+  }
+}
+/* 명성 단계에 따른 세속 호감 보너스 (opinion에서 사용) */
+function fameOpinionBonus(){
+  const lv=FAME_LEVELS[state.fameLevel||0];
+  return lv?lv.opinion:0;
+}
+/* ── 성전(Holy War) — CK3 Holy War CB ──
+   대상이 이단/이교도일 때 신앙도를 소비해 선포. 승리 시 정복 + 개종 */
+/* 성전 가능 여부 판정 (대상 군주 기준) */
+function canHolyWar(target){
+  const p=playerChar();
+  if(!p||!target||target.dead) return {ok:false, reason:'대상 없음'};
+  if(!p.faith||!target.faith) return {ok:false, reason:'신앙 정보 없음'};
+  const rel=faithRelation(p.faith, target.faith);
+  if(rel==='same') return {ok:false, reason:'같은 신앙에는 성전을 선포할 수 없습니다'};
+  // 신심 단계 요구: 이교도(다른 종교)는 1단계, 이단(같은 종교)도 1단계
+  const needLevel=1;
+  if((state.devotionLevel||0)<needLevel) return {ok:false, reason:`성전에는 신심 ${DEVOTION_LEVELS[needLevel].n} 단계 이상이 필요합니다`};
+  const cost=holyWarCost(target);
+  if((state.piety||0)<cost) return {ok:false, reason:`신앙도가 부족합니다 (필요 ${cost})`};
+  return {ok:true, cost, rel};
+}
+/* 성전 신앙도 비용 — 대상 작위 등급 + 신앙 관계 (CK3: 이교도가 더 저렴, 이단은 비쌈) */
+function holyWarCost(target){
+  let base = 100;
+  // 작위 등급별 (왕국>공작>백작)
+  if(heldKingdomsOf(target.id).length>0) base = 250;
+  else if(heldDuchiesOf(target.id).length>0) base = 175;
+  // 이교도(다른 종교)는 정당성이 커서 저렴, 이단(같은 종교)은 비쌈
+  const rel=faithRelation(playerChar().faith, target.faith);
+  if(rel==='heresy') base = Math.round(base*1.4); // 이단 토벌은 비쌈
+  return base;
+}
+
+
+
 /* ---------- 어린시절 특성 ---------- */
 const CHILD_TRAITS = {
   curious:   {n:'호기심',     foci:['dip','learn']},
@@ -519,6 +753,18 @@ for(const did in DUCHIES){
   }
 }
 
+/* 지역(barony) 신앙 초기 분포 — CK3 1066 아일랜드 설정 근사
+   본토 게일 = 도서 기독교 / 노르드 항구도시 = 가톨릭 / 일부 바이킹 잔존 = 노르드 이교 */
+(()=>{
+  for(const bid in BARONIES){ BARONIES[bid].faith = 'insular'; } // 기본 도서 기독교
+  // 히베르노-노르드 항구도시 → 가톨릭 (단, 플레이어 수도 리머릭은 도서 기독교 유지)
+  const catholicPorts = ['b_dublin','b_wexford','b_waterford','b_cork'];
+  for(const bid of catholicPorts){ if(BARONIES[bid]) BARONIES[bid].faith = 'catholic'; }
+  // 바이킹 이교 잔존 (더블린 외곽 일부) → 노르드
+  const norsePagan = ['b_wicklow'];
+  for(const bid of norsePagan){ if(BARONIES[bid]) BARONIES[bid].faith = 'norse'; }
+})();
+
 /* ---------- 캐릭터 ---------- */
 let CID = 0;
 const chars = {};
@@ -538,6 +784,7 @@ function mk(o){
     lastActivity:0, // 마지막 활동 연도
     betrothed:null, // 혼약 상대 charId (CK3: betrothal)
     heldTitles:[], // 보유 작위 id 목록 (공작/왕국 — CK3 Title 시스템)
+    faith:'insular', // 신앙 (기본 도서 기독교 — 초기화에서 분포 조정)
   }, o);
   chars[c.id] = c;
   return c;
@@ -562,7 +809,7 @@ function stat(c,k){
       if(k===bk) v+=Math.floor((sp.base[k]||0)*0.5);
     }
   }
-  return Math.max(0,v);
+  return Math.round(Math.max(0,v));
 }
 function fert(c){
   let f = 0.5;
@@ -583,8 +830,12 @@ function opinion(a,b){ // a가 b를 보는 시각
   }
   if(a.spouse===b.id) v += 30;
   if(a.father===b.id||a.mother===b.id||b.father===a.id||b.mother===a.id) v += 25;
-  // 위신이 높은 군주는 타인에게 더 좋게 보임
-  if(b.id===state.player) v += Math.round((state.prestige-120)/15);
+  // CK3 Faith: 신앙 관계 호감 (동일 +10 / 이단 -15 / 이교도 -30)
+  if(a.faith && b.faith) v += faithOpinion(a.faith, b.faith);
+  // CK3 Devotion: 플레이어가 높은 신심 단계면 동일신앙 캐릭터가 더 좋게 봄
+  if(b.id===state.player && a.faith===b.faith) v += devotionOpinionBonus();
+  // CK3 Fame: 플레이어의 명성 단계가 높으면 세속 캐릭터가 더 좋게 봄
+  if(b.id===state.player) v += fameOpinionBonus();
   /* CK3 Subjects: 강력한 봉신이 자문회에 없으면 -40 호감 (a가 b의 봉신일 때) */
   if(a.liege===b.id && a.ruler && !a.dead){
     const pvs=powerfulVassalsOf(b.id);
@@ -592,9 +843,9 @@ function opinion(a,b){ // a가 b를 보는 시각
     /* CK3 Titles: 군주가 공작 작위 2개 초과 보유 시 전 봉신 -15 호감 */
     if(overDuchyLimit(b.id)) v -= 15;
   }
-  return Math.max(-100, Math.min(100, v));
+  return Math.round(Math.max(-100, Math.min(100, v)));
 }
-function chOp(a,b,d){ a.op[b.id]=(a.op[b.id]||0)+d; }
+function chOp(a,b,d){ a.op[b.id]=Math.round((a.op[b.id]||0)+d); }
 
 /* ---------- 초기 세계 (1066년 9월) ----------
    무르하드 수치: CK3 위키 북마크 페이지 확인값 (외6 무8 내6 음8 학6 / 숙련된 전술가)
@@ -751,11 +1002,35 @@ kUls.heldTitles.push('d_ulster');      // 얼스터 공작 (얼스터/오리얼/
       courtOf:king.region});
   }
 });
+/* 캐릭터 신앙 초기화 — 군주는 수도(region), 궁정인은 소속 궁정(courtOf) 지역 신앙을 따름 */
+(()=>{
+  for(const id in chars){
+    const c=chars[id];
+    const seat = c.region || c.courtOf;
+    if(seat && BARONIES[seat] && BARONIES[seat].faith){
+      c.faith = BARONIES[seat].faith;
+    }
+  }
+  // 무르하드(플레이어)는 도서 기독교 보장
+  if(typeof murchad!=='undefined') murchad.faith='insular';
+})();
 /* ─── 3계층 핵심 헬퍼 ─── */
 function seizeBaronies(charId,bids){ bids.forEach(bid=>{ if(BARONIES[bid]) BARONIES[bid].owner=charId; }); }
 function seizeCounty(charId,cid){ if(COUNTIES[cid]) seizeBaronies(charId,COUNTIES[cid].baronies); }
 function seizeDuchy(charId,did){ if(DUCHIES[did]) DUCHIES[did].counties.forEach(cid=>seizeCounty(charId,cid)); }
 function rulerOf(bid){ const c=chars[BARONIES[bid]?.owner]; return (c&&!c.dead)?c:null; }
+/* 최상위 군주(top liege) — 봉신 사슬을 따라 올라가 독립 군주(liege 없음)를 반환.
+   CK3: 전쟁은 봉신이 아닌 그 독립 군주(realm head)에게만 선포 가능 */
+function topLiege(c){
+  if(!c) return null;
+  let cur=c, guard=0;
+  while(cur.liege && chars[cur.liege] && !chars[cur.liege].dead && guard++<20){
+    cur=chars[cur.liege];
+  }
+  return cur;
+}
+/* c가 독립 군주인지 (섬기는 주군이 없음) */
+function isIndependent(c){ return c && (!c.liege || !chars[c.liege] || chars[c.liege].dead); }
 function regionsOf(cid){ const out=[]; for(const bid in BARONIES) if(BARONIES[bid].owner===cid) out.push(bid); return out; }
 function countyOf(bid){ return BARONIES[bid]?.county||null; }
 function duchyOf(bid){ return COUNTIES[BARONIES[bid]?.county]?.duchy||null; }
@@ -871,6 +1146,11 @@ const state = {
   player:murchad.id,
   schemes:[], wars:[], truces:{}, npcAlliances:[], alliances:[],
   prestige:120,
+  piety:0,              // 신앙도 (CK3 Piety — 소비 가능 자원)
+  devotionProgress:0,  // 누적 신앙도 획득량 (신심 단계 진행도)
+  devotionLevel:0,     // 신심 단계 0~4 (의무적→독실한→헌신적→귀감→우상)
+  fameProgress:120,    // 누적 위신 획득량 (명성 단계 진행도 — 시작 위신 120 반영)
+  fameLevel:0,         // 명성 단계 0~4 (무명→존경받는→저명한→걸출한→전설적)
   successionLaw:'partition',
   council:{ chancellor:null, marshal:null, steward:null, spymaster:null, chaplain:null, confidant:null },
   /* 보직별 현재 선택 태스크 (CK3 위키 기반) */
@@ -892,6 +1172,7 @@ const state = {
   activeActivity:null, // 진행 중인 활동 (CK3 Activity: {type,tier,phase,invited,arrived,monthsLeft,...})
   activityCooldowns:{}, // 활동별 마지막 개최 연도 (재사용 대기)
   actModalOpen:false, // 활동 전용 모달 열림 상태
+  guestActivity:null, // NPC 활동에 참석 중 (게스트 모드: {host, type, progress})
 };
 const MDAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
 const SEASONS=['겨울','겨울','봄','봄','봄','여름','여름','여름','가을','가을','가을','겨울'];
@@ -1454,7 +1735,12 @@ function askPersonality(c,a){
   }
   const opts=[...cand].slice(0,3).map(t=>({
     t:TRAITS[t].n, d:(g&&g.traits.includes(t))?'후견인의 영향':'',
-    f:()=>{ c.traits.push(t); log(`<b>${c.name}</b>(${a}세)이(가) <b>${TRAITS[t].n}</b> 성격을 갖게 되었습니다.`,'fam'); }
+    f:()=>{ c.traits.push(t); log(`<b>${c.name}</b>(${a}세)이(가) <b>${TRAITS[t].n}</b> 성격을 갖게 되었습니다.`,'fam');
+      // CK3: 신앙이 죄악으로 보는 트레잇을 얻으면 신심 하락 (플레이어)
+      if(c.id===state.player && faithTraitView(c.faith,t)<0){
+        loseDevotion(30, `죄악으로 여겨지는 '${TRAITS[t].n}' 성격`);
+      }
+    }
   }));
   popup({title:`${c.name}의 성장`, sub:`${a}세 — 성격 형성`,
     body:`${c.name}의 성격이 뚜렷해지고 있습니다. 어떤 면모가 두드러집니까?`, opts});
@@ -1480,6 +1766,7 @@ function askLifestyle(c){
 
 /* ---------- 월간 펄스 ---------- */
 function monthlyPulse(){
+  const _prestigeBefore = state.prestige||0; // 명성 진행도 동기화용 스냅샷
   for(const id in chars){
     const c=chars[id]; if(c.dead) continue;
     // 스트레스 자연감소 없음 (CK3 원작 동일)
@@ -1525,6 +1812,12 @@ function monthlyPulse(){
     opinionDecayPulse(); // 관계도 자연 감소
   }
   activityPulse(); // 진행 중인 활동 단계 처리
+  // 월간 신앙도 수입 (CK3 Piety income)
+  const pInc=pietyIncome(playerChar());
+  if(pInc!==0) gainPiety(pInc, null); // 매월 누적 (로그 없이)
+  // 위신 증가분 → 명성 진행도 동기화 (CK3: 위신 얻으면 같은 양의 명성)
+  const _prestigeDelta = (state.prestige||0) - _prestigeBefore;
+  if(_prestigeDelta>0) syncFameProgress(_prestigeDelta);
   renderMap();
 }
 /* ════════════════════════════════════════════════════
@@ -1881,18 +2174,18 @@ function goldPulse(){
         const vSeatB=vSeatBid?BARONIES[vSeatBid]:null;
         if(!vSeatB) continue;
         const vType=vSeatB.type||'castle';
-        const opn=Math.max(0,opinion(v,c)+100)/200;
         let taxMul;
+        // CK3 1066 봉건제: city(공화정 봉신)=20% 고정, temple(성직자)=호감 연동, castle(봉건 봉신)=계약 단계만(호감 무관)
         if(vType==='city') taxMul=0.20;
         else if(vType==='temple'){
           const chap=state.council?.chaplain?chars[state.council.chaplain]:null;
           const chapOpn=chap?Math.max(0,opinion(v,chap)+100)/200:0.5;
-          taxMul=0.50*chapOpn;
+          taxMul=0.50*chapOpn; // 성직자는 호감 기반 (CK3 Realm Priest)
         } else {
-          /* castle: 계약 의무 세금 단계 적용 (플레이어 봉신만, NPC는 TAX_RATE 기본) */
-          if(id===state.player && v.contract){
-            taxMul=(OBLIGATION_TAX[v.contract.tax]?.rate??TAX_RATE)*opn;
-          } else taxMul=TAX_RATE*opn;
+          /* castle: 봉건계약 세금 단계만 — 호감 무관 (CK3 Feudal) */
+          taxMul=(id===state.player && v.contract)
+            ? (OBLIGATION_TAX[v.contract.tax]?.rate??TAX_RATE)
+            : TAX_RATE;
         }
         /* 봉신 한도 페널티 적용 */
         taxMul*=vlPenalty;
@@ -1985,6 +2278,8 @@ function giveBirth(c){
     dyn:h?h.dyn:c.dyn, sex, byear:state.year, bmonth:state.month, bday:Math.min(state.day,28),
     base:babyStats(c,h), father:h?h.id:null, mother:c.id, courtOf:c.courtOf||((h&&h.region)?h.region:null)});
   if(h&&h.region) baby.courtOf=h.region;
+  // 신앙 상속 — CK3: 자식은 부모(아버지 우선) 신앙을 따름
+  baby.faith = (h&&h.faith) || c.faith || 'insular';
   const fam=isPlayerFamily(baby)||(h&&h.id===state.player);
   if(fam){
     log(`<b>${c.name}</b>이(가) ${sex==='m'?'아들':'딸'} <b>${baby.name}</b>을(를) 낳았습니다.`,'good');
@@ -2150,6 +2445,17 @@ function breakAlliance(a,b){
 function formAlliance(a,b){
   const k=allianceKey(a,b);
   if(!state.alliances.includes(k)&&!state.npcAlliances.includes(k)) state.alliances.push(k);
+  // CK3: 이교도/이단과 동맹은 신앙 위반 — 플레이어 신심 하락
+  const p=playerChar();
+  if(p && (a===p.id||b===p.id)){
+    const otherId = a===p.id?b:a;
+    const other=chars[otherId];
+    if(other && other.faith && p.faith){
+      const rel=faithRelation(p.faith, other.faith);
+      if(rel==='hostile') loseDevotion(40, `이교도(${chars[otherId].name})와의 동맹`);
+      else if(rel==='heresy') loseDevotion(20, `이단(${chars[otherId].name})과의 동맹`);
+    }
+  }
 }
 function power(c){
   let t=0;
@@ -2176,8 +2482,14 @@ function power(c){
     for(const bid of regionsOf(v.id)){ const b=BARONIES[bid]; if(b) t+=b.troops*ratio; }
   }
   if(!t) t=150;
-  const base=t*(1+stat(c,'mar')*0.04)*(1+stat(c,'prow')*0.01);
-  return base;
+  // 순수 동원 병력 수를 반환 (지휘관 무예/용맹 배율은 powerWithCommander에서 전투 시 적용)
+  return t;
+}
+
+/* 동원 가능 총 병력 수 (CK3 헤더/표시 기준)
+   = power()와 동일 (직할 전량 + 봉신 기여분 + 성직자). 표시용 명시적 별칭 */
+function mobilizableTroops(c){
+  return Math.round(power(c));
 }
 
 /* 전쟁 지휘관 헬퍼 */
@@ -2556,12 +2868,22 @@ function conquerTarget(a, d, targetCid){
   // 해당 county의 모든 barony를 공격자에게 이전
   const bids = COUNTIES[cid].baronies;
   const aSeat = BARONIES[a.region];
+  // 성전 여부 확인 (해당 전쟁의 holyWar 플래그)
+  const war = state.wars.find(w=>(w.atk===a.id&&w.def===d.id)||(w.atk===d.id&&w.def===a.id));
+  const isHoly = war && war.holyWar && war.holyFaith;
   bids.forEach(bid=>{
     const b=BARONIES[bid]; if(!b) return;
     if(aSeat) aSeat.gold+=Math.round(b.gold*0.3);
     b.gold=Math.round(b.gold*0.7);
     b.owner=a.id;
+    // 성전 정복 시 점령지 개종 (CK3: Holy War 승리 → 신앙 전환)
+    if(isHoly){ b.faith = war.holyFaith; }
   });
+  if(isHoly){
+    // 정복당한 군주도 개종 (영지를 잃고 신앙도 바뀜) + 공격자 신앙도 보상
+    if(a.id===state.player){ gainPiety(50, '성전 승리'); }
+    log(`<b>✝ ${cname}</b>이(가) ${FAITHS[war.holyFaith]?.n}(으)로 개종되었습니다.`,'fam');
+  }
   // def의 seat이 이 county에 있었으면 남은 county의 capital로 이동
   const defCounty=countyOf(d.region);
   if(defCounty===cid){
@@ -2749,15 +3071,13 @@ const NPC_ACTIVITIES = [
       const cnt=Math.min(guests.length,1+Math.floor(Math.random()*2));
       const invited=guests.sort(()=>Math.random()-.5).slice(0,cnt);
       invited.forEach(g=>{ chOp(g,r,10); chOp(r,g,7); });
-      if(invited.some(g=>g.id===state.player)&&Math.random()<0.5){
+      if(invited.some(g=>g.id===state.player)&&!playerBusy()&&Math.random()<0.5){
         const p=playerChar();
         popup({title:`${r.name}의 연회 초대`,sub:`${COUNTIES[countyOf(r.region)]?.n||''} 왕국`,
           body:`${r.name}이(가) 성대한 연회를 열고 당신을 초대했습니다.`,
           opts:[
-            {t:'참석한다',d:'관계 +15, 스트레스 -10',f:()=>{
-              chOp(r,p,15);chOp(p,r,10);addStress(p,-10,'연회의 즐거움');
-              if(p.traits.includes('shy'))addStress(p,8,'내성적인 자의 고역');
-              log(`${r.name}의 연회에 참석했습니다.`,'dip');
+            {t:'참석한다',d:'연회에 참석',f:()=>{
+              startGuestActivity(r,'feast');
             }},
             {t:'정중히 거절한다',d:'관계 -5',f:()=>{chOp(r,p,-5);log(`${r.name}의 연회를 거절했습니다.`,'dip');}},
           ]});
@@ -2776,13 +3096,12 @@ const NPC_ACTIVITIES = [
       const partner=adj.find(t=>t&&t.id!==r.id&&!t.dead&&opinion(r,t)>-20);
       if(!partner) return;
       chOp(partner,r,8);chOp(r,partner,8);
-      if(partner.id===state.player){
+      if(partner.id===state.player&&!playerBusy()){
         popup({title:`${r.name}의 사냥 초대`,sub:'여흥',
           body:`${r.name}이(가) 가을 사냥에 동행할 것을 청합니다.`,
           opts:[
-            {t:'함께 나선다',d:'관계 +10, 스트레스 -8',f:()=>{
-              const p=playerChar();chOp(r,p,10);addStress(p,-8,'사냥의 즐거움');
-              log(`${r.name}과(와) 함께 사냥을 즐겼습니다.`,'dip');
+            {t:'함께 나선다',d:'사냥에 동행',f:()=>{
+              startGuestActivity(r,'hunt');
             }},
             {t:'거절한다',d:'관계 -5',f:()=>chOp(r,playerChar(),-5)},
           ]});
@@ -3039,10 +3358,14 @@ function npcActivityPulse(){
     const adj=(ADJ[r.region]||[]).map(x=>ownerOf(x)).filter(Boolean);
 
     // 쿨다운 미완료 활동 제외
-    const available=NPC_ACTIVITIES.filter(a=>{
+    let available=NPC_ACTIVITIES.filter(a=>{
       const lastY=r.actCooldowns[a.id]||0;
       return (state.year-lastY)>=a.cooldown && a.cond(r,reg,adj);
     });
+    // 플레이어가 활동/게스트/모달 중이면, 플레이어를 끌어들이는 연회·사냥 초대는 이번 달 보류
+    if(playerBusy() && adj_contains_player(r)){
+      available=available.filter(a=>!['feast','hunt'].includes(a.id));
+    }
     if(!available.length) continue;
 
     // 우선순위 — 플레이어와 인접한 경우 상호작용 활동 가중치 2배
@@ -4255,7 +4578,9 @@ function buildProfileHTML(c){
     .map(k=>{ const oid=k.replace(c.id,'').replace('|',''); return chars[oid]?.name||''; })
     .filter(Boolean);
   /* secA 조각들을 변수로 분리 — 템플릿 리터럴 중첩 문제 방지 */
-  const _prestigeLine  = isPlayer ? '<div class="pm-kv"><span>위신</span><span style="color:var(--gold)">'+Math.round(state.prestige)+'</span></div>' : '';
+  const _prestigeLine  = isPlayer ? '<div class="pm-kv"><span>위신</span><span style="color:var(--gold)">'+Math.round(state.prestige)+' · '+(FAME_LEVELS[state.fameLevel||0]?.n||'')+'</span></div>' : '';
+  const _faithLine     = '<div class="pm-kv"><span>신앙</span><span>'+faithLabel(c.faith, p.faith)+'</span></div>';
+  const _pietyLine     = isPlayer ? '<div class="pm-kv"><span>신앙도</span><span style="color:#b89a5a">'+Math.round(state.piety||0)+' · '+(DEVOTION_LEVELS[state.devotionLevel||0]?.n||'')+'</span></div>' : '';
   const _lawNames      = {partition:'분할상속',primogeniture:'장자상속',elective:'선출제'};
   const _succLine      = isPlayer ? '<div class="pm-kv"><span>상속법</span><span>'+(_lawNames[state.successionLaw]||'')+'</span></div>' : '';
   const _warLine       = warNow.length ? '<div class="pm-kv"><span>전쟁</span><span style="color:#d05a4a">⚔ '+warNow.length+'건 진행 중</span></div>' : '';
@@ -4276,6 +4601,8 @@ function buildProfileHTML(c){
     + '<div class="pm-kv"><span>나이</span><span>'+charAge+'세 ('+c.byear+'년생)</span></div>'
     + '<div class="pm-kv"><span>성별</span><span>'+(c.sex==='m'?'남':'여')+'</span></div>'
     + '<div class="pm-kv"><span>칭호</span><span>'+ttl+'</span></div>'
+    + _faithLine
+    + _pietyLine
     + _prestigeLine + _succLine
     + '<div class="pm-kv" style="margin-top:6px"><span>스트레스</span><span style="color:'+stressColor+'">'+c.stress+'/150 ('+['평온','불안','위험','임계'][stressLv]+')</span></div>'
     + '<div style="height:5px;background:#0c0906;border:1px solid #2a2014;border-radius:2px;overflow:hidden;margin:4px 0 8px">'
@@ -4397,10 +4724,12 @@ function openRegion(rid, cid_hint){
   const html=`
     <div class="kv"><span>지배자</span><span>${c.name} (${age(c)}세)</span></div>
     <div class="kv"><span>가문</span><span>${c.dyn}</span></div>
+    ${!isIndependent(c)?`<div class="kv"><span>섬기는 군주</span><span style="color:#c9a227">${chars[c.liege]?.name||'—'}</span></div>`:`<div class="kv"><span>지위</span><span style="color:#7aaa8a">독립 ${heldKingdomsOf(c.id).length?'국왕':heldDuchiesOf(c.id).length?'공작':'영주'}</span></div>`}
+    <div class="kv"><span>신앙</span><span>${faithLabel(c.faith, p.faith)}</span></div>
     <div class="kv"><span>성격</span><span>${c.traits.map(t=>TRAITS[t]?.n||'').filter(Boolean).join(' · ')||'—'}</span></div>
     <div class="kv"><span>능력</span><span>외${stat(c,'dip')} 무${stat(c,'mar')} 내${stat(c,'stew')} 음${stat(c,'intr')} 학${stat(c,'learn')}</span></div>
     <div class="kv"><span>이 백작령 병력</span><span>${defTroops}</span></div>
-    <div class="kv"><span>전체 전력</span><span>${Math.round(power(c))}</span></div>
+    <div class="kv"><span>전체 전력</span><span>${mobilizableTroops(c).toLocaleString()}</span></div>
     <div class="kv"><span>나를 보는 시각</span><span class="${op>15?'relGood':op<-15?'relBad':'relMid'}">${op>0?'+':''}${op}</span></div>
     <div class="kv"><span>내가 보는 시각</span><span class="${myOp>15?'relGood':myOp<-15?'relBad':'relMid'}">${myOp>0?'+':''}${myOp}</span></div>
     ${isAllied(p.id,c.id)?'<div class="kv"><span>관계</span><span style="color:#6aaa7a">⚔ 동맹</span></div>':''}
@@ -4428,8 +4757,8 @@ function openRegion(rid, cid_hint){
         breakAlliance(p.id,c.id); log(`${c.name}과(와)의 동맹을 파기했습니다.`,'war');
       }});
     }
-    // 봉신으로 삼기 (아직 봉신이 아닌 경우)
-    if(c.liege!==p.id){
+    // 봉신으로 삼기 (독립 군주에게만 — 이미 다른 군주의 봉신이면 불가)
+    if(c.liege!==p.id && isIndependent(c)){
       opts.push({t:'봉신 요청', d:`수락 가능성: ${vassalChance(c,p)}%`, f:()=>{
         if(Math.random()*100<vassalChance(c,p)){
           c.liege=p.id; c.ruler=true;
@@ -4449,10 +4778,20 @@ function openRegion(rid, cid_hint){
     if(!truce){
       if(isAllied(p.id,c.id)){
         opts.push({t:'동맹 파기 후 선전포고 가능', d:'먼저 동맹을 파기하세요', f:()=>{}});
+      } else if(!isIndependent(c)){
+        // CK3: 봉신에게는 직접 선전포고 불가 — 그 독립 군주에게 걸어야 함
+        const tl=topLiege(c);
+        if(tl && tl.id===p.id){
+          opts.push({t:'내 봉신입니다', d:'봉신에게는 선전포고할 수 없습니다', f:()=>{}});
+        } else if(tl){
+          const tlTruce=truceBetween(p.id,tl.id);
+          opts.push({t:`⚔ ${tl.name}에게 선전포고`, d:`${c.name}은(는) ${tl.name}의 봉신 — 주군에게 전쟁을 선포해야 합니다${tlTruce?' (휴전 중)':''}`,
+            f:()=>{ if(tlTruce){log('해당 군주와 휴전 중입니다.','dip');return;} closePanel('court'); closePanel('dec'); openDeclareWar(tl.id); }});
+        }
       } else {
         const myClaims=claimsForRegion(c);
         opts.push({t:myClaims.length>0?`선전포고 (명분 ${myClaims.length}개)`:'선전포고 (명분 없음)',
-          d:`전력 ${Math.round(power(p))} vs ${Math.round(power(c))}`,
+          d:`전력 ${mobilizableTroops(p).toLocaleString()} vs ${mobilizableTroops(c).toLocaleString()}`,
           f:()=>{ closePanel('court'); closePanel('dec'); openDeclareWar(c.id); }});
       }
     } else {
@@ -4772,6 +5111,7 @@ const CB_TYPES = {
   pressed:   { n:'확정 주장',   icon:'⚔',  cost:50,  desc:'전쟁으로 확정된 영토 주장', color:'#c9a227' },
   unpressed: { n:'미확정 주장', icon:'📜', cost:100, desc:'위조되거나 약한 영토 주장',  color:'#8a9a6a' },
   revenge:   { n:'복수 선포',   icon:'🩸', cost:0,   desc:'침략당한 영지 탈환 명분',    color:'#9e3535' },
+  holy_war:  { n:'성전',        icon:'✝', cost:0,   desc:'이교도·이단에 대한 신성한 전쟁 — 승리 시 개종', color:'#d4a82a', piety:true },
 };
 
 /* ─── 명분 시스템 핵심 헬퍼
@@ -4844,22 +5184,25 @@ function openDeclareWar(defId){
 
   const defCids = countiesOf(def.id);
   const myClaims = claimsForRegion(def);
+  const hw = canHolyWar(def); // 성전 가능 여부
 
-  if(myClaims.length === 0){
+  if(myClaims.length === 0 && !hw.ok){
+    // 명분도 없고 성전도 불가 — 안내 (성전 불가 사유도 신앙이 다를 때만 표시)
+    const relDiff = p.faith && def.faith && faithRelation(p.faith,def.faith)!=='same';
     showModal({title:'명분 없음', sub:'선전포고 불가',
       body:`${def.name}에 대한 명분이 없습니다.
 
 명분을 얻는 방법:
 • 사제에게 교회법 명분 위조를 맡긴다
 • 침략을 받아 복수 명분을 얻는다
-• 전쟁 후 백색 강화로 미확정 주장을 얻는다`,
+• 전쟁 후 백색 강화로 미확정 주장을 얻는다${relDiff?`\n\n✝ 성전: ${hw.reason}`:''}`,
       opts:[{t:'닫기'}]}); return;
   }
 
   // 명분 선택 화면
-  const myPow = Math.round(power(p));
-  const defPow = Math.round(power(def));
-  let html = `<div class="kv"><span>상대 전력</span><span>${defPow} vs 내 전력 ${myPow}</span></div>
+  const myPow = mobilizableTroops(p);
+  const defPow = mobilizableTroops(def);
+  let html = `<div class="kv"><span>상대 전력</span><span>${defPow.toLocaleString()} vs 내 전력 ${myPow.toLocaleString()}</span></div>
     <div class="kv"><span>위신</span><span>${Math.round(state.prestige)}</span></div>
     <div style="margin:12px 0 6px;font-size:.72rem;letter-spacing:.2em;color:var(--gold-dim)">보유 명분</div>`;
 
@@ -4880,6 +5223,31 @@ function openDeclareWar(defId){
       } : ()=>{ log('위신이 부족합니다.','dip'); }
     });
   });
+
+  // ── 성전(Holy War) 옵션 — 대상이 이단/이교도이고 신심 단계 충족 시 ──
+  if(hw.ok){
+    const cbInfo = CB_TYPES.holy_war;
+    const relLabel = hw.rel==='hostile' ? '이교도' : '이단';
+    const targetRid = def.region || defCids[0];
+    opts.push({
+      t:`${cbInfo.icon} 성전 — ${claimName(targetRid)}`,
+      d:`신앙도 ${hw.cost} 소모 · ${relLabel} 대상 · 승리 시 정복 + 개종`,
+      f:()=>{
+        if(spendPiety(hw.cost)){
+          declareWar(p, def, targetRid);
+          // 성전 표식 — 해당 전쟁에 holy_war 플래그 (개종 효과용)
+          const w=state.wars.find(w=>w.atk===p.id&&w.def===def.id);
+          if(w){ w.holyWar=true; w.holyFaith=p.faith; }
+          log(`<b>✝ ${def.name}</b>에게 성전을 선포했습니다! 승리하면 점령지가 ${FAITHS[p.faith]?.n}(으)로 개종됩니다.`,'war');
+        } else {
+          log('신앙도가 부족합니다.','dip');
+        }
+      }
+    });
+  } else if(p.faith && def.faith && faithRelation(p.faith,def.faith)!=='same' && myClaims.length>0){
+    // 신앙이 다르지만 성전 조건 미충족 — 회색 안내
+    opts.push({ t:`✝ 성전 (불가)`, d:hw.reason, f:()=>{ log(hw.reason,'dip'); } });
+  }
 
   // 복수 명분이 없으면 일반 공격 명분 제안 (고비용)
   if(false){ // 무단 침공 제거됨
@@ -5413,10 +5781,10 @@ function councilBenefitsPulse(){
       case 'chancellor':
         /* +Scaled Prestige(county: 소량) · +5 Fellow Vassal Opinion · +5% Diplomacy XP */
         if(c.lifestyle==='dip') c.lifeXP=Math.min(9999,(c.lifeXP||0)+Math.round(c.base.dip*0.5));
-        /* 봉신 호감 +5 → 월 0.04 근사 (연 +0.5 수준) */
-        if(p.council?.chancellor===cid){
+        /* 봉신 호감 +5 → 연 +1 정수 누적 (1월에만, 소수점 방지) */
+        if(p.council?.chancellor===cid && state.month===1){
           const vs=vassalsOf(p.id);
-          vs.forEach(v=>{ v.op[cid]=(v.op[cid]||0)+0.04; });
+          vs.forEach(v=>{ v.op[cid]=Math.round((v.op[cid]||0)+1); });
         }
         break;
       case 'marshal':
@@ -5874,8 +6242,7 @@ function renderFief(){
     const vTroops=Math.round(regionsOf(v.id).reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
     /* 스탠스 */
     const stKey=vassalStance(v); const st=VASSAL_STANCES[stKey];
-    /* 세금·레비 표시 */
-    const opn=Math.max(0,vOp+100)/200;
+    /* 세금·레비 표시 (CK3 봉건: city 고정, temple 성직자 호감, castle 계약 단계만) */
     let taxStr, levyStr;
     if(vType==='city'){ taxStr='세금 20%'; levyStr='레비 10%'; }
     else if(vType==='temple'){
@@ -5886,7 +6253,7 @@ function renderFief(){
       const ct=v.contract||initVassalContract(v);
       const taxRate=OBLIGATION_TAX[ct.tax]?.rate??TAX_RATE;
       const levyRate=OBLIGATION_LEVY[ct.levy]?.rate??0.10;
-      taxStr=`세금 ${Math.round(taxRate*opn*100)}%`; levyStr=`레비 ${Math.round(levyRate*100)}%`;
+      taxStr=`세금 ${Math.round(taxRate*100)}%`; levyStr=`레비 ${Math.round(levyRate*100)}%`;
     }
 
     html+=`<div style="padding:7px 0;border-bottom:1px dotted #2c2316">
@@ -6570,6 +6937,9 @@ function finishActivity(act, arrived){
     // 거리 배율 × 신심도 기반 위신 보너스 (경건은 위신으로 근사)
     const pietyPrestige=Math.round(devotion*dist*0.8);
     state.prestige+=pietyPrestige;
+    // CK3 Pilgrimage: 신앙도(Piety) 대량 획득 — 신심도 × 거리 보정
+    const pietyGain=Math.round(devotion*dist*0.6);
+    gainPiety(pietyGain, '순례 완수');
     // 신심도 높으면 스트레스 추가 해소 + 민심 상승 (성지 순례의 평안)
     if(devotion>=50){
       addStress(p,-15,'깊은 신앙의 평안');
@@ -6582,7 +6952,7 @@ function finishActivity(act, arrived){
     state.activeActivity=null;
     const grade = devotion>=70?'더없이 경건한':devotion>=40?'뜻깊은':'무사한';
     popup({title:'순례 완수', sub:`${site?site.icon+' '+site.n:'성지'} 순례`,
-      body:`${grade} 순례를 마치고 돌아왔습니다.\n신심도 ${devotion} · 성지 거리 보정 ×${dist}\n위신 +${pietyPrestige}${devotion>=50?'\n깊은 평안으로 스트레스가 줄고 민심이 올랐습니다.':''}`,
+      body:`${grade} 순례를 마치고 돌아왔습니다.\n신심도 ${devotion} · 성지 거리 보정 ×${dist}\n위신 +${pietyPrestige} · 신앙도 +${pietyGain}${devotion>=50?'\n깊은 평안으로 스트레스가 줄고 민심이 올랐습니다.':''}`,
       opts:[{t:'신의 가호가 함께하길'}]});
     renderActivity();
     return;
@@ -7063,6 +7433,115 @@ function closeActModal(){
 function actEventPopup(ev){
   showActModal(ev);
 }
+/* ── NPC 활동에 게스트로 참석 — 활동 이벤트 전개 ── */
+/* 플레이어가 현재 활동/게스트/모달에 묶여 있어 새 초대를 받을 수 없는 상태 */
+function playerBusy(){
+  return !!(state.activeActivity || state.guestActivity || state.actModalOpen);
+}
+/* host의 연회/사냥에 참석. 단계 이벤트를 활동 모달로 연속 표시 */
+function startGuestActivity(host, type){
+  const p=playerChar(); if(!p||!host) return;
+  state.guestActivity={ host:host.id, type, progress:0, total:(type==='hunt'?2:2), track:0, rapport:0 };
+  guestActivityNext();
+}
+/* 게스트 활동 다음 단계 이벤트 표시 */
+function guestActivityNext(){
+  const g=state.guestActivity; if(!g) return;
+  const p=playerChar(); const host=chars[g.host];
+  if(!host||host.dead){ finishGuestActivity(); return; }
+  g.progress++;
+  if(g.progress>g.total){ finishGuestActivity(); return; }
+  const ev = g.type==='hunt' ? guestHuntEvent(g,host) : guestFeastEvent(g,host);
+  showGuestModal(ev, host, g);
+}
+/* 게스트 사냥 단계 이벤트 */
+function guestHuntEvent(g, host){
+  const p=playerChar();
+  if(g.progress===1){
+    return { sub:`${host.name}의 사냥`, icon:'🦌', type:'hunt',
+      body:`${host.name}과(와) 함께 숲으로 들어섭니다. 사냥개들이 사슴의 냄새를 맡고 짖기 시작합니다.`,
+      opts:[
+        {t:'호스트에게 앞자리를 양보한다', d:`${host.name} 관계 +8`, f:()=>{ chOp(host,p,8); chOp(p,host,4); }},
+        {t:'앞다투어 추격한다', d:'위신 +6', f:()=>{ state.prestige+=6; if(p.traits.includes('brave'))addStress(p,-4,'사냥의 쾌감'); }},
+      ]};
+  }
+  return { sub:`${host.name}의 사냥 — 마무리`, icon:'🦌', type:'hunt',
+    body:`사슴이 막다른 골짜기에 몰렸습니다. ${host.name}이(가) 당신에게 마지막 일격의 영광을 권합니다.`,
+    opts:[
+      {t:'활을 든다', d:'위신 +10, 스트레스 -8', f:()=>{ state.prestige+=10; addStress(p,-8,'사냥의 절정'); }},
+      {t:'호스트에게 영광을 돌린다', d:`${host.name} 관계 +12`, f:()=>{ chOp(host,p,12); chOp(p,host,6); }},
+    ]};
+}
+/* 게스트 연회 단계 이벤트 */
+function guestFeastEvent(g, host){
+  const p=playerChar();
+  if(g.progress===1){
+    return { sub:`${host.name}의 연회`, icon:'🍖', type:'feast',
+      body:`${host.name}의 연회장은 촛불과 음악으로 가득합니다. 호스트가 당신에게 상석을 권합니다.`,
+      opts:[
+        {t:'정중히 화답한다', d:`${host.name} 관계 +8`, f:()=>{ chOp(host,p,8); chOp(p,host,5); }},
+        {t:'좌중에 재담을 펼친다', d:'위신 +6', f:()=>{ state.prestige+=6; if(p.traits.includes('gregarious'))addStress(p,-5,'사교가의 흥'); }},
+      ]};
+  }
+  return { sub:`${host.name}의 연회 — 건배`, icon:'🍖', type:'feast',
+    body:`연회가 무르익자 ${host.name}이(가) 잔을 들어 당신과의 우의를 청합니다.`,
+    opts:[
+      {t:'함께 건배한다', d:`${host.name} 관계 +12, 스트레스 -8`, f:()=>{ chOp(host,p,12); chOp(p,host,7); addStress(p,-8,'연회의 즐거움'); }},
+      {t:'예를 갖춰 답례한다', d:`${host.name} 관계 +6, 위신 +6`, f:()=>{ chOp(host,p,6); state.prestige+=6; }},
+    ]};
+}
+/* 게스트 활동 종료 */
+function finishGuestActivity(){
+  const g=state.guestActivity;
+  const host=g?chars[g.host]:null;
+  state.guestActivity=null;
+  if(host && !host.dead){
+    log(`<b>${host.name}</b>의 ${g.type==='hunt'?'사냥':'연회'}을(를) 마치고 돌아왔습니다.`,'dip');
+  }
+  closeActModal();
+  renderAll();
+}
+/* 게스트 활동 모달 표시 (host 기준, state.activeActivity 없이) */
+function showGuestModal(ev, host, g){
+  const modal=document.getElementById('actModal');
+  const shade=document.getElementById('actShade');
+  if(!modal||!shade){ if(ev&&ev.opts&&ev.opts[0]&&ev.opts[0].f) ev.opts[0].f(); guestActivityNext(); return; }
+  state.actModalOpen=true; pause();
+  const heroCls = ev.type||'feast';
+  const icon = ev.icon||'🎪';
+  let h=`<button class="act-close" onclick="closeGuestModal()">✕</button>
+    <div class="act-hero ${heroCls}">
+      <div class="ah-stage">${g.progress}/${g.total} 단계</div>
+      <div class="ah-icon">${icon}</div>
+      <div class="ah-title">${host.name}의 ${ev.type==='hunt'?'사냥':'연회'}</div>
+      <div class="ah-tier">손님으로 참석 중</div>
+    </div>
+    <div class="act-body">
+      <div class="ab-sub">${ev.sub||''}</div>
+      <div class="ab-narr">${ev.body||''}</div>
+      <div class="act-opts">`;
+  (ev.opts||[{t:'계속'}]).forEach((o,i)=>{
+    h+=`<button onclick="guestModalPick(${i})">${o.t}${o.d?`<small>${o.d}</small>`:''}</button>`;
+  });
+  h+=`</div></div>`;
+  modal.innerHTML=h;
+  modal._guestOpts=ev.opts||[{}];
+  shade.classList.add('show');
+  playSynthSFX('event');
+}
+/* 게스트 모달 선택 처리 → 다음 단계로 */
+function guestModalPick(i){
+  const modal=document.getElementById('actModal');
+  const o=modal._guestOpts?modal._guestOpts[i]:null;
+  state.actModalOpen=false;
+  const shade=document.getElementById('actShade'); if(shade) shade.classList.remove('show');
+  if(o&&o.f) o.f();
+  guestActivityNext(); // 다음 단계 이벤트 또는 종료
+}
+/* 게스트 모달 닫기 (중도 이탈) */
+function closeGuestModal(){
+  finishGuestActivity();
+}
 /* ── 원형 활동 위젯 렌더 (좌측 상단, 활동 중에만 표시) ── */
 function renderActivityWidget(){
   const el=document.getElementById('actWidget'); if(!el) return;
@@ -7173,6 +7652,26 @@ function renderDec(){
     playSynthSFX('gold');
     REGIONS[p.region].gold-=80; REGIONS[p.region].troops+=200;
     log('창병 200이 소집됐습니다.','war'); renderDec();
+  });
+  // ── 신앙도 소비 (CK3: 교회 상호작용) ──
+  addDec('교회에 헌금을 청한다',`신앙도 60 → 금 +120`, (state.piety||0)>=60, ()=>{
+    if(spendPiety(60)){
+      REGIONS[p.region].gold+=120;
+      log('주교가 교회 금고를 열어 헌금을 베풀었습니다. 금 +120','fam'); renderDec();
+    }
+  });
+  addDec('죄를 사면받는다',`신앙도 50 → 스트레스 -25`, (state.piety||0)>=50, ()=>{
+    if(spendPiety(50)){
+      addStress(p,-25,'고해와 사면의 평안');
+      log('주교 앞에서 고해하고 죄를 사면받았습니다.','fam'); renderDec();
+    }
+  });
+  addDec('성직자의 축복을 받는다',`신앙도 80 → 동일신앙 봉신 호감 +15`, (state.piety||0)>=80, ()=>{
+    if(spendPiety(80)){
+      let n=0;
+      for(const v of vassalsOf(p.id)){ if(v.faith===p.faith){ chOp(v,p,15); n++; } }
+      log(`주교가 당신을 신앙의 수호자로 축복했습니다. 동일신앙 봉신 ${n}명 호감 +15`,'fam'); renderDec();
+    }
   });
   // 백작령 하사 (직할 초과 시 또는 전략적으로)
   const myCids=directCountiesOf(p.id);
@@ -7340,9 +7839,22 @@ function renderHeader(){
   document.getElementById('seasonTxt').textContent=`${SEASONS[state.month-1]} · ${COUNTIES[countyOf(playerChar().region)]?.n||BARONIES[playerChar().region]?.n||'—'}`;
   const reg=REGIONS[playerChar().region];
   document.getElementById('goldTxt').textContent=reg?Math.round(reg.gold):0;
-  document.getElementById('prestigeTxt').textContent=Math.round(state.prestige||120);
-  const totalTroops=Math.round(playerRegions().reduce((s,rid)=>s+(REGIONS[rid].troops||0),0));
-  document.getElementById('troopTxt').textContent=totalTroops.toLocaleString();
+  const prestigeEl=document.getElementById('prestigeTxt');
+  prestigeEl.textContent=Math.round(state.prestige||120);
+  const fameLv=FAME_LEVELS[state.fameLevel||0];
+  if(fameLv) prestigeEl.title=`${fameLv.n} — ${fameLv.desc}`;
+  const pietyEl=document.getElementById('pietyTxt');
+  if(pietyEl){
+    const lv=DEVOTION_LEVELS[state.devotionLevel||0];
+    pietyEl.textContent=Math.round(state.piety||0);
+    pietyEl.title=lv?`${lv.n} — ${lv.desc}`:'';
+  }
+  const totalTroops=mobilizableTroops(playerChar());
+  const troopEl=document.getElementById('troopTxt');
+  troopEl.textContent=totalTroops.toLocaleString();
+  const _directT=Math.round(playerRegions().reduce((s,rid)=>s+(REGIONS[rid].troops||0),0));
+  const _vassalT=totalTroops-_directT;
+  troopEl.title=`동원 가능 총 병력 ${totalTroops.toLocaleString()}\n직할 ${_directT.toLocaleString()} + 봉신 기여 ${_vassalT.toLocaleString()}`;
   // 직할령 표시 (CK3 방식)
   const p=playerChar();
   const dBids=directBaroniesOf(p.id);
@@ -7403,9 +7915,18 @@ function renderMap(){
     const C=COUNTIES[cid];
     const holder=countyHolder(cid);
     const mine=holder&&holder.id===p.id;
+    // CK3: 같은 독립 군주(realm)에 속한 영지는 같은 색 — top liege 기준
+    const realmHead=holder?topLiege(holder):null;
+    const isMyRealm=realmHead&&realmHead.id===p.id; // 내 직할 또는 내 봉신
     const isVassalOf=holder&&holder.liege===p.id;
-    const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':(DUCHIES[C.duchy]?.color||'#555');
-    const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':'#6a5836';
+    // 색: 내 영토(직할/봉신) 녹색 계열 / 그 외엔 realm head의 수도 공작령 색으로 묶음
+    let realmCol='#555';
+    if(realmHead){
+      const headSeatDuchy=duchyOf(realmHead.region);
+      realmCol=DUCHIES[headSeatDuchy]?.color||DUCHIES[C.duchy]?.color||'#555';
+    }
+    const col=mine?'#3d6b4a':isVassalOf?'#4a7a55':realmCol;
+    const stroke=mine?'#c8a24a':isVassalOf?'#6aaa7a':(isMyRealm?'#6aaa7a':'#6a5836');
     const bids=C.baronies;
     const totalT=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
     const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
@@ -7416,7 +7937,7 @@ function renderMap(){
       ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
       ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
       <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
-      <text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${holder?holder.name.split(' ')[0]:'—'}</text>
+      <text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${holder?holder.name.split(' ')[0]:'—'}${holder&&!isIndependent(holder)?` ⊂${(chars[holder.liege]?.name||'').split(' ')[0]}`:''}</text>
       <text class="owner" x="${C.x}" y="${C.y+36}" style="font-size:7.5px;fill:#7a6848">⚔${totalT} 민${avgPop}</text>
     </g>`;
   }
