@@ -2440,6 +2440,8 @@ function giveBirth(c){
   if(h&&h.region) baby.courtOf=h.region;
   // 신앙 상속 — CK3: 자식은 부모(아버지 우선) 신앙을 따름
   baby.faith = (h&&h.faith) || c.faith || 'insular';
+  // 외모 상속 — CK3: DNA는 우성/열성 유전자로 부모에게서 상속됨 (부모 닮되 형제끼리 변이)
+  baby.dna = inheritDNA(_charDNA(c), h ? _charDNA(h) : null);
   const fam=isPlayerFamily(baby)||(h&&h.id===state.player);
   if(fam){
     log(`<b>${c.name}</b>이(가) ${sex==='m'?'아들':'딸'} <b>${baby.name}</b>을(를) 낳았습니다.`,'good');
@@ -4661,36 +4663,106 @@ function skillColor(k){
    SVG 초상화 생성 — 외부 파일 불필요, 특성 기반 외모 변화
    w, h: 출력 크기 (기본 86×108)
    ══════════════════════════════════════════════════════ */
+/* 캐릭터 고유 외모 시드 — CK3 DNA 근사. c.id 기반 결정론적(같은 인물=항상 같은 얼굴)
+   개념 출처: CK3 개발일지 #34(DNA=유전자 집합이 외형 정의) · CK3 Wiki Character(나이·트레잇 보정) */
+function _charSeed(c){
+  let hsh = 2166136261 >>> 0;
+  const str = String(c?.id||'') + '|' + (c?.byear||0) + '|' + (c?.sex||'m');
+  for(let i=0;i<str.length;i++){ hsh ^= str.charCodeAt(i); hsh = Math.imul(hsh,16777619)>>>0; }
+  return hsh>>>0;
+}
+function _seededRng(seed){
+  let st = (seed>>>0) || 1;
+  return ()=>{ st=(Math.imul(st,1664525)+1013904223)>>>0; return st/4294967296; };
+}
+/* DNA 변이용 색 팔레트 — 피부(밝음→어두움)/머리/눈 */
+const SKIN_TONES = [['#e8b896','#c48a64'],['#dca77e','#b3815a'],['#c8906a','#a56848'],['#b07c54','#895a38'],['#986a44','#714a2c']];
+const HAIR_TONES = ['#241608','#3a2410','#5a3a18','#7a5228','#9a6a2e','#b8893c','#c8a850','#7a6a5a'];
+const EYE_TONES  = ['#3a2a1a','#4a3622','#5a4628','#4a6a3a','#3a6a6a','#2a6a9a','#5a5a64'];
+
+/* ── DNA 유전자 (CK3 근사) ──
+   이산 유전자(피부/머리/눈 = 팔레트 인덱스) + 연속 유전자(형질 배수 ~1.0).
+   개념 출처: CK3 Wiki Character — DNA는 우성/열성 유전자로 자식에게 상속됨 */
+function makeDNA(rng){
+  const idx = n => Math.floor(rng()*n);
+  const jit = amt => 1 + (rng()*2-1)*amt;
+  return {
+    skin: idx(SKIN_TONES.length), hair: idx(HAIR_TONES.length), eye: idx(EYE_TONES.length),
+    faceRx: jit(0.10), faceRy: jit(0.08),
+    eyeSpan: jit(0.16), eyeRx: jit(0.12), eyeRy: jit(0.12),
+    noseLen: jit(0.18), mouthW: jit(0.14),
+    hairRx: jit(0.07), hairRy: jit(0.07),
+  };
+}
+/* 캐릭터 DNA — 저장된 c.dna 우선, 없으면 id 시드로 결정론적 생성(세계생성 캐릭터) */
+function _charDNA(c){ return (c && c.dna) || makeDNA(_seededRng(_charSeed(c))); }
+/* 부모 두 DNA 혼합 — 색은 대립유전자 상속/혼합 + 돌연변이, 형질은 평균 ± 변이.
+   출산 시 1회 생성되어 baby.dna에 저장됨(형제끼리는 무작위로 조금씩 달라짐) */
+function inheritDNA(a, b){
+  a = a || b; b = b || a;
+  if(!a) return makeDNA(_seededRng((Math.random()*4294967296)>>>0));
+  const r = Math.random;
+  const allele  = (x,y)=> r()<0.5 ? x : y;                 // 우성/열성 근사: 부모 한쪽 색
+  const mut     = (v,n)=> r()<0.08 ? Math.floor(r()*n) : v; // 8% 돌연변이
+  const blendIdx= (x,y,n)=>{ let v=Math.round((x+y)/2); if(r()<0.08) v=Math.floor(r()*n); return Math.max(0,Math.min(n-1,v)); };
+  const blend   = (x,y)=> (x+y)/2 + (r()*2-1)*0.03;        // 연속 형질 평균 ± 소량 변이
+  return {
+    skin: blendIdx(a.skin, b.skin, SKIN_TONES.length),      // 피부: 부모 중간톤
+    hair: mut(allele(a.hair, b.hair), HAIR_TONES.length),   // 머리: 한쪽 색 상속
+    eye:  mut(allele(a.eye,  b.eye),  EYE_TONES.length),    // 눈:   한쪽 색 상속
+    faceRx: blend(a.faceRx,b.faceRx), faceRy: blend(a.faceRy,b.faceRy),
+    eyeSpan: blend(a.eyeSpan,b.eyeSpan), eyeRx: blend(a.eyeRx,b.eyeRx), eyeRy: blend(a.eyeRy,b.eyeRy),
+    noseLen: blend(a.noseLen,b.noseLen), mouthW: blend(a.mouthW,b.mouthW),
+    hairRx: blend(a.hairRx,b.hairRx), hairRy: blend(a.hairRy,b.hairRy),
+  };
+}
+
 function makePortraitSVG(c, w, h){
   w = w||86; h = h||108;
   const male = c.sex !== 'f';
   const charAge = age(c);
   const aged = charAge > 45;
 
-  /* 특성 기반 색상 */
+  /* ── DNA 유전자 기반 외모 (c.dna 우선, 없으면 id 시드 결정론 생성) ── */
+  const g = _charDNA(c);
+  const mod = (i,n)=> ((i%n)+n)%n;
+  const [skin, skinS] = SKIN_TONES[mod(g.skin, SKIN_TONES.length)];
+  const hairBase = HAIR_TONES[mod(g.hair, HAIR_TONES.length)];
+  const eyeBase  = EYE_TONES[mod(g.eye, EYE_TONES.length)];
+  const faceRx  = 16  * g.faceRx;
+  const faceRy  = 19  * g.faceRy;
+  const eyeSpan = 7   * g.eyeSpan;
+  const eyeRx   = 4.5 * g.eyeRx;
+  const eyeRy   = 3.5 * g.eyeRy;
+  const noseLen = g.noseLen;
+  const mouthW  = g.mouthW;
+  const hairRx  = (male?19:21) * g.hairRx;
+  const hairRy  = (male?22:24) * g.hairRy;
+
+  /* 특성 색 우선, 없으면 DNA 색 (CK3: 트레잇은 외형 보정 레이어) */
   const hairColor = c.traits.includes('greedy')  ? '#c8a02a'
                   : c.traits.includes('brave')    ? '#4a2808'
                   : c.traits.includes('cruel')    ? '#1a1208'
-                  : '#7a5228';
+                  : hairBase;
   const eyeColor  = c.traits.includes('ambitious')? '#2a6a9a'
                   : c.traits.includes('just')     ? '#3a7a4a'
                   : c.traits.includes('cruel')    ? '#8a2a2a'
-                  : '#4a6a3a';
+                  : eyeBase;
   const robeColor = c.traits.includes('brave')||c.traits.includes('wrathful') ? '#5a2818'
                   : c.traits.includes('calm')||c.traits.includes('kind')       ? '#1e3a4a'
                   : '#2e2818';
-  const skin  = '#c8906a';
-  const skinS = '#a56848';
-
-  /* 미소 방향 */
-  const smileD = c.traits.includes('kind')||c.traits.includes('calm')
-    ? `M ${w*.33} ${h*.56} Q ${w*.5} ${h*.62} ${w*.67} ${h*.56}`
-    : c.traits.includes('cruel')||c.traits.includes('wrathful')
-    ? `M ${w*.33} ${h*.60} Q ${w*.5} ${h*.55} ${w*.67} ${h*.60}`
-    : `M ${w*.34} ${h*.58} Q ${w*.5} ${h*.62} ${w*.66} ${h*.58}`;
 
   const cx = w/2, cy = h*0.46;
   const s = v => v * (w/86); /* 기준 86px 대비 스케일 */
+
+  /* 미소 방향(트레잇) + 입 너비(DNA mouthW) */
+  const ms = 0.16 * mouthW;
+  const mL = w*(0.5-ms), mR = w*(0.5+ms);
+  const smileD = c.traits.includes('kind')||c.traits.includes('calm')
+    ? `M ${mL} ${h*.56} Q ${w*.5} ${h*.62} ${mR} ${h*.56}`
+    : c.traits.includes('cruel')||c.traits.includes('wrathful')
+    ? `M ${mL} ${h*.60} Q ${w*.5} ${h*.55} ${mR} ${h*.60}`
+    : `M ${mL} ${h*.58} Q ${w*.5} ${h*.62} ${mR} ${h*.58}`;
 
   const beardPart = (male && charAge >= 20)
     ? '<path d="M '+[cx-s(8),cy+s(10)].join(' ')+' Q '+[cx,cy+s(18)].join(' ')+' '+[cx+s(8),cy+s(10)].join(' ')+' Q '+[cx+s(7),cy+s(14)].join(' ')+' '+[cx,cy+s(16)].join(' ')+' Q '+[cx-s(7),cy+s(14)].join(' ')+' Z" fill="'+hairColor+'" opacity="'+(aged?.75:.45)+'"/>'
@@ -4700,10 +4772,10 @@ function makePortraitSVG(c, w, h){
     + '<path d="M '+[cx+s(14),cy-s(2)].join(' ')+' Q '+[cx+s(12),cy+s(2)].join(' ')+' '+[cx+s(13),cy+s(5)].join(' ')+'" stroke="'+skinS+'" stroke-width="'+s(.8)+'" fill="none" opacity=".45"/>'
     : '';
   const hairPart = male
-    ? '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(19)+'" ry="'+s(22)+'" fill="'+hairColor+'"/>'
-    : '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(21)+'" ry="'+s(24)+'" fill="'+hairColor+'"/>'
-    + '<ellipse cx="'+(cx-s(18))+'" cy="'+(cy+s(10))+'" rx="'+s(8)+'" ry="'+s(14)+'" fill="'+hairColor+'"/>'
-    + '<ellipse cx="'+(cx+s(18))+'" cy="'+(cy+s(10))+'" rx="'+s(8)+'" ry="'+s(14)+'" fill="'+hairColor+'"/>';
+    ? '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(hairRx)+'" ry="'+s(hairRy)+'" fill="'+hairColor+'"/>'
+    : '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(hairRx)+'" ry="'+s(hairRy)+'" fill="'+hairColor+'"/>'
+    + '<ellipse cx="'+(cx-s(faceRx+2))+'" cy="'+(cy+s(10))+'" rx="'+s(8)+'" ry="'+s(14)+'" fill="'+hairColor+'"/>'
+    + '<ellipse cx="'+(cx+s(faceRx+2))+'" cy="'+(cy+s(10))+'" rx="'+s(8)+'" ry="'+s(14)+'" fill="'+hairColor+'"/>';
 
   const svgParts = [
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+w+' '+h+'" width="'+w+'" height="'+h+'">',
@@ -4712,18 +4784,18 @@ function makePortraitSVG(c, w, h){
     '<rect x="'+(cx-s(13))+'" y="'+(h*.73)+'" width="'+s(26)+'" height="'+s(18)+'" fill="'+robeColor+'" rx="'+s(3)+'"/>',
     '<rect x="'+(cx-s(5))+'" y="'+(h*.66)+'" width="'+s(10)+'" height="'+s(12)+'" fill="'+skin+'" rx="'+s(3)+'"/>',
     hairPart,
-    '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(16)+'" ry="'+s(19)+'" fill="'+skin+'"/>',
-    '<ellipse cx="'+(cx-s(17))+'" cy="'+cy+'" rx="'+s(3.5)+'" ry="'+s(4.5)+'" fill="'+skin+'"/>',
-    '<ellipse cx="'+(cx+s(17))+'" cy="'+cy+'" rx="'+s(3.5)+'" ry="'+s(4.5)+'" fill="'+skin+'"/>',
-    '<path d="M '+(cx-s(11))+' '+(cy-s(8))+' Q '+(cx-s(7))+' '+(cy-s(10.5))+' '+(cx-s(3))+' '+(cy-s(8))+'" stroke="'+hairColor+'" stroke-width="'+s(1.6)+'" fill="none" stroke-linecap="round"/>',
-    '<path d="M '+(cx+s(3))+' '+(cy-s(8))+' Q '+(cx+s(7))+' '+(cy-s(10.5))+' '+(cx+s(11))+' '+(cy-s(8))+'" stroke="'+hairColor+'" stroke-width="'+s(1.6)+'" fill="none" stroke-linecap="round"/>',
-    '<ellipse cx="'+(cx-s(7))+'" cy="'+(cy-s(3.5))+'" rx="'+s(4.5)+'" ry="'+s(3.5)+'" fill="#ece8e0" opacity=".9"/>',
-    '<ellipse cx="'+(cx+s(7))+'" cy="'+(cy-s(3.5))+'" rx="'+s(4.5)+'" ry="'+s(3.5)+'" fill="#ece8e0" opacity=".9"/>',
-    '<circle cx="'+(cx-s(7))+'" cy="'+(cy-s(3.5))+'" r="'+s(2.5)+'" fill="'+eyeColor+'"/>',
-    '<circle cx="'+(cx+s(7))+'" cy="'+(cy-s(3.5))+'" r="'+s(2.5)+'" fill="'+eyeColor+'"/>',
-    '<circle cx="'+(cx-s(6))+'" cy="'+(cy-s(4.5))+'" r="'+s(.9)+'" fill="white" opacity=".7"/>',
-    '<circle cx="'+(cx+s(8))+'" cy="'+(cy-s(4.5))+'" r="'+s(.9)+'" fill="white" opacity=".7"/>',
-    '<path d="M '+cx+' '+(cy+s(1))+' L '+(cx-s(2.5))+' '+(cy+s(7))+' Q '+cx+' '+(cy+s(9))+' '+(cx+s(2.5))+' '+(cy+s(7))+' Z" fill="'+skinS+'" opacity=".35"/>',
+    '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+s(faceRx)+'" ry="'+s(faceRy)+'" fill="'+skin+'"/>',
+    '<ellipse cx="'+(cx-s(faceRx+1))+'" cy="'+cy+'" rx="'+s(3.5)+'" ry="'+s(4.5)+'" fill="'+skin+'"/>',
+    '<ellipse cx="'+(cx+s(faceRx+1))+'" cy="'+cy+'" rx="'+s(3.5)+'" ry="'+s(4.5)+'" fill="'+skin+'"/>',
+    '<path d="M '+(cx-s(eyeSpan+4))+' '+(cy-s(8))+' Q '+(cx-s(eyeSpan))+' '+(cy-s(10.5))+' '+(cx-s(eyeSpan-4))+' '+(cy-s(8))+'" stroke="'+hairColor+'" stroke-width="'+s(1.6)+'" fill="none" stroke-linecap="round"/>',
+    '<path d="M '+(cx+s(eyeSpan-4))+' '+(cy-s(8))+' Q '+(cx+s(eyeSpan))+' '+(cy-s(10.5))+' '+(cx+s(eyeSpan+4))+' '+(cy-s(8))+'" stroke="'+hairColor+'" stroke-width="'+s(1.6)+'" fill="none" stroke-linecap="round"/>',
+    '<ellipse cx="'+(cx-s(eyeSpan))+'" cy="'+(cy-s(3.5))+'" rx="'+s(eyeRx)+'" ry="'+s(eyeRy)+'" fill="#ece8e0" opacity=".9"/>',
+    '<ellipse cx="'+(cx+s(eyeSpan))+'" cy="'+(cy-s(3.5))+'" rx="'+s(eyeRx)+'" ry="'+s(eyeRy)+'" fill="#ece8e0" opacity=".9"/>',
+    '<circle cx="'+(cx-s(eyeSpan))+'" cy="'+(cy-s(3.5))+'" r="'+s(2.5)+'" fill="'+eyeColor+'"/>',
+    '<circle cx="'+(cx+s(eyeSpan))+'" cy="'+(cy-s(3.5))+'" r="'+s(2.5)+'" fill="'+eyeColor+'"/>',
+    '<circle cx="'+(cx-s(eyeSpan-1))+'" cy="'+(cy-s(4.5))+'" r="'+s(.9)+'" fill="white" opacity=".7"/>',
+    '<circle cx="'+(cx+s(eyeSpan+1))+'" cy="'+(cy-s(4.5))+'" r="'+s(.9)+'" fill="white" opacity=".7"/>',
+    '<path d="M '+cx+' '+(cy+s(1))+' L '+(cx-s(2.5))+' '+(cy+s(7*noseLen))+' Q '+cx+' '+(cy+s(9*noseLen))+' '+(cx+s(2.5))+' '+(cy+s(7*noseLen))+' Z" fill="'+skinS+'" opacity=".35"/>',
     '<path d="'+smileD+'" stroke="'+skinS+'" stroke-width="'+s(1.5)+'" fill="none" stroke-linecap="round"/>',
     beardPart,
     wrinklePart,
@@ -4738,6 +4810,13 @@ function makePortraitSVG(c, w, h){
     '</svg>'
   ];
   return svgParts.join('');
+}
+
+/* 클릭형 미니 초상화 — 자문회·궁정 목록용. 탭하면 해당 인물 프로필이 열림.
+   event.stopPropagation으로 부모 행 클릭과 충돌 방지 (모바일 탭 동일) */
+function miniPortrait(c, size){
+  size = size||36; const hpx = Math.round(size*108/86);
+  return `<div onclick="event.stopPropagation();openProfile(chars['${c.id}'])" title="프로필 보기" style="width:${size}px;height:${hpx}px;flex:none;border:1px solid var(--line);border-radius:3px;overflow:hidden;cursor:pointer">${makePortraitSVG(c,size,hpx)}</div>`;
 }
 
 function buildProfileHTML(c){
@@ -4900,8 +4979,14 @@ function openRegion(rid, cid_hint){
     ? `<div class="kv"><span>혼인 후보</span><span style="color:var(--parch-dim)">♂${spCandM} ♀${spCandF}</span></div>`
     : '';
   const html=`
-    <div class="kv"><span>지배자</span><span>${c.name} (${age(c)}세)</span></div>
-    <div class="kv"><span>가문</span><span>${c.dyn}</span></div>
+    <div onclick="openProfile(chars['${c.id}'])" title="프로필 보기" style="display:flex;gap:10px;align-items:center;margin-bottom:10px;padding-bottom:9px;border-bottom:1px solid var(--line);cursor:pointer">
+      <div style="width:52px;height:66px;flex:none;border:1px solid var(--line);border-radius:3px;overflow:hidden">${makePortraitSVG(c,52,66)}</div>
+      <div style="line-height:1.4">
+        <div style="color:var(--gold);font-size:.92rem">${c.name} <span style="color:var(--parch-dim);font-size:.72rem">(${age(c)}세)</span></div>
+        <div style="font-size:.7rem;color:var(--parch-dim)">${c.dyn}</div>
+        <div style="font-size:.6rem;color:var(--gold-dim);margin-top:3px">초상화 클릭 → 프로필 ▸</div>
+      </div>
+    </div>
     ${!isIndependent(c)?`<div class="kv"><span>섬기는 군주</span><span style="color:#c9a227">${chars[c.liege]?.name||'—'}</span></div>`:`<div class="kv"><span>지위</span><span style="color:#7aaa8a">독립 ${heldKingdomsOf(c.id).length?'국왕':heldDuchiesOf(c.id).length?'공작':'영주'}</span></div>`}
     <div class="kv"><span>신앙</span><span>${faithLabel(c.faith, p.faith)}</span></div>
     <div class="kv"><span>성격</span><span>${c.traits.map(t=>TRAITS[t]?.n||'').filter(Boolean).join(' · ')||'—'}</span></div>
@@ -6153,7 +6238,9 @@ function renderCouncil(){
     const spTask=state.councilTasks?.confidant||'assist_ruler';
     const op=opinion(spouse,p);
     const opColor=op>=0?'#7a9a6a':'#9e5a5a';
-    html+=`<div style="padding:7px 0;border-bottom:1px dotted #2c2316;margin-bottom:8px">
+    html+=`<div style="padding:7px 0;border-bottom:1px dotted #2c2316;margin-bottom:8px;display:flex;gap:8px">
+      ${miniPortrait(spouse,40)}
+      <div style="flex:1;min-width:0">
       <div style="font-size:.82rem;color:var(--gold);font-weight:600">${spouse.name}
         <span style="color:var(--parch-dim);font-size:.68rem"> ${age(spouse)}세</span>
         <span style="color:${opColor};font-size:.65rem"> 호감 ${op>0?'+':''}${op}</span></div>
@@ -6188,7 +6275,7 @@ function renderCouncil(){
       const b=Math.floor((spouse.base[bk]||0)*0.5);
       html+=`${SKILL_NAME_MAP[bk]}+${b} · 월 0.75% 특성 성장 기회`;
     }
-    html+=`</div></div>`;
+    html+=`</div></div></div>`;
   } else {
     html+=`<div style="font-size:.75rem;color:var(--parch-dim);padding:8px 0 8px">배우자 없음 — 혼인 후 자동 배정</div>`;
   }
@@ -6207,6 +6294,7 @@ function renderCouncil(){
     const candidates=fam.filter(c=>age(c)>=16&&!assignedIds.includes(c.id));
     html+=`<div style="padding:7px 0;border-bottom:1px dotted #2c2316"><div style="display:flex;align-items:center;gap:6px">
       <span style="font-size:1.1rem;width:22px;text-align:center">${rinfo.icon}</span>
+      ${councilor?miniPortrait(councilor,34):''}
       <div style="flex:1;min-width:0"><div style="font-size:.82rem;color:var(--parch);font-weight:600">${rinfo.n}</div>`;
     if(councilor){
       const sk=stat(councilor,rinfo.skill);
@@ -7810,6 +7898,7 @@ function renderCourt(){
     const traitTxt=c.traits.map(t=>TRAITS[t]?TRAITS[t].n:'').filter(Boolean).join(' · ')||(c.childTrait?CHILD_TRAITS[c.childTrait].n:'—');
     const councilRole=Object.entries(state.council).find(([,v])=>v===c.id);
     html+=`<tr style="border-bottom:1px dotted #2c2316">
+      <td style="padding:6px 2px 6px 4px;width:1%;white-space:nowrap">${miniPortrait(c,28)}</td>
       <td style="padding:6px 4px">
         <b>${c.name}</b>${councilRole?` <span style="color:var(--gold);font-size:.7rem">${COUNCIL_ROLES[councilRole[0]]?.icon||''}</span>`:''}
         <span style="color:var(--parch-dim);font-size:.74rem"> ${age(c)}세</span><br>
