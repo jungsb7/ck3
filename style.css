@@ -246,23 +246,21 @@ button:disabled{opacity:.35; cursor:default}
   width:min(360px,90vw);
   background:var(--panel);
   border-left:2px solid var(--line);
-  box-shadow:-6px 0 32px rgba(0,0,0,.7);
   transform:translateX(100%);
   transition:transform .28s cubic-bezier(.4,0,.2,1);
   z-index:35; display:flex; flex-direction:column;
   overflow:visible;
 }
-.side-panel.open{ transform:translateX(0) }
+.side-panel.open{ transform:translateX(0); box-shadow:-6px 0 32px rgba(0,0,0,.7) }
 /* 탭: 패널 왼쪽 바깥에 붙어서 같이 이동 */
 .panel-tab{
   position:absolute; left:-36px; width:36px;
   background:linear-gradient(#2e2214,#1c1408);
   border:1px solid var(--gold-dim); border-right:none;
   border-radius:8px 0 0 8px;
-  color:var(--gold); font-size:.55rem; letter-spacing:.18em;
-  writing-mode:vertical-rl; cursor:pointer;
+  color:var(--gold); font-size:.62rem; letter-spacing:.08em;
+  writing-mode:vertical-rl; white-space:nowrap; line-height:1.1; cursor:pointer;
   font-family:inherit;
-  box-shadow:-4px 0 14px rgba(0,0,0,.65);
   display:flex; align-items:center; justify-content:center;
   gap:0;
 }
