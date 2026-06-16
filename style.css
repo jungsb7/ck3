@@ -273,6 +273,7 @@ button:disabled{opacity:.35; cursor:default}
 #actTab     { top:280px; height:52px; }
 #courtTab   { top:334px; height:52px; }
 #decTab     { top:388px; height:52px; }
+#warTab     { top:442px; height:52px; }
 .panel-head{
   flex:0 0 auto; font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
   padding:8px 14px; border-bottom:1px solid var(--line);
