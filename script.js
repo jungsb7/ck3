@@ -8247,52 +8247,63 @@ function renderChar(){
   el.style.color=lv===0?'var(--parch-dim)':lv===1?'#c8a24a':lv===2?'#c87a4a':'#d05a4a';
 }
 function renderMap(){
-  const svg=document.getElementById('map');
+  const svg=document.getElementById('map'); if(!svg) return;
   const p=playerChar();
   let h='';
-  // 백작령 간 인접선
-  const drawn=new Set();
-  for(const cid in COUNTY_ADJ){
-    for(const nb of (COUNTY_ADJ[cid]||[])){
-      const k=[cid,nb].sort().join('|');
-      if(drawn.has(k)) continue; drawn.add(k);
-      const A=COUNTIES[cid],B=COUNTIES[nb]; if(!A||!B) continue;
-      const inWar=state.wars.some(w=>{
-        const aH=countyHolder(cid),bH=countyHolder(nb);
-        return aH&&bH&&((chars[w.atk]?.id===aH.id&&chars[w.def]?.id===bH.id)||(chars[w.atk]?.id===bH.id&&chars[w.def]?.id===aH.id));
-      });
-      h+=`<line class="edge${inWar?' warEdge':''}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
+  try {
+    // 백작령 간 인접선
+    const drawn=new Set();
+    for(const cid in COUNTY_ADJ){
+      for(const nb of (COUNTY_ADJ[cid]||[])){
+        const k=[cid,nb].sort().join('|');
+        if(drawn.has(k)) continue; drawn.add(k);
+        const A=COUNTIES[cid],B=COUNTIES[nb]; if(!A||!B) continue;
+        const inWar=state.wars.some(w=>{
+          const aH=countyHolder(cid),bH=countyHolder(nb);
+          return aH&&bH&&((chars[w.atk]?.id===aH.id&&chars[w.def]?.id===bH.id)||(chars[w.atk]?.id===bH.id&&chars[w.def]?.id===aH.id));
+        });
+        h+=`<line class="edge${inWar?' warEdge':''}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
+      }
     }
-  }
-  // 백작령 노드 (15개)
-  for(const cid in COUNTIES){
-    const C=COUNTIES[cid];
-    const holder=countyHolder(cid);
-    const mine=holder&&holder.id===p.id; // 플레이어 직할
-    // ① 원 내부(fill) = de jure 공작령 권역 색 (같은 공작령끼리 동일, 지배자 무관)
-    const fillCol=DUCHIES[C.duchy]?.color||'#555';
-    // ② 원 테두리(stroke) = 최상위 주군(realm)에게 배정된 고유 색 (독립 백작은 얇은 회색)
-    const strokeCol=holder?realmStrokeColor(holder):'#6a5836';
-    const pettyRealm=holder&&isPettyRealm(holder); // 독립 백작 → 얇은 회색
-    const bids=C.baronies;
-    const totalT=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
-    const avgPop=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length);
-    const rad=mine?22:18;
-    const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
-    const strokeW=underSiege?2:(pettyRealm?1.5:2.5);
-    h+=`<g class="node" onclick="openCounty('${cid}')">
-      <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}"/>
-      ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
-      ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
-      <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
-      <text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${holder?holder.name.split(' ')[0]:'—'}${holder&&!isIndependent(holder)?` ⊂${(chars[holder.liege]?.name||'').split(' ')[0]}`:''}</text>
-      <text class="owner" x="${C.x}" y="${C.y+36}" style="font-size:7.5px;fill:#7a6848">⚔${totalT} 민${avgPop}</text>
-    </g>`;
-  }
-  svg.innerHTML=h;
+    // 백작령 노드 (15개) — 노드별 가드로 1개가 실패해도 지도 전체가 죽지 않음
+    for(const cid in COUNTIES){
+      try {
+        const C=COUNTIES[cid];
+        const holder=countyHolder(cid);
+        const mine=holder&&p&&holder.id===p.id; // 플레이어 직할 (p null 가드)
+        // ① 원 내부(fill) = de jure 공작령 권역 색
+        const fillCol=DUCHIES[C.duchy]?.color||'#555';
+        // ② 원 테두리(stroke) = 최상위 주군(realm) 고유 색 (독립 백작은 얇은 회색)
+        const strokeCol=holder?realmStrokeColor(holder):'#6a5836';
+        const pettyRealm=holder&&isPettyRealm(holder);
+        const bids=C.baronies||[];
+        const totalT=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
+        const avgPop=bids.length?Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.pop||60),0)/bids.length):60;
+        const rad=mine?22:18;
+        const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
+        const strokeW=underSiege?2:(pettyRealm?1.5:2.5);
+        const ownerNm=holder?(holder.name||'?').split(' ')[0]:'—';
+        const liegeNm=holder&&!isIndependent(holder)?` ⊂${(chars[holder.liege]?.name||'').split(' ')[0]}`:'';
+        h+=`<g class="node" onclick="openCounty('${cid}')">
+          <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}"/>
+          ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
+          ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
+          <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
+          <text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${ownerNm}${liegeNm}</text>
+          <text class="owner" x="${C.x}" y="${C.y+36}" style="font-size:7.5px;fill:#7a6848">⚔${totalT} 민${avgPop}</text>
+        </g>`;
+      } catch(nodeErr){ console.error('renderMap 노드 오류:', cid, nodeErr); }
+    }
+  } catch(mapErr){ console.error('renderMap 오류:', mapErr); }
+  svg.innerHTML=h; // 부분 실패여도 그릴 수 있는 만큼은 그림
 }
 function ownerRegionOf(c){ return c.region || regionsOf(c.id)[0] || null; }
-function renderAll(){ renderHeader(); renderChar(); renderMap(); renderActivityWidget(); }
+function renderAll(){
+  try{ renderHeader(); }catch(e){ console.error('renderHeader 오류:', e); }
+  try{ renderChar(); }catch(e){ console.error('renderChar 오류:', e); }
+  try{ renderMap(); }catch(e){ console.error('renderMap 오류:', e); }
+  try{ renderActivityWidget(); }catch(e){ console.error('renderActivityWidget 오류:', e); }
+}
 
 /* ---------- 시작 ---------- */
 function intro(){
