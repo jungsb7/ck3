@@ -24,6 +24,7 @@
     <h3>에이레 — 일곱 왕국</h3>
     <svg id="map" viewBox="0 0 420 470" preserveAspectRatio="xMidYMid meet"></svg>
     <button id="baronyToggle" onclick="toggleBaronies()" title="남작령 표시 전환" style="position:absolute;top:6px;right:6px;font-size:.62rem;font-family:inherit;padding:2px 7px;border:1px solid var(--gold-dim);border-radius:3px;background:rgba(20,16,10,.8);color:var(--parch-dim);cursor:pointer;z-index:5">남작령</button>
+    <button id="mapReset" onclick="resetMapView()" title="지도 원위치" style="position:absolute;top:6px;left:6px;font-size:.62rem;font-family:inherit;padding:2px 7px;border:1px solid var(--gold-dim);border-radius:3px;background:rgba(20,16,10,.8);color:var(--parch-dim);cursor:pointer;z-index:5">⤢ 원위치</button>
     <div id="actWidget" onclick="initAudio();togglePanel('act')" title="진행 중인 활동"></div>
   </div>
   <div id="logWrap" class="side-panel">
@@ -99,6 +100,6 @@
 <div id="profileShade"><div id="profileModal"></div></div>
 <div id="actShade"><div id="actModal"></div></div>
 
-<script src="script.js?v=100"></script>
+<script src="script.js?v=105"></script>
 </body>
 </html>
