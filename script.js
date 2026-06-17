@@ -71,7 +71,7 @@ const TRAITS = {
   brave:     {n:'용감',   opp:'craven',    mod:{mar:2,prow:3}, ai:{bold:2}},
   craven:    {n:'비겁',   opp:'brave',     mod:{mar:-2,intr:2}, ai:{bold:-2}},
   calm:      {n:'침착',   opp:'wrathful',  mod:{dip:1,intr:1}, ai:{rat:2}, stressLossMul:1.1},
-  wrathful:  {n:'분노',   opp:'calm',      mod:{dip:-1,mar:3,intr:-1}, ai:{venge:2,bold:1}},
+  wrathful:  {n:'다혈질',   opp:'calm',      mod:{dip:-1,mar:3,intr:-1}, ai:{venge:2,bold:1}},
   chaste:    {n:'순결',   opp:'lustful',   mod:{learn:2}, fert:-0.25},
   lustful:   {n:'호색',   opp:'chaste',    mod:{intr:2}, fert:0.25},
   content:   {n:'만족',   opp:'ambitious', mod:{learn:2,intr:-1}, ai:{greed:-2}, stressLossMul:1.1},
@@ -345,7 +345,7 @@ const CHILD_TRAITS = {
 };
 
 /* ---------- 교육 특성 ---------- */
-const SKILLS = {dip:'외교', mar:'무예', stew:'내정', intr:'음모', learn:'학문'};
+const SKILLS = {dip:'외교력', mar:'전투력', stew:'관리력', intr:'계책력', learn:'학습력'};
 const EDU_NAMES = {
   dip:['서툰 협상가','수습 외교관','노련한 협상가','카리스마적 협상가'],
   mar:['그릇된 전사','강인한 병사','숙련된 전술가','명석한 전략가'],
@@ -515,87 +515,240 @@ function kingdomCounties(kid){
    건물 시스템 (Phase 4)
    각 남작령: 슬롯 2개, 동일 건물 중복 불가
    ══════════════════════════════════════════════════ */
-const BUILDINGS = {
-  // 군사 건물
-  barracks:   { n:'병영',     icon:'⚔', cost:80,  time:6,  cat:'mil',
-    effect:{ troops_cap:+150, troops_regen:+2 },
-    desc:'병력 상한 +150, 매달 회복 +2' },
-  watchtower: { n:'망루',     icon:'🗼', cost:60,  time:4,  cat:'mil',
-    effect:{ troops_cap:+80,  war_score_def:+5 },
-    desc:'병력 상한 +80, 방어 전황 +5' },
-  // 경제 건물
-  market:     { n:'시장',     icon:'🪙', cost:70,  time:5,  cat:'eco',
-    effect:{ gold_income:+4 },
-    desc:'매달 금 +4' },
-  mill:       { n:'방앗간',   icon:'⚙', cost:50,  time:4,  cat:'eco',
-    effect:{ gold_income:+2, pop_growth:+1 },
-    desc:'매달 금 +2, 민심 유지 +1' },
-  // 종교 건물
-  chapel:     { n:'예배당',   icon:'✝', cost:60,  time:5,  cat:'rel',
-    effect:{ prestige:+1, pop_growth:+2 },
-    desc:'매달 위신 +1, 민심 +2' },
-  // 방어 건물
-  fortify:    { n:'성벽 강화', icon:'🏰', cost:100, time:8, cat:'def',
-    effect:{ troops_cap:+200, siege_defense:+15 },
-    desc:'병력 상한 +200, 공성 방어 +15%' },
-  // 농업
-  farmstead:  { n:'농장',     icon:'🌾', cost:40,  time:3,  cat:'eco',
-    effect:{ gold_income:+1, pop_growth:+3 },
-    desc:'매달 금 +1, 민심 +3' },
+/* ════════════════════════════════════════════════════
+   건물 시스템 — CK3 충실 재현 (v74: v73 시스템 + 1단계 지형·시대)
+   출처: CK3 Wiki Building/Military_buildings/Castle_buildings(v1.18~1.19)
+         지형수치 ck3cheats.com·CK3 Wiki Modifier list / 한글명 나무위키 크킹3·건물
+   구조: 지형(전투 유리함·보급·개발) + 보유지 유형/등급 + 시대 + 라인별 8단계
+   ── 수치 환산(SCALE) — 게임 경제(병력 수백·금 수십) 규모로 정규화 ──
+     · 건설비: CK3 150/250/340/500/750/1110/1600/2240 ÷5
+     · 수비대: CK3 톤(요새 라인 +250~) ÷10
+     · 징집병: CK3(+100~) ÷~1.5 / 세금·개발: CK3 톤 유지
+     · 요새레벨: 건물 단계당 +1로 정규화(CK3 +2~16 → 게임 1~8)
+   ── 시대(혁신 대체 스캐폴드): 연도로 시대 해제 → 건물 최대단계 게이트.
+      나중에 gameEra 내부만 연도→혁신진행도로 교체하면 됨(전방 호환) ──
+   ════════════════════════════════════════════════════ */
+
+/* 지형 정의 + CK3 전투/보급/개발 보정 (이동속도 제외)
+   advantage=방어자 유리함(CK3값) · supplyMul=보급 배수 · devMul=개발 배수 */
+const TERRAIN = {
+  farmlands:{ n:'농지',   advantage:0,  supplyMul:+0.35, devMul:+0.20 },
+  floodplain:{n:'범람원', advantage:0,  supplyMul:+0.35, devMul:+0.20 },
+  plains:   { n:'평원',   advantage:0,  supplyMul: 0.00, devMul: 0.00 },
+  hills:    { n:'구릉',   advantage:5,  supplyMul:-0.10, devMul:-0.10 },
+  forest:   { n:'삼림',   advantage:3,  supplyMul:-0.10, devMul: 0.00 },
+  wetlands: { n:'저습지', advantage:2,  supplyMul:-0.15, devMul:-0.10 }, // 전투폭 60%·일부 [추정]
+  mountains:{ n:'산악',   advantage:12, supplyMul:-0.50, devMul:-0.25 },
+  drylands: { n:'건조지', advantage:0,  supplyMul: 0.00, devMul: 0.00 },
 };
-const BUILDING_SLOTS = 2; // 남작령당 슬롯 수
+/* 1066 아일랜드 군별 지형 — CK3 실제 지형지도 판독 배정
+   출처: CK3 terrain_map.png(SaucyPigeon/ck3_mapdata, CK3 Wiki Barony 지도 원본) + 범례 대조
+   판독: 아일랜드는 농지·산악 없음. 서부=저습지·동중부=평원·산지=구릉·일부=삼림 */
+const COUNTY_TERRAIN = {
+  c_thomond:'plains',  c_ennis:'wetlands', c_ormond:'plains',  c_desmond:'hills',
+  c_leinster:'plains', c_ossory:'plains',  c_dublin:'plains',  c_meath:'plains',
+  c_athlone:'wetlands', c_connacht:'wetlands', c_mayo:'wetlands', c_breifne:'hills',
+  c_ulster:'hills',    c_oriel:'forest',   c_ailech:'hills',
+};
+function baronyTerrain(bid){ const b=BARONIES[bid]; if(!b) return 'plains';
+  return b.terrain || COUNTY_TERRAIN[b.county] || 'plains'; }
+function terrainAdvantage(bid){ return TERRAIN[baronyTerrain(bid)]?.advantage||0; }
+function terrainSupplyMul(bid){ return TERRAIN[baronyTerrain(bid)]?.supplyMul||0; }
+function terrainDevMul(bid){ return TERRAIN[baronyTerrain(bid)]?.devMul||0; }
+/* county 단위 대표 지형(수도 남작령 기준) */
+function countyTerrain(cid){ const cap=COUNTIES[cid]?.capital; return cap?baronyTerrain(cap):'plains'; }
+
+/* ── 시대 스캐폴드 (혁신 대체) ──
+   연도 임계는 임의값[추정] — 상수만 바꾸면 페이싱 조정, 나중에 혁신진행도로 교체 가능 */
+const ERA_YEARS = { highMedieval:1120, lateMedieval:1270 }; // 1066 시작=초기중세
+const ERA_NAME = { 1:'초기중세', 2:'성기중세', 3:'후기중세' };
+function gameEra(year){ year=year||(state?.year||1066);
+  if(year>=ERA_YEARS.lateMedieval) return 3;
+  if(year>=ERA_YEARS.highMedieval) return 2;
+  return 1; }
+/* 시대가 해제하는 최대 건물 단계: 시대 E → 2+2E (CK3: 시대마다 2단계) */
+function eraMaxLevel(year){ return 2 + 2*gameEra(year); }
+
+/* 단계 공통 곡선 */
+const BLD_COST    = [30,50,70,100,150,220,320,450];   // CK3 ÷5
+const BLD_TIME    = [4,4,5,5,6,6,8,8];                  // 개월
+const BLD_HOLDREQ = [1,1,2,2,3,3,4,4];                  // 요구 보유지 등급
+
+/* 라인 정의: base=1단계, grow=단계당 증가. eff는 lvEff().
+   eff 키: tax(금/월)·pop(개발/월)·levyCap(병력상한)·regen(회복/월)·fort(요새레벨)
+          garrison(수비대)·def(방어유리)·supply(보급가산)
+   maa: {유닛키:{dmg,tough}} — 단계1 기준값, 적용은 3단계(현재 저장만)
+   holding/terrain: 건설 가능 보유지유형/지형(null=전체) */
+const CK3_BUILDINGS = {
+  holding:{ n:'본성', cat:'hold', icon:'🏰', holding:null, terrain:null, maxLv:8, isHolding:true,
+    nameByType:{castle:'성채',city:'도시',temple:'사원'},
+    base:{ levyCap:50, tax:1.0, garrison:15 }, grow:{ levyCap:30, tax:0.6, garrison:12 },
+    desc:'보유지 본건물 — 등급↑로 병력상한·세금·수비대 증가, 고단계 건물 해제' },
+
+  /* 경제(지형 잠금) */
+  farms:   { n:'농장 및 경작지', cat:'eco', icon:'🌾', holding:null, terrain:['farmlands','plains','drylands','floodplain'],
+    base:{ tax:0.5, pop:0.10, supply:5 }, grow:{ tax:0.6, pop:0.05, supply:5 },
+    desc:'CK3 농장 및 경작지 — 세금·개발·보급(농지/평원/건조지/범람원). CK3 기본세 0.5' },
+  hillfarm:{ n:'구릉지 농장', cat:'eco', icon:'🌄', holding:null, terrain:['hills'],
+    base:{ tax:0.4, pop:0.08, levyCap:10 }, grow:{ tax:0.5, pop:0.04, levyCap:10 },
+    desc:'CK3 구릉지 농장 — 세금·개발·소폭 병력(구릉)' },
+  wetfarm: { n:'저습지 농장', cat:'eco', icon:'🌿', holding:null, terrain:['wetlands'],
+    base:{ tax:0.45, pop:0.06, regen:1, supply:3 }, grow:{ tax:0.5, pop:0.04, regen:1, supply:3 },
+    desc:'CK3 저습지 농장 — 세금·개발·보급(저습지)' },
+  forestry:{ n:'삼림지', cat:'eco', icon:'🌲', holding:null, terrain:['forest'],
+    base:{ tax:0.4, pop:0.09 }, grow:{ tax:0.45, pop:0.045 },
+    desc:'CK3 삼림지 — 세금·개발(삼림)' },
+  pasture: { n:'가축 목초지', cat:'eco', icon:'🐄', holding:null, terrain:['farmlands','plains','hills','drylands','mountains'],
+    base:{ tax:0.3, levyCap:15 }, grow:{ tax:0.5, levyCap:14 }, maa:{ light_cavalry:{dmg:0.05,tough:0} },
+    desc:'CK3 가축 목초지 — 세금·병력·경기병(다수 지형)' },
+  hunt:    { n:'사냥터', cat:'eco', icon:'🏹', holding:null, terrain:['forest','hills','plains','drylands'],
+    base:{ pop:0.12, tax:0.2 }, grow:{ pop:0.05, tax:0.3 }, maa:{ light_cavalry:{dmg:0.05,tough:0.05} },
+    desc:'CK3 사냥터 — 개발·세금·경기병(삼림/구릉/평원/건조지)' },
+
+  /* 군사(대부분 전 지형) */
+  barracks:{ n:'병영', cat:'mil', icon:'⚔', holding:null, terrain:['farmlands','plains','hills','forest','mountains','drylands','wetlands'],
+    base:{ levyCap:80, regen:2 }, grow:{ levyCap:25, regen:1 },
+    maa:{ heavy_infantry:{dmg:0.20,tough:0}, pikemen:{dmg:0.20,tough:0} },
+    desc:'CK3 병영 — 징집병·회복·중보병/창병 강화' },
+  milcamp: { n:'군사 주둔지', cat:'mil', icon:'🏕', holding:null, terrain:null,
+    base:{ levyCap:60, regen:3 }, grow:{ levyCap:22, regen:1 },
+    desc:'CK3 군사 주둔지 — 징집병·보충률' },
+  militia: { n:'민병대 야영지', cat:'mil', icon:'🛡', holding:null, terrain:null,
+    base:{ levyCap:100, regen:1 }, grow:{ levyCap:35, regen:1 },
+    desc:'CK3 민병대 야영지 — 대규모 징집병' },
+  stables: { n:'마구간', cat:'mil', icon:'🐎', holding:null, terrain:['farmlands','plains','hills','drylands'],
+    base:{ levyCap:25, regen:1 }, grow:{ levyCap:18, regen:1 }, maa:{ heavy_cavalry:{dmg:0.10,tough:0.05} },
+    desc:'CK3 마구간 — 병력·기병 강화' },
+  smith:   { n:'철공소', cat:'mil', icon:'🔨', holding:null, terrain:null,
+    base:{ regen:2, levyCap:15 }, grow:{ regen:1, levyCap:12 },
+    maa:{ heavy_infantry:{dmg:0,tough:0.10}, pikemen:{dmg:0,tough:0.10} },
+    desc:'CK3 철공소 — 회복·무장병 유지력' },
+
+  /* 요새화(성채 전용) */
+  walls:   { n:'방벽 및 방어탑', cat:'fort', icon:'🧱', holding:['castle'], terrain:null,
+    base:{ fort:1, garrison:25, def:1, tax:0.1 }, grow:{ fort:1, garrison:25, def:1, tax:0.1 },
+    maa:{ archers:{dmg:0.05,tough:0.05} },
+    desc:'CK3 방벽 및 방어탑 — 요새레벨·수비대·방어·궁병(성채 전 지형)' },
+  hillfort:{ n:'구릉 요새', cat:'fort', icon:'⛰', holding:['castle'], terrain:['hills','mountains'],
+    base:{ fort:1, garrison:25, def:2 }, grow:{ fort:1, garrison:25, def:1 },
+    maa:{ skirmishers:{dmg:0.10,tough:0.10}, pikemen:{dmg:0.10,tough:0.10} },
+    desc:'CK3 구릉 요새 — 요새레벨·수비대·방어·산병/창병(성채 구릉/산악)' },
+  watchtower:{ n:'망루', cat:'fort', icon:'🗼', holding:['castle'], terrain:null,
+    base:{ fort:1, garrison:12, def:1 }, grow:{ fort:1, garrison:12 },
+    desc:'CK3 망루 — 요새레벨·소규모 수비대·방어(성채 전 지형)' },
+  forestfort:{ n:'삼림 요새', cat:'fort', icon:'🌳', holding:['castle'], terrain:['forest'],
+    base:{ fort:1, garrison:25, def:2 }, grow:{ fort:1, garrison:24, def:1 },
+    maa:{ skirmishers:{dmg:0.10,tough:0.10} },
+    desc:'CK3 삼림 요새 — 요새레벨·수비대·방어·산병(성채 삼림)' },
+
+  /* 도시/사원 전용 */
+  guild:   { n:'조합', cat:'city', icon:'🏛', holding:['city'], terrain:null,
+    base:{ tax:1.4, pop:0.10 }, grow:{ tax:1.0, pop:0.05 },
+    desc:'CK3 도시 조합 — 세금·개발(도시 전용)' },
+  monastery:{ n:'수도원', cat:'rel', icon:'✝', holding:['temple'], terrain:null,
+    base:{ tax:1.0, pop:0.12 }, grow:{ tax:0.8, pop:0.05 },
+    desc:'CK3 수도원 — 세금·개발(사원 전용)' },
+};
+
+function lvEff(lineId, L){ const ln=CK3_BUILDINGS[lineId]; if(!ln) return {};
+  const out={}, n=Math.max(0,L-1);
+  for(const k in ln.base){ if(typeof ln.base[k]==='number') out[k]=+(ln.base[k]+(ln.grow?.[k]||0)*n).toFixed(2); }
+  return out; }
+/* 무장병 보너스(단계 비례) — Phase 3 적용용. {unit:{dmg,tough}} */
+function maaAt(lineId, L){ const ln=CK3_BUILDINGS[lineId]; if(!ln?.maa) return null;
+  const out={}, m=Math.max(1,L);
+  for(const u in ln.maa){ out[u]={ dmg:+((ln.maa[u].dmg||0)*m).toFixed(2), tough:+((ln.maa[u].tough||0)*m).toFixed(2) }; }
+  return out; }
+function lvCost(L){ return BLD_COST[Math.min(7,L-1)]; }
+function lvTime(L){ return BLD_TIME[Math.min(7,L-1)]; }
+function lvHoldReq(lineId,L){ const ln=CK3_BUILDINGS[lineId]; if(ln?.isHolding) return 1; return BLD_HOLDREQ[Math.min(7,L-1)]; }
+function lineMaxLv(lineId){ return CK3_BUILDINGS[lineId]?.maxLv||8; }
+function lineName(lineId,b){ const ln=CK3_BUILDINGS[lineId]; if(!ln) return lineId;
+  if(ln.isHolding&&b) return ln.nameByType[b.type]||ln.n; return ln.n; }
+
+/* 건물 필드 초기화 */
+(()=>{ for(const bid in BARONIES){ const b=BARONIES[bid];
+  b.builds=[]; b.hlevel=(b.type==='empty')?0:1;
+  b.fortLevel=0; b.garrison=0; b.capBld=0; b.taxBld=0; b.regenBld=0;
+  b.terrain=baronyTerrain(bid);
+  delete b.buildings; delete b.building_queue;
+  if(b.type!=='empty') b.builds.push({line:'holding', level:1, wip:null});
+}})();
+
+/* 슬롯 수 — CK3: 남작령1 + 백작령수도1 (+등급). 게임 근사: 2 + (등급3↑ +1) */
+function baronySlots(bid){ const b=BARONIES[bid]; if(!b||b.type==='empty') return 0;
+  return 2 + ((b.hlevel||1)>=3?1:0); }
+function usedSlots(b){ return (b.builds||[]).filter(s=>s.line!=='holding').length; }
+
+function availableLines(bid){ const b=BARONIES[bid]; if(!b||b.type==='empty') return [];
+  const terr=baronyTerrain(bid), have=new Set((b.builds||[]).map(s=>s.line));
+  return Object.keys(CK3_BUILDINGS).filter(id=>{ const ln=CK3_BUILDINGS[id];
+    if(ln.isHolding||have.has(id)) return false;
+    if(ln.holding&&!ln.holding.includes(b.type)) return false;
+    if(ln.terrain&&!ln.terrain.includes(terr)) return false;
+    return true; }); }
+
+/* 다음 단계 정보 — 시대·보유지등급·금 게이트 */
+function nextLevelInfo(bid, slot){ const b=BARONIES[bid];
+  const toLv=slot.level+1, maxLv=lineMaxLv(slot.line);
+  if(slot.wip) return {ok:false, reason:'건설 중'};
+  if(toLv>maxLv) return {ok:false, reason:'최고 단계'};
+  const eMax=eraMaxLevel(state?.year);
+  if(toLv>eMax) return {ok:false, reason:`${ERA_NAME[gameEra(state?.year)+1]||'다음'} 시대 필요`, toLv};
+  const req=lvHoldReq(slot.line,toLv);
+  if((b.hlevel||1)<req) return {ok:false, reason:`보유지 ${req}등급 필요`, toLv};
+  return {ok:true, toLv, cost:lvCost(toLv), time:lvTime(toLv)}; }
+
+function startUpgrade(bid, lineId){ const p=playerChar(), b=BARONIES[bid]; if(!b||!p) return false;
+  if(b.owner!==p.id){ log('직할 남작령만 건설할 수 있습니다.','dip'); return false; }
+  const seat=BARONIES[p.region]; if(!seat) return false;
+  let slot=(b.builds||[]).find(s=>s.line===lineId);
+  if(!slot){
+    if(usedSlots(b)>=baronySlots(bid)){ log('건물 슬롯이 가득 찼습니다.','dip'); return false; }
+    if(!availableLines(bid).includes(lineId)){ log('이 보유지/지형에 지을 수 없습니다.','dip'); return false; }
+    slot={line:lineId, level:0, wip:null}; b.builds.push(slot);
+  }
+  const info=nextLevelInfo(bid, slot);
+  if(!info.ok){ log(info.reason||'건설 불가','dip'); if(slot.level===0) b.builds=b.builds.filter(s=>s!==slot); return false; }
+  if(seat.gold<info.cost){ log(`금이 부족합니다. (필요 ${info.cost})`,'dip'); if(slot.level===0) b.builds=b.builds.filter(s=>s!==slot); return false; }
+  seat.gold-=info.cost; playSynthSFX&&playSynthSFX('gold');
+  slot.wip={to:info.toLv, prog:0};
+  log(`${b.n}에 <b>${lineName(lineId,b)}</b> ${info.toLv}단계 건설 시작 (${info.time}개월·금${info.cost}).`,'good');
+  return true; }
+
+/* 매달: 건설 진행 + 완공 + 파생효과 재계산 + 월효과 */
+function buildingPulse(){
+  for(const bid in BARONIES){ const b=BARONIES[bid]; if(!b.builds) continue;
+    for(const slot of b.builds){ if(!slot.wip) continue;
+      slot.wip.prog++;
+      if(slot.wip.prog>=lvTime(slot.wip.to)){
+        const prevEff=slot.level>0?lvEff(slot.line,slot.level):{};
+        slot.level=slot.wip.to; slot.wip=null;
+        const ln=CK3_BUILDINGS[slot.line], newEff=lvEff(slot.line,slot.level);
+        if(ln.isHolding) b.hlevel=slot.level;
+        const dCap=(newEff.levyCap||0)-(prevEff.levyCap||0);
+        if(dCap){ b.cap=(b.cap||b.troops||200)+dCap; b.troops=Math.min(b.cap, b.troops+Math.round(dCap*0.5)); }
+        if(b.owner===state.player) log(`${b.n}의 <b>${lineName(slot.line,b)}</b> ${slot.level}단계 완공! ${ln.desc}`,'good');
+      } }
+    let fort=0,gar=0,tax=0,regen=0,popM=0,supply=0;
+    for(const slot of b.builds){ if(slot.level<=0) continue; const e=lvEff(slot.line,slot.level);
+      fort+=e.fort||0; gar+=e.garrison||0; tax+=e.tax||0; regen+=e.regen||0; popM+=e.pop||0; supply+=e.supply||0; }
+    b.fortLevel=fort+duchySiegeFort(bid); b.garrison=Math.round(gar); b.taxBld=tax; b.regenBld=regen; b.supplyBld=supply;
+    if(b.owner===state.player){
+      const seat=BARONIES[playerChar()?.region];
+      const devMul=baronyDevMul(bid); // CK3 개발도: 세금·징집 +0.5%/dev
+      if(seat&&tax>0) seat.gold=Math.min(9999,(seat.gold||0)+tax*devMul*baronyControlTaxMul(bid));
+      if(regen>0) b.troops=Math.min(b.cap||b.troops, b.troops+regen*devMul);
+      /* 건물의 개발 기여(e.pop)는 developmentPulse가 군 개발도로 반영 — 민심(b.pop)과 분리 */
+    }
+  } }
+
+function buildingBonus(bid, key){ const b=BARONIES[bid]; if(!b?.builds) return 0;
+  if(key==='troops_regen') return b.regenBld||0;
+  let s=0; for(const slot of b.builds){ if(slot.level>0){ const e=lvEff(slot.line,slot.level); s+=e[key]||0; } } return s; }
+
 const TAX_RATE = 0.25;   // 봉신 → 영주 기본 세금 비율 (CK3: Baron castle 기준)
 
-/* 남작령 건물 초기화 */
-(()=>{ for(const bid in BARONIES) if(!BARONIES[bid].buildings) BARONIES[bid].buildings=[]; })();
-
-/* 건물 건설 시작: bid=남작령, btype=건물종류 */
-function startBuilding(bid, btype){
-  const b=BARONIES[bid]; const p=playerChar();
-  if(!b||b.owner!==p.id) return false;
-  if(b.buildings.length>=BUILDING_SLOTS){ log('건물 슬롯이 가득 찼습니다.'); return false; }
-  if(b.buildings.some(x=>x.type===btype)){ log('이미 건설된 건물입니다.'); return false; }
-  const bp=BUILDINGS[btype]; if(!bp) return false;
-  const seat=BARONIES[p.region]; if(!seat) return false;
-  if(seat.gold<bp.cost){ log(`금이 부족합니다. (필요: ${bp.cost})`,'dip'); return false; }
-  seat.gold-=bp.cost;
-  playSynthSFX('gold');
-  b.buildings.push({type:btype, progress:0, done:false});
-  log(`${b.n}에 ${bp.n} 건설을 시작했습니다. (${bp.time}개월 소요)`,'good');
-  return true;
-}
-
-/* 매달 건설 진행 + 완공 효과 적용 */
-function buildingPulse(){
-  for(const bid in BARONIES){
-    const b=BARONIES[bid];
-    if(!b.buildings?.length) continue;
-    for(const slot of b.buildings){
-      if(slot.done) continue;
-      slot.progress++;
-      const bp=BUILDINGS[slot.type]; if(!bp) continue;
-      if(slot.progress>=bp.time){
-        slot.done=true;
-        // 완공 효과 적용
-        if(bp.effect.troops_cap) b.cap=(b.cap||b.troops)+bp.effect.troops_cap;
-        if(bid===playerChar().region||b.owner===state.player){
-          log(`${b.n}의 <b>${bp.n}</b>이(가) 완공됐습니다! ${bp.desc}`,'good');
-        }
-      }
-    }
-  }
-
-  // 완공된 건물 효과 goldPulse에 반영 (troops_regen, gold_income, pop_growth)는
-  // goldPulse에서 buildingBonus() 호출로 처리
-}
-
-/* 남작령 건물 보너스 집계 */
-function buildingBonus(bid, key){
-  const b=BARONIES[bid]; if(!b?.buildings) return 0;
-  return b.buildings.filter(s=>s.done).reduce((sum,s)=>{
-    const bp=BUILDINGS[s.type]; return bp?.effect?.[key]?sum+(bp.effect[key]||0):sum;
-  },0);
-}
 /* 백작령 간 인접 관계 */
 const COUNTY_ADJ = {
   c_thomond: ['c_ennis','c_ormond','c_ossory','c_connacht','c_athlone'],
@@ -616,56 +769,416 @@ const COUNTY_ADJ = {
 };
 
 /* ════════════════════════════════════════════════════
-   건물 시스템 (Phase 4)
+   개발도(Development) — CK3 정식 모델 (Phase 2)
+   출처: Paradox Forum(2020-09-17)·FandomSpot(2022-07-12)·CK3 Wiki Government(2026-04)
+     · 개발도 1점 = 군 내 모든 남작령 세금·징집 +0.5% (50dev=+25%)
+     · 개발도 1점 = 보급 한계 +150 (군 단위)
+     · 성장 = 건물 Development Growth + 재무관 과업 + 이웃 군 전파, 상한 근접 시 둔화
+     · 1066 지도 최고 개발도 = 비잔티움 35 → 아일랜드는 저개발
+   환산(SCALE): 세금·징집 +0.5%/dev(CK3 동일) · 보급 +15/dev(게임 규모 축소)
+   초기값: 노르드 교역도시(더블린·리머릭·코크) 소폭↑ [게임 밸런스 추정, CK3 군별 원수치 출처 없음]
    ════════════════════════════════════════════════════ */
-const BUILDING_TYPES = {
-  barracks: {
-    n:'병영', icon:'⚔', cost:80, buildMonths:6,
-    desc:'병력 상한 +150, 병력 회복 +3/월',
-    onComplete: (b)=>{ b.cap+=150; b.troops=Math.min(b.cap,b.troops+50); },
-    monthly: (b)=>{ b.troops=Math.min(b.cap,b.troops+3); }
-  },
-  market: {
-    n:'시장', icon:'💰', cost:60, buildMonths:5,
-    desc:'세금 수입 +8/월',
-    monthly: (b,seatB)=>{ if(seatB) seatB.gold=Math.min(3500,seatB.gold+8); }
-  },
-  chapel: {
-    n:'교회당', icon:'✝', cost:50, buildMonths:4,
-    desc:'민심 +2/월, 사제 명분 위조 확률 +',
-    monthly: (b)=>{ b.pop=Math.min(100,(b.pop||60)+2); }
-  },
-  walls: {
-    n:'성벽', icon:'🏰', cost:100, buildMonths:8,
-    desc:'공성 저항 +1턴, 방어 전투력 +10%',
-    onComplete: ()=>{}, monthly: ()=>{}
-  },
-  farm: {
-    n:'농장', icon:'🌾', cost:45, buildMonths:4,
-    desc:'민심 +1/월, 세금 수입 +4/월',
-    monthly: (b,seatB)=>{ b.pop=Math.min(100,(b.pop||60)+1); if(seatB) seatB.gold=Math.min(3500,seatB.gold+4); }
-  },
-  mill: {
-    n:'제분소', icon:'⚙', cost:55, buildMonths:5,
-    desc:'병력 회복 +2/월, 세금 수입 +5/월',
-    monthly: (b,seatB)=>{ b.troops=Math.min(b.cap,b.troops+2); if(seatB) seatB.gold=Math.min(3500,seatB.gold+5); }
-  },
-};
+const DEV_INIT = { c_dublin:8, c_meath:6, c_thomond:5, c_leinster:5, c_desmond:4,
+  c_ormond:4, c_ossory:4, c_connacht:4, c_ulster:4, c_ennis:3, c_athlone:3,
+  c_mayo:3, c_breifne:3, c_oriel:3, c_ailech:3 };
+const BARONY_COUNTY = {};
+(()=>{ for(const cid in COUNTIES){ const c=COUNTIES[cid];
+  c.dev = DEV_INIT[cid] ?? 3;
+  for(const bid of (c.baronies||[])) BARONY_COUNTY[bid]=cid;
+}})();
+function devCap(){ return 15 + 10*gameEra(state?.year); }            // 시대 상한: 초기25/성기35/후기45
+function countyDev(cid){ return COUNTIES[cid]?.dev||0; }
+function countyDevMul(cid){ return 1 + 0.005*countyDev(cid); }        // CK3: 세금·징집 +0.5%/dev
+function countyDevSupply(cid){ return Math.round(countyDev(cid)*15); } // CK3 +150/dev → 게임 +15/dev
+function baronyDevMul(bid){ const cid=BARONY_COUNTY[bid]; return cid?countyDevMul(cid):1; }
 
-/* 남작령에 건물 필드 추가 (기존 BARONIES에 없으므로 초기화) */
-(()=>{
-  for(const bid in BARONIES){
-    const b=BARONIES[bid];
-    if(!b.buildings) b.buildings=[];   // 완공된 건물
-    if(!b.building_queue) b.building_queue=null; // {type, monthsLeft}
-    if(!b.slots) b.slots=2;           // 최대 건물 슬롯 (기본 2)
-  }
+/* ════════ Phase 2: 남작령 단위 지도 — 좌표·인접 그래프·이동 (CK3식 군대 이동 기반) ════════ */
+/* 남작령 좌표: 수도=county 중심, 그 외=주변 소원 배치 (군대 마커·경로 시각화용) */
+const BARONY_XY = {};
+(()=>{ for(const cid in COUNTIES){ const c=COUNTIES[cid]; const bids=c.baronies||[];
+  const cx=c.x||0, cy=c.y||0; const others=bids.filter(b=>b!==c.capital);
+  if(c.capital) BARONY_XY[c.capital]={x:cx,y:cy};
+  const R=11; others.forEach((b,i)=>{ const ang=-Math.PI/2 + (i+0.5)/others.length*Math.PI*2;
+    BARONY_XY[b]={x:Math.round(cx+R*Math.cos(ang)), y:Math.round(cy+R*Math.sin(ang))}; });
+}})();
+/* 남작령 인접: county 내부=수도 중심 별형 + county 간=수도끼리 연결 (연결 그래프 보장) */
+const BARONY_ADJ = {};
+(()=>{ const add=(a,b)=>{ if(!a||!b||a===b)return; (BARONY_ADJ[a]=BARONY_ADJ[a]||[]); (BARONY_ADJ[b]=BARONY_ADJ[b]||[]);
+    if(!BARONY_ADJ[a].includes(b)) BARONY_ADJ[a].push(b); if(!BARONY_ADJ[b].includes(a)) BARONY_ADJ[b].push(a); };
+  for(const cid in COUNTIES){ const cap=COUNTIES[cid].capital; for(const b of (COUNTIES[cid].baronies||[])) if(b!==cap) add(cap,b); }
+  for(const cid in COUNTY_ADJ){ const capA=COUNTIES[cid]?.capital; for(const nb of COUNTY_ADJ[cid]) add(capA, COUNTIES[nb]?.capital); }
 })();
+/* 지형별 이동 속도 배수 [검색: 평야100·구릉/삼림80·저습지70·산악50%] */
+function terrainMoveSpeed(terrainKey){ return ({plains:1,farmlands:1,floodplain:1,drylands:1,hills:0.8,forest:0.8,wetlands:0.7,mountains:0.5})[terrainKey] ?? 1; }
+function baronyMoveSpeed(bid){ return terrainMoveSpeed(baronyTerrain(bid)); }
+/* 남작령 경로 탐색(BFS) — Phase 3 군대 이동용. 최단 남작령 경로 배열 반환(없으면 null) */
+function baronyPath(from, to){ if(from===to) return [from]; const q=[[from]]; const seen=new Set([from]);
+  while(q.length){ const path=q.shift(); const last=path[path.length-1];
+    for(const nb of (BARONY_ADJ[last]||[])){ if(seen.has(nb)) continue; seen.add(nb);
+      if(nb===to) return path.concat(nb); q.push(path.concat(nb)); } }
+  return null; }
+/* ════════════════════════════════════════════════════════════════════════════ */
 
-/* 건물 효과 매달 적용 */
-// buildingPulse: 새 버전은 phase4_buildings.py에서 정의
+/* ════════ Phase 3: 군대(Army) 객체·이동·지도 마커 ════════ */
+function ensureArmies(){ if(!Array.isArray(state.armies)) state.armies=[]; return state.armies; }
+function _armyId(){ state._armySeq=(state._armySeq||0)+1; return 'army'+state._armySeq; }
+/* 군대 소집: owner의 capBid에서 units(병종별 병사 수) 구성으로 생성 */
+function raiseArmy(owner, capBid, units){ ensureArmies();
+  const a={ id:_armyId(), owner, units:Object.assign({levy:0},units||{}), pos:capBid, dest:null, path:null, hop:0, prog:0, cmd:null, state:'idle' };
+  state.armies.push(a); return a; }
+function armyTroops(a){ let n=0; for(const k in (a.units||{})) n+=(a.units[k]||0); return Math.round(n); }
+/* 플레이어 군대 소집 — 직할 병력(levy) + 무장병(연대×규모) */
+function playerRaiseArmy(){ const p=playerChar(); if(!p) return null; const cap=p.region; if(!cap) return null;
+  let levy=0; for(const bid of regionsOf(p.id)) levy+=(BARONIES[bid]?.troops||0);
+  const units={ levy:Math.round(levy) }; const m=ensureMAA();
+  for(const k in m){ if(m[k]>0) units[k]=m[k]*(MAA_TYPES[k]?.size||100); }
+  if(armyTroops({units})<=0) return null;
+  return raiseArmy(p.id, cap, units); }
+/* 이동 명령 — 목적 남작령까지 BFS 경로 설정 */
+function orderArmyMove(a, destBid){ if(!a||!destBid||destBid===a.pos) return false;
+  const path=baronyPath(a.pos, destBid); if(!path||path.length<2) return false;
+  a.dest=destBid; a.path=path; a.hop=0; a.prog=0; a.state='march'; return true; }
+/* 월간 이동 — 예산 1.0/월, 느린 지형은 비용↑(평야 1홉/월·산악 2개월/홉) */
+function armyMovePulse(){ ensureArmies(); for(const a of state.armies){ if(a.state!=='march'||!a.path) continue;
+  let budget=1.0, guard=0;
+  while(budget>0 && a.path[a.hop+1] && guard++<40){ const nextBid=a.path[a.hop+1];
+    const cost=1/Math.max(0.34, baronyMoveSpeed(nextBid)), need=(1-a.prog)*cost;
+    if(budget>=need){ budget-=need; a.hop++; a.pos=a.path[a.hop]; a.prog=0; }
+    else { a.prog += budget/cost; budget=0; } }
+  if(a.hop>=a.path.length-1){ a.pos=a.dest||a.pos; a.state='idle'; a.dest=null; a.path=null; a.hop=0; a.prog=0; }
+} }
+/* 마커 위치 (행군 중이면 현재 변 위 보간) */
+function armyXY(a){ const at=BARONY_XY[a.pos]; if(a.state!=='march'||!a.path) return at;
+  const cur=BARONY_XY[a.path[a.hop]], nxt=BARONY_XY[a.path[a.hop+1]]; if(!cur||!nxt) return at;
+  return { x:cur.x+(nxt.x-cur.x)*a.prog, y:cur.y+(nxt.y-cur.y)*a.prog }; }
+function disbandArmy(id){ ensureArmies(); state.armies=state.armies.filter(a=>a.id!==id); if(state.selectedArmy===id) state.selectedArmy=null; }
+function selectArmy(id){ state.selectedArmy=(state.selectedArmy===id?null:id); renderMap(); if(typeof renderWar==='function'){ try{renderWar();}catch(e){} } }
+/* ════════════════════════════════════════════════════════════════════════════ */
 
-/* 건물 건설 시작 */
+/* ════════ Phase 4: 4단계 전투 엔진 (CK3) ════════ */
+/* 병종별 지형 가산값 (CK3 정확, 평탄 가산) [나무위키 군사 각주] */
+const MAA_TERRAIN_FLAT = {
+  skirmishers: { forest:{dmg:4,tough:6} },                                    // 삼림 피해+4·유지+6
+  archers:     { hills:{dmg:10,tough:4}, forest:{tough:4,screen:4} },          // 구릉 피해+10·유지+4
+  light_cav:   { plains:{dmg:15}, farmlands:{dmg:15}, drylands:{dmg:15},        // 개활지 피해+15
+                 hills:{dmg:-5}, mountains:{dmg:-5,pursuit:-20},
+                 wetlands:{dmg:-15,tough:-10,pursuit:-30,screen:-30} },          // 험지 큰 불리
+  spearmen:    { mountains:{tough:12}, hills:{tough:8} },                       // 산악 유지+12·구릉+8
+  heavy_inf:   {},                                                              // 지형 무보정
+};
+function maaTerrainFlat(k, terr){ const m=(MAA_TERRAIN_FLAT[k]||{})[terr]||{}; return {dmg:m.dmg||0,tough:m.tough||0,pursuit:m.pursuit||0,screen:m.screen||0}; }
+/* 군대 전투 스탯 합 (지형 반영) — 피해도/유지력/추격/차단 총합 + 평균 유지력 */
+function armyStats(a, terrainKey){ let dmg=0,toughTot=0,troops=0,pursuit=0,screen=0;
+  for(const k in (a.units||{})){ const num=a.units[k]||0; if(num<=0) continue;
+    if(k==='levy'){ dmg+=num*LEVY_DMG; toughTot+=num*LEVY_TOUGH; troops+=num; continue; }
+    if(k==='knights'){ dmg+=num*KNIGHT_DMG_PER_PROWESS*8; toughTot+=num*KNIGHT_TOUGH_PER_PROWESS*8; troops+=num; continue; } // 기사 1기≈기량8 가정
+    const t=MAA_TYPES[k]; if(!t) continue; const tb=maaTerrainFlat(k,terrainKey);
+    dmg+=num*Math.max(0,(t.dmg||0)+tb.dmg); toughTot+=num*Math.max(1,(t.tough||0)+tb.tough);
+    pursuit+=num*Math.max(0,(t.pursuit||0)+tb.pursuit); screen+=num*Math.max(0,(t.screen||0)+tb.screen); troops+=num; }
+  return { dmg, toughTot, avgTough: troops>0?toughTot/troops:1, troops, pursuit, screen }; }
+/* 군대 주력(최다) 무장병 병종 */
+function armyDominantMaa(a){ let best=null,bn=0; for(const k in (a.units||{})){ if(k==='levy'||k==='knights')continue; const num=a.units[k]||0; if(num>bn){bn=num;best=k;} } return best; }
+/* 상성 피해 배수(<1=내 피해 감소): 적 주력이 내 주력을 카운터하면 감소 (2:1 −90%·1:1 −50%) */
+function counterDamageMul(myType, enemyType, myCnt, enemyCnt){ if(!myType||!enemyType) return 1;
+  if(MAA_COUNTERS[enemyType]===myType){ const ratio=(myCnt>0)?enemyCnt/myCnt:1; return 1-Math.min(0.9, 0.45*Math.max(0,ratio)); }
+  return 1; }
+/* 비율로 군대 병력 축소(units 비례 차감) → 실제 손실 병력 반환 */
+function _scaleArmyUnits(a, keepFrac){ keepFrac=Math.max(0,Math.min(1,keepFrac)); let lost=0;
+  for(const k in a.units){ const before=a.units[k]||0; const after=Math.round(before*keepFrac); lost+=(before-after); a.units[k]=after; }
+  return lost; }
+/* ── 4단계 전투 해결 (기동→초기→후기→추격). 양 군 units를 변형하고 결과 반환 ── */
+function runBattle(atk, def, terrainKey){
+  const atk0=armyTroops(atk), def0=armyTroops(def);
+  const atkComp0=Object.assign({},atk.units), defComp0=Object.assign({},def.units); // UI용 초기 편성
+  if(atk0<=0||def0<=0) return null;
+  // ① 기동: 지휘관 전투력차 → 유리함(advantage pt)
+  const aCmd=atk.cmd&&chars[atk.cmd], dCmd=def.cmd&&chars[def.cmd];
+  const advantage=(aCmd?stat(aCmd,'mar'):0)-(dCmd?stat(dCmd,'mar'):0);
+  const aType=armyDominantMaa(atk), dType=armyDominantMaa(def);
+  const aCnt=atk.units[aType]||0, dCnt=def.units[dType]||0;
+  const cA=counterDamageMul(aType,dType,aCnt,dCnt), cD=counterDamageMul(dType,aType,dCnt,aCnt);
+  // ②③ 초기·후기 전투: 일일 피해 교환 (남은 비율 추적)
+  let aScale=1, dScale=1; const maxDays=60, earlyDays=8; let day=0, phase='early';
+  while(day<maxDays && aScale>0 && dScale>0){
+    const sa=armyStats(atk,terrainKey), sd=armyStats(def,terrainKey);
+    const aT=sa.troops*aScale, dT=sd.troops*dScale; if(aT<=0||dT<=0) break;
+    const width=(aT+dT)/2; const effA=Math.min(1,width/Math.max(1,aT)), effD=Math.min(1,width/Math.max(1,dT));
+    const advA=advantage>0?1+advantage*0.05:1, advD=advantage<0?1+(-advantage)*0.05:1; // 유리함 +5%/pt [CK3]
+    const dmgA=sa.dmg*aScale*0.03*effA*advA*cA, dmgD=sd.dmg*dScale*0.03*effD*advD*cD; // 일일 피해 [CK3 0.03/pt]
+    const dLossFrac=(dmgA/Math.max(1,sd.avgTough))/def0, aLossFrac=(dmgD/Math.max(1,sa.avgTough))/atk0;
+    dScale=Math.max(0,dScale-dLossFrac); aScale=Math.max(0,aScale-aLossFrac);
+    day++; if(day>=earlyDays) phase='late';
+    if(aScale<=0.30||dScale<=0.30) break;             // 한쪽 붕괴 → 종전
+    if(phase==='late' && Math.min(aScale,dScale)/Math.max(aScale,dScale)<0.62) break; // 후기: 열세측 후퇴 결정
+  }
+  const atkWins=aScale>=dScale; const phaseEndedEarly=(phase==='early');
+  // 전투 손실 적용 (치명 30%/패주 70% [CK3]). 승자는 패주 복귀(치명만 손실), 패자는 전부 손실.
+  const aCasFrac=1-aScale, dCasFrac=1-dScale;
+  const winner=atkWins?atk:def, loser=atkWins?def:atk;
+  const winKeep = 1-(atkWins?aCasFrac:dCasFrac)*0.30;   // 승자: 치명(30%)만 영구 손실
+  const FATAL = phaseEndedEarly?1.0:0.30;               // 초기 패배 시 패주도 전부 치명 [CK3]
+  const loseCasFrac=(atkWins?dCasFrac:aCasFrac);
+  // ④ 추격: 승자 추격 vs 패자 차단 → 패주 추가 치명 (간이: 추격/차단 비로 패자 손실 가중)
+  const ws=armyStats(winner,terrainKey), ls=armyStats(loser,terrainKey);
+  const pursuitExtra=Math.min(0.45, (ws.pursuit/Math.max(1,ws.troops))*0.012 - (ls.screen/Math.max(1,ls.troops))*0.012*0.33);
+  const loseKeep = Math.max(0, 1 - loseCasFrac - Math.max(0,pursuitExtra)*(1-loseCasFrac));
+  const winLost=_scaleArmyUnits(winner, winKeep);
+  const loseLost=_scaleArmyUnits(loser, loseKeep);
+  return { atkWins, atk0, def0, days:day, terrain:terrainKey, advantage,
+    aType, dType, counterA:cA<0.999, counterD:cD<0.999,
+    winner, loser, winLost, loseLost, winLeft:armyTroops(winner), loseLeft:armyTroops(loser),
+    pursuit:pursuitExtra>0.01, atkComp0, defComp0, phaseEndedEarly,
+    phases:['기동','초기 전투'].concat(phaseEndedEarly?[]:['후기 전투']).concat(pursuitExtra>0.01?['추격']:[]) };
+}
+/* 두 군대 적대? (소유주가 서로 전쟁 중) */
+function armiesHostile(a,b){ if(!a||!b||a.owner===b.owner) return false;
+  return state.wars.some(w=>(w.atk===a.owner&&w.def===b.owner)||(w.atk===b.owner&&w.def===a.owner)); }
+/* 패배 군대 후퇴 — 인접 남작령(가능하면 자기 영토)으로 */
+function retreatArmy(a){ const opts=(BARONY_ADJ[a.pos]||[]).filter(Boolean);
+  const dest=opts.find(b=>BARONIES[b]?.owner===a.owner) || opts[0];
+  if(dest) a.pos=dest; a.state='idle'; a.dest=null; a.path=null; a.hop=0; a.prog=0; }
+/* 적 county에 도착한 플레이어 군대 상대로 수비군 자동 편성 (데모·전선 형성) */
+function ensureDefenderArmy(cid){ const cnt=COUNTIES[cid]; if(!cnt) return null;
+  const holder=countyHolder(cid); if(!holder||holder.id===state.player) return null;
+  if((state.armies||[]).some(a=>a.owner===holder.id && BARONY_COUNTY[a.pos]===cid)) return null; // 이미 있음
+  const now=(state.year||0)*12+(state.month||0); if(!state._defCD) state._defCD={};
+  if((state._defCD[cid]||0)>now) return null;               // 쿨다운: 매월 재편성 방지
+  let levy=0; for(const bid of (cnt.baronies||[])) levy+=(BARONIES[bid]?.troops||0);
+  if(levy<300) return null;                                  // 잔여 수비 병력 부족 → 더는 편성 안 함
+  const raise=Math.round(levy*0.6);
+  let drain=raise; for(const bid of (cnt.baronies||[])){ if(drain<=0)break; const b=BARONIES[bid]; if(!b)continue;
+    const d=Math.min(b.troops||0,drain); b.troops=(b.troops||0)-d; drain-=d; }   // 동원분만큼 차감(고갈)
+  state._defCD[cid]=now+9;                                   // 최소 9개월 간격
+  const def=raiseArmy(holder.id, cnt.capital, {levy:raise});
+  const et=enemyMaaType(holder.id); if(et&&MAA_TYPES[et]) def.units[et]=Math.round(levy*0.12);
+  return def; }
+/* ── 전투 펄스: 적대 군대 조우 시 전투 해결 (월간) ── */
+function battlePulse(){ ensureArmies();
+  // 플레이어 군대가 전쟁 중인 적 county에 대기 중이면 수비군 자동 편성
+  for(const a of state.armies.slice()){ if(a.owner!==state.player||a.state!=='idle') continue;
+    const cid=BARONY_COUNTY[a.pos]; const holder=cid&&countyHolder(cid);
+    if(holder&&holder.id!==state.player && state.wars.some(w=>(w.atk===state.player&&w.def===holder.id)||(w.atk===holder.id&&w.def===state.player))) ensureDefenderArmy(cid); }
+  // 동일 남작령의 적대 군대 쌍 → 전투
+  const byPos={}; for(const a of state.armies){ (byPos[a.pos]=byPos[a.pos]||[]).push(a); }
+  for(const pos in byPos){ const list=byPos[pos]; if(list.length<2) continue;
+    for(let i=0;i<list.length;i++){ for(let j=i+1;j<list.length;j++){ const A=list[i],B=list[j];
+      if(!armiesHostile(A,B)) continue;
+      const terr=baronyTerrain(pos), cn=COUNTIES[BARONY_COUNTY[pos]]?.n||'전장';
+      const r=runBattle(A,B,terr); if(!r) continue;
+      state._battleN=(state._battleN||0)+1;
+      const pl=(r.winner.owner===state.player||r.loser.owner===state.player);
+      const loserMine=r.loser.owner===state.player;
+      if(pl) state._lastBattle={cn, terr, atkMine:A.owner===state.player, defMine:B.owner===state.player,
+        atkName:(chars[A.owner]?.name||'적군').split(' ')[0], defName:(chars[B.owner]?.name||'적군').split(' ')[0], r};
+      const rep=`<span onclick="showLastBattle()" style="cursor:pointer;text-decoration:underline;color:var(--gold-dim)">▸보고</span>`;
+      const now=(state.year||0)*12+(state.month||0); if(!state._defCD) state._defCD={}; const lcid=BARONY_COUNTY[pos];
+      if(r.loseLeft<=Math.max(60, r.loseLost*0.02)){ // 궤멸
+        if(pl) log(`⚔ ${cn} 전투 — ${loserMine?'아군':'적군'} 군대 <b>궤멸</b>! ${rep}`,'war');
+        if(!loserMine && lcid) state._defCD[lcid]=now+18;   // 적 수비 격파 → 18개월간 진압
+        disbandArmy(r.loser.id);
+      } else { retreatArmy(r.loser);
+        if(!loserMine && lcid) state._defCD[lcid]=now+18;   // 적 수비 패퇴 → 진압
+        if(pl) log(`⚔ ${cn} 전투 — <b>${r.winner.owner===state.player?'아군':'적군'} 승리</b> · 패잔병 후퇴(손실 ${r.loseLost.toLocaleString()}) ${rep}`,'war'); }
+      // 팝업 throttle: 직전 전투 팝업 후 3개월 이상 지났을 때만 자동 표시(나머지는 ▸보고로 열람)
+      if(pl && now-(state._lastBattlePopup||-99)>=3){ state._lastBattlePopup=now; try{ popup({title:`${cn} 전투`, sub:'전투 보고', html:battleModalHtml(state._lastBattle)}); }catch(e){} }
+      return; // 월당 한 전투
+    } } }
+}
+/* ── Phase 5: 전투 결과 모달 ── */
+function _compStr(comp){ const parts=[]; for(const k in (comp||{})){ const num=comp[k]||0; if(num<=0)continue;
+  const nm=k==='levy'?'징집병':k==='knights'?'기사':(MAA_TYPES[k]?.n||k); parts.push(`${nm} ${Math.round(num).toLocaleString()}`); }
+  return parts.join(' · ')||'—'; }
+function battleModalHtml(d){ const b=d&&d.r; if(!b) return '<div>전투 기록 없음</div>';
+  const atkWon=b.atkWins;
+  const allPhases=['기동','초기 전투','후기 전투','추격'];
+  const phaseBar=allPhases.map(ph=>{ const on=(b.phases||[]).includes(ph);
+    return `<div style="flex:1;text-align:center;padding:3px 1px;font-size:.58rem;border-radius:3px;background:${on?'#3a2c18':'#15110a'};color:${on?'var(--gold)':'#5a5040'};border:1px solid ${on?'var(--gold-dim)':'#241a0e'}">${ph}</div>`;
+  }).join('<span style="align-self:center;color:#5a5040;font-size:.55rem;padding:0 1px">▸</span>');
+  const panel=(name,mine,comp0,t0,left,lost,won)=>`
+    <div style="flex:1;background:#15110a;border:1px solid ${won?'var(--gold-dim)':'#3a241a'};border-radius:5px;padding:8px">
+      <div style="display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:4px">
+        <b style="color:${mine?'#7a9ad0':'#d08a6a'}">${name}</b><span style="color:${won?'var(--gold)':'#9e5a5a'};font-size:.72rem">${won?'승리':'패배'}</span></div>
+      <div style="font-size:.6rem;color:var(--parch-dim);margin-bottom:6px;line-height:1.4">${_compStr(comp0)}</div>
+      <div style="display:flex;justify-content:space-between;font-size:.72rem"><span style="color:var(--parch-dim)">병력</span><span>${t0.toLocaleString()} → <b>${left.toLocaleString()}</b></span></div>
+      <div style="display:flex;justify-content:space-between;font-size:.68rem;color:#c07a5a"><span>손실</span><span>${lost.toLocaleString()}</span></div>
+    </div>`;
+  const atkLeft=atkWon?b.winLeft:b.loseLeft, defLeft=atkWon?b.loseLeft:b.winLeft;
+  const atkLost=atkWon?b.winLost:b.loseLost, defLost=atkWon?b.loseLost:b.winLost;
+  const mods=[];
+  if(b.advantage) mods.push(`지휘관 유리함 <b>${b.advantage>0?'+':''}${b.advantage}</b> · ${b.advantage>0?'공격':'수비'} 측 피해 +${Math.abs(b.advantage)*5}%`);
+  if(b.counterD) mods.push(`상성 — 공격 <b>${MAA_TYPES[b.aType]?.n||'?'}</b> ▸ ${MAA_TYPES[b.dType]?.n||'?'} (수비 약화)`);
+  if(b.counterA) mods.push(`상성 — 수비 <b>${MAA_TYPES[b.dType]?.n||'?'}</b> ▸ ${MAA_TYPES[b.aType]?.n||'?'} (공격 약화)`);
+  mods.push(`지형 — <b>${TERRAIN[b.terrain]?.n||b.terrain}</b>`);
+  if(b.pursuit) mods.push(`추격전 — 패주병 추가 손실`);
+  return `
+    <div style="display:flex;gap:2px;align-items:stretch;margin:4px 0 10px">${phaseBar}</div>
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      ${panel(d.atkMine?'아군 (공격)':d.atkName+' (공)', d.atkMine, b.atkComp0, b.atk0, atkLeft, atkLost, atkWon)}
+      ${panel(d.defMine?'아군 (수비)':d.defName+' (수)', d.defMine, b.defComp0, b.def0, defLeft, defLost, !atkWon)}
+    </div>
+    <div style="font-size:.64rem;color:var(--parch-dim);line-height:1.8">${mods.map(m=>'• '+m).join('<br>')}</div>
+    <div style="font-size:.6rem;color:#6a6048;margin-top:6px;text-align:right">전투 ${b.days}일 · ${d.cn}</div>`;
+}
+function showLastBattle(){ if(!state._lastBattle) return;
+  popup({title:`${state._lastBattle.cn} 전투`, sub:'전투 보고', html:battleModalHtml(state._lastBattle)}); }
+/* ════════════════════════════════════════════════════════════════════════════ */
+
+/* 월 1회: 군별 개발도 성장 (건물 성장 + 재무관 + 이웃 전파 − 상한 둔화) */
+function developmentPulse(){
+  const cap=devCap(), p=playerChar();
+  for(const cid in COUNTIES){ const c=COUNTIES[cid]; if(c.dev==null) continue;
+    // 건물 개발성장 기여: 군 내 남작령 건물 pop 효과 합 × 지형 개발 배수
+    let bld=0;
+    for(const bid of (c.baronies||[])){ const b=BARONIES[bid]; if(!b?.builds) continue;
+      for(const s of b.builds){ if(s.level>0){ const e=lvEff(s.line,s.level); bld+=(e.pop||0); } } }
+    bld *= (1 + terrainDevMul(c.capital||''));
+    // 재무관 기여는 increase_development 과업이 대상 군에 직접 반영(여기선 제외)
+    let stew=0;
+    // 이웃 전파: 더 높은 개발 군에서 확산
+    let spread=0;
+    for(const n of (COUNTY_ADJ[cid]||[])){ const nd=COUNTIES[n]?.dev||0; if(nd>c.dev) spread+=(nd-c.dev)*0.008; }
+    const penalty = Math.max(0.1, 1 - c.dev/cap);
+    let gain = (0.05 + bld + stew + spread) * penalty * 0.1;
+    if(c.dev>=cap) gain = Math.min(gain,0);
+    c.dev = Math.max(0, Math.min(cap, +(c.dev+gain).toFixed(3)));
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   장악력(Control) — CK3 County Control 재현
+   출처: gamerempire.net(2023-02-08)·ck3cheats.com — 군별 0~100,
+     100 미만 1점당 세금 −1%·징집 −0.5% (0=세금0%·징집50%).
+     정복 시 급락 · 평시 서서히 상승 · 무관장 「장악력 증대」 과업 · 휴양 궁전 +성장.
+   ════════════════════════════════════════════════════ */
+(()=>{ for(const cid in COUNTIES){ COUNTIES[cid].control = 90; } })(); // 시작=정착 상태(고장악)
+function countyControl(cid){ const v=COUNTIES[cid]?.control; return v==null?90:v; }
+function controlTaxMul(cid){ return Math.max(0, Math.min(1, countyControl(cid)/100)); }          // CK3: 세금 ×C/100
+function controlLevyMul(cid){ return Math.max(0.5, Math.min(1, 0.5+countyControl(cid)*0.005)); }  // CK3: 징집 ×(0.5+C/200)
+function baronyControlTaxMul(bid){ const cid=BARONY_COUNTY[bid]; return cid?controlTaxMul(cid):1; }
+function baronyControlLevyMul(bid){ const cid=BARONY_COUNTY[bid]; return cid?controlLevyMul(cid):1; }
+/* 월 1회: 평시 장악력 성장 + 휴양 궁전(공작건물) + 저장악 민심 침식(반란 연동) */
+function controlPulse(){
+  const p=playerChar();
+  const leisureGrow={};
+  if(p){ for(const d of heldDuchiesOf(p.id)){ const cap=duchyCapitalBarony(d), db=BARONIES[cap]?.duchyBuild;
+    if(db?.line==='leisure_palace'&&db.level>0){ const g=(DUCHY_BUILDINGS.leisure_palace.eff[db.level-1].pop||0)*2;
+      for(const cid of (DUCHIES[d].counties||[])) leisureGrow[cid]=(leisureGrow[cid]||0)+g; } } }
+  for(const cid in COUNTIES){ const c=COUNTIES[cid]; if(c.control==null) continue;
+    let grow = 0.25 + (leisureGrow[cid]||0); // 평시 자연 성장(정복지 회복)
+    if(isForeignCultureCounty(cid)) grow *= 0.5; // 이민족 군: 장악력 성장 둔화(CK3 문화 불일치)
+    c.control = Math.max(0, Math.min(100, +(c.control+grow).toFixed(2)));
+    // 저장악(40 미만) → 직할령 민심 서서히 침식 → 기존 반란 시스템과 연동
+    if(c.control<40 && state.month%2===0){ const b=BARONIES[c.capital];
+      if(b&&b.owner===state.player) b.pop=Math.max(0,(b.pop||60)-1); }
+    // 이민족 군 → 직할 민심 추가 침식(문화 촉진 전까지)
+    if(isForeignCultureCounty(cid) && state.month%3===0){ const b=BARONIES[c.capital];
+      if(b) b.pop=Math.max(0,(b.pop||60)-1); }
+  }
+}
+
+/* ════════════════════════════════════════════════════
+   문화(Culture) — 최소 구현
+   출처: Kingdom of Dublin/Munster(위키피디아)·CK3 문화 메커니즘(나무위키 크킹3/문화)
+     1066 아일랜드: 대부분 게일(아일랜드), 노르드 항구(더블린·워터퍼드)=노르드-게일.
+     CK3: 군 보유자와 다른 문화 → 민심·장악력 페널티. 재무관 「문화 촉진」으로 전환.
+     (노르만은 1169년 이후라 1066엔 미배치)
+   ════════════════════════════════════════════════════ */
+const CULTURES = {
+  irish:     { n:'아일랜드',    grp:'게일',      color:'#3d8a4a' },
+  norsegael: { n:'노르드-게일', grp:'노르드-게일', color:'#5a6e9c' },
+  norman:    { n:'노르만',      grp:'프랑스',     color:'#9c6b3c' }, // 정의만 — 1066엔 미배치
+};
+const COUNTY_CULTURE_INIT = { c_dublin:'norsegael', c_ormond:'norsegael' }; // 노르드 항구(더블린·워터퍼드)
+(()=>{ for(const cid in COUNTIES){ COUNTIES[cid].culture = COUNTY_CULTURE_INIT[cid] || 'irish'; } })();
+function playerCulture(){ return 'irish'; }                       // 우어 브리언 = 게일 아일랜드
+function countyCulture(cid){ return COUNTIES[cid]?.culture || 'irish'; }
+function cultureName(cid){ return CULTURES[countyCulture(cid)]?.n || '아일랜드'; }
+/* 플레이어 직할 & 군 문화가 플레이어 문화와 다르면 이민족 군(페널티 대상) */
+function isForeignCultureCounty(cid){ const cap=COUNTIES[cid]?.capital;
+  return BARONIES[cap]?.owner===state.player && countyCulture(cid)!==playerCulture(); }
+/* 전환 대상: 플레이어 직할 이민족 군 1개(수도 군 우선) */
+function pickPromoteCultureTarget(){
+  const p=playerChar(); if(!p) return null;
+  const capCid=BARONY_COUNTY[p.region];
+  if(capCid && isForeignCultureCounty(capCid)) return capCid;
+  for(const cid in COUNTIES) if(isForeignCultureCounty(cid)) return cid;
+  return null;
+}
+
+/* ════════════════════════════════════════════════════
+   공작령(특수) 건물 — CK3 Duchy Buildings
+   출처: CK3 Wiki Duchy_buildings · HighGroundGaming(2024-05-27)·TheGamer(2025-03-31)·GameRant(2023-05-25)
+     · 조건: 공작령 de jure 전 군 보유 + de jure 수도 군 슬롯 1개 · 3단계(시대별 해제)
+     · 왕실 무기고: 공작령 징집병 최대 +40% · 무장병 유지비↓ · MaA 강화
+     · 공성 병기 제작소: 공작령 요새레벨 최대 +6 · 공성 강화
+     · 마상 시합장: 기병 강화 · 무장병 유지비 −10%
+     · 왕립 병기창: 보병(중보병·창병) 강화
+     · 휴양 궁전: 위신 · 통제/민심 (CK3 Leisure Palace)
+   환산: 요새 +1/2/3(게임), 징집 +8/14/20%, 유지비·MaA·위신 게임 규모 [밸런스 추정]
+   ════════════════════════════════════════════════════ */
+const DUCHY_BUILDINGS = {
+  royal_armory:    { n:'왕실 무기고', icon:'🏰', desc:'공작령 징집병 +%·무장병 유지비↓·보병/기병 강화',
+    eff:[{levy:0.08,upkeep:0.05,inf:0.05,cav:0.05},{levy:0.14,upkeep:0.10,inf:0.10,cav:0.10},{levy:0.20,upkeep:0.15,inf:0.15,cav:0.15}] },
+  siege_works:     { n:'공성 병기 제작소', icon:'🏯', desc:'공작령 모든 남작령 요새레벨 +·공성 가속',
+    eff:[{fort:1,siege:0.15},{fort:2,siege:0.28},{fort:3,siege:0.40}] },
+  jousting_grounds:{ n:'마상 시합장', icon:'🐎', desc:'경기병 강화·무장병 유지비 −',
+    eff:[{cav:0.12,upkeep:0.05},{cav:0.20,upkeep:0.08},{cav:0.28,upkeep:0.10}] },
+  crown_smithy:    { n:'왕립 병기창', icon:'🔨', desc:'중보병·창병 강화·무장병 유지비 −',
+    eff:[{inf:0.12,upkeep:0.03},{inf:0.20,upkeep:0.05},{inf:0.28,upkeep:0.08}] },
+  leisure_palace:  { n:'휴양 궁전', icon:'🏛', desc:'매월 위신·직할 민심',
+    eff:[{prestige:0.3,pop:0.05},{prestige:0.6,pop:0.10},{prestige:1.0,pop:0.15}] },
+};
+const DUCHYB_COST=[120,220,360], DUCHYB_TIME=[8,10,12];
+function duchyCapitalBarony(d){ const cs=DUCHIES[d]?.counties; return cs?.length?COUNTIES[cs[0]]?.capital:null; }
+function duchyOfBarony(bid){ const cid=BARONY_COUNTY[bid]; return cid?COUNTIES[cid]?.duchy:null; }
+/* 공작령 전 de jure 군 보유 여부 */
+function ownsWholeDuchy(charId, d){ const cs=DUCHIES[d]?.counties||[];
+  return cs.length>0 && cs.every(cid=>{ const cap=COUNTIES[cid]?.capital; return BARONIES[cap]?.owner===charId; }); }
+function duchyBuildLevelCap(){ return Math.min(3, gameEra(state?.year)); } // 시대별: 1/2/3단계 해제
+/* 플레이어가 보유한 공작 건물 효과 합산 */
+function playerDuchyEff(){ const p=playerChar(); const t={levy:0,upkeep:0,fort:0,siege:0,cav:0,inf:0,prestige:0,pop:0};
+  if(!p) return t;
+  for(const d of heldDuchiesOf(p.id)){ const cap=duchyCapitalBarony(d); const db=BARONIES[cap]?.duchyBuild;
+    if(db&&db.level>0){ const e=DUCHY_BUILDINGS[db.line]?.eff?.[db.level-1]; if(e) for(const k in e) t[k]=(t[k]||0)+e[k]; } }
+  return t; }
+/* 특정 남작령이 속한 공작령의 siege_works 요새 가산 / royal_armory 징집 배수 */
+function duchySiegeFort(bid){ const d=duchyOfBarony(bid); if(!d) return 0;
+  const cap=duchyCapitalBarony(d), db=BARONIES[cap]?.duchyBuild;
+  if(db?.line==='siege_works'&&db.level>0) return DUCHY_BUILDINGS.siege_works.eff[db.level-1].fort||0; return 0; }
+function duchyLevyMul(bid){ const d=duchyOfBarony(bid); if(!d) return 1;
+  const cap=duchyCapitalBarony(d), db=BARONIES[cap]?.duchyBuild;
+  if(db?.line==='royal_armory'&&db.level>0) return 1+(DUCHY_BUILDINGS.royal_armory.eff[db.level-1].levy||0); return 1; }
+/* 공작 건물 건설 시작 */
+function startDuchyBuild(d, lineId){ const p=playerChar(); if(!p) return false;
+  if(!heldDuchiesOf(p.id).includes(d)){ log('해당 공작 작위를 보유해야 합니다.','dip'); return false; }
+  if(!ownsWholeDuchy(p.id,d)){ log('공작령의 모든 군을 직접 보유해야 합니다.','dip'); return false; }
+  const cap=duchyCapitalBarony(d), b=BARONIES[cap]; if(!b) return false;
+  if(b.owner!==p.id){ log('공작령 수도를 보유해야 합니다.','dip'); return false; }
+  let db=b.duchyBuild;
+  if(db&&db.wip){ log('이미 건설 중입니다.','dip'); return false; }
+  if(db&&db.line!==lineId&&db.level>0){ /* 교체: CK3는 교체 가능. 여기선 확인 */ }
+  const curLv=(db&&db.line===lineId)?db.level:0, toLv=curLv+1;
+  if(toLv>3){ log('최고 단계입니다.','dip'); return false; }
+  if(toLv>duchyBuildLevelCap()){ log(`${ERA_NAME[gameEra(state?.year)+1]||'다음'} 시대가 필요합니다.`,'dip'); return false; }
+  const cost=DUCHYB_COST[toLv-1], seat=BARONIES[p.region];
+  if(!seat||seat.gold<cost){ log(`금이 부족합니다. (필요 ${cost})`,'dip'); return false; }
+  seat.gold-=cost; playSynthSFX&&playSynthSFX('gold');
+  if(!db||db.line!==lineId) b.duchyBuild=db={line:lineId, level:curLv, wip:null};
+  db.wip={to:toLv, prog:0};
+  log(`${DUCHIES[d].n} 수도에 <b>${DUCHY_BUILDINGS[lineId].n}</b> ${toLv}단계 건설 시작 (${DUCHYB_TIME[toLv-1]}개월·금${cost}).`,'good');
+  return true; }
+/* 월간: 공작 건물 건설 진행 + 휴양 궁전 위신/민심 */
+function duchyPulse(){
+  for(const bid in BARONIES){ const b=BARONIES[bid], db=b.duchyBuild; if(!db) continue;
+    if(db.wip){ db.wip.prog++;
+      if(db.wip.prog>=DUCHYB_TIME[db.wip.to-1]){ db.level=db.wip.to; db.wip=null;
+        if(b.owner===state.player) log(`<b>${DUCHY_BUILDINGS[db.line].n}</b> ${db.level}단계 완공!`,'good'); }
+    } }
+  const p=playerChar(); if(!p) return;
+  const eff=playerDuchyEff();
+  if(eff.prestige>0) state.prestige=(state.prestige||0)+eff.prestige;
+  if(eff.pop>0){ const seat=BARONIES[p.region]; if(seat) seat.pop=Math.min(100,(seat.pop||60)+eff.pop); }
+}
 /* 호환성: REGIONS = BARONIES (c.region은 이제 seat barony id) */
 const REGIONS = BARONIES;
 
@@ -676,45 +1189,45 @@ const COUNCIL_ROLES = {
     n:'재상', skill:'dip', icon:'⚖',
     desc:'외교·봉신 관리',
     tasks:{
-      foreign_affairs:  { n:'외교 담당',    desc:'위신 +0.05×스킬/월 · 독립군주 호감 +0.5×스킬/월' },
-      domestic_affairs: { n:'내정 담당',    desc:'봉신 호감 +0.5×스킬/월(월 +0.2 상한) · 폭정 감소 +1%/스킬' },
-      bestow_favor:     { n:'왕실 은총',    desc:'위신 +0.02×스킬/월 · 봉신 호감 +0.5×스킬/월' },
+      foreign_affairs:  { n:'대외 외교',    desc:'위신 +0.05×스킬/월 · 독립군주 호감 +0.5×스킬/월' },
+      domestic_affairs: { n:'대내 국정',    desc:'봉신 호감 +0.5×스킬/월(월 +0.2 상한) · 폭정 감소 +1%/스킬' },
+      bestow_favor:     { n:'왕실의 비호 제공',    desc:'위신 +0.02×스킬/월 · 봉신 호감 +0.5×스킬/월' },
     },
   },
   marshal:{
-    n:'원수', skill:'mar', icon:'⚔',
+    n:'무관장', skill:'mar', icon:'⚔',
     desc:'군사 훈련·병력 강화',
     tasks:{
-      organize_army:    { n:'군대 조직',    desc:'유지비 -1%/스킬 · 레비 보충 +2%/스킬 · 수비대 +2%/스킬' },
-      train_commanders: { n:'지휘관 훈련',  desc:'기사 효율 +1%/스킬/월 · 병사 공격력·방어력 +1%/스킬/월 · 지휘관 발견 +0.5%/스킬/월' },
-      increase_control: { n:'영지 통제',    desc:'부패 제거 +0.2%/스킬/월 · 영지 부패 증가 방지' },
+      organize_army:    { n:'징집병 조직',    desc:'유지비 -1%/스킬 · 레비 보충 +2%/스킬 · 수비대 +2%/스킬' },
+      train_commanders: { n:'지휘관 양성',  desc:'기사 효율 +1%/스킬/월 · 병사 공격력·방어력 +1%/스킬/월 · 지휘관 발견 +0.5%/스킬/월' },
+      increase_control: { n:'영지 장악력 증가',  desc:'수도 군 장악력 +0.06×스킬/월 (세금·징집↑·반란↓)' },
     },
   },
   steward:{
-    n:'재무관', skill:'stew', icon:'💰',
-    desc:'세금 징수·영지 개발',
+    n:'집사장', skill:'stew', icon:'💰',
+    desc:'세금 징수·개발도 증가',
     tasks:{
-      collect_taxes:       { n:'세금 징수',  desc:'직할 세금 +0.5%×스킬/월' },
-      increase_development:{ n:'영지 개발',  desc:'건설시간 -1%/스킬 · 개발도 +0.175×스킬/월 → 100%: 개발도 +1', progressive:true },
-      promote_culture:     { n:'문화 진흥',  desc:'진행 (0.25+스킬÷20)%/월 → 100%: 문화 전환', progressive:true },
+      collect_taxes:       { n:'조세 수금',  desc:'직할 세금 +0.5%×스킬/월' },
+      increase_development:{ n:'영지 개발도 증가',  desc:'수도 군 개발도 +0.0125×스킬/월 · 진행 100% 시 개발도 +1 (세금·징집·보급↑)', progressive:true },
+      promote_culture:     { n:'문화 촉진',  desc:'진행 (0.25+스킬÷20)%/월 → 100%: 직할 이민족 군 문화를 아일랜드로 전환 (민심·장악력 회복)', progressive:true },
     },
   },
   spymaster:{
-    n:'첩보관', skill:'intr', icon:'🗡',
+    n:'첩보장', skill:'intr', icon:'🗡',
     desc:'모략 방어·비밀 탐색',
     tasks:{
       disrupt_schemes: { n:'모략 방해',   desc:'적 모략 단계 +5일(기본)+0.5일/스킬 · 발각률 +1%/스킬' },
-      support_schemes: { n:'공작 지원',   desc:'아군 모략 단계 -1일/스킬 · 성공률 +5%(기본)+0.5%/스킬' },
-      find_secrets:    { n:'비밀 탐문',   desc:'궁정 비밀 발견 확률 +5%×스킬' },
+      support_schemes: { n:'모략 지원',   desc:'아군 모략 단계 -1일/스킬 · 성공률 +5%(기본)+0.5%/스킬' },
+      find_secrets:    { n:'비밀 탐색',   desc:'궁정 비밀 발견 확률 +5%×스킬' },
     },
   },
   chaplain:{
-    n:'사제', skill:'learn', icon:'✝',
-    desc:'경건·민심·신앙 개종·명분 위조',
+    n:'궁정 사제', skill:'learn', icon:'✝',
+    desc:'경건·민심·개종·명분 위조',
     tasks:{
-      religious_relations:{ n:'종교 관계',       desc:'경건 +0.05×스킬/월 · 동일신앙 군주 호감 +0.5×스킬/월(월 +0.35 상한)' },
-      fabricate_claim:    { n:'교회법 명분 위조', desc:'진행 (3+스킬÷5)%/월 → 100%: 미행사 명분 획득', progressive:true },
-      convert_faith:      { n:'신앙 개종',        desc:'진행 (0.5+스킬÷10)%/월 → 100%: 지역 신앙 전환', progressive:true },
+      religious_relations:{ n:'종교 관계 개선',       desc:'경건 +0.05×스킬/월 · 동일신앙 군주 호감 +0.5×스킬/월(월 +0.35 상한)' },
+      fabricate_claim:    { n:'영지 명분 위조', desc:'진행 (3+스킬÷5)%/월 → 100%: 미행사 명분 획득', progressive:true },
+      convert_faith:      { n:'영지 신앙 개종',        desc:'진행 (0.5+스킬÷10)%/월 → 100%: 지역 신앙 전환', progressive:true },
     },
   },
   /* 배우자 (Confidant) — CK3: 배우자 자동 배정 특수 자문회 역할
@@ -725,12 +1238,12 @@ const COUNCIL_ROLES = {
     desc:'군주를 보좌 — 스킬 보너스 (배우자 자동 배정)',
     spouseOnly:true,
     tasks:{
-      assist_ruler:   { n:'군주 보좌',     desc:'배우자 모든 스킬 ×0.2 보너스 부여 (위키: 20% all skills → ruler)' },
-      court_politics: { n:'궁정 외교',     desc:'외교 ×0.5 보너스 · 월 0.75% 확률 외교+1 · 2회 누적 시 사교적 특성(CK3 외교관 대응)' },
-      chivalry:       { n:'기사도',        desc:'무예 ×0.5 보너스 · 월 0.75% 확률 무예+1 · 2회 누적 시 용감 특성(CK3 전략가 대응)' },
-      manage_domains: { n:'영지 관리',     desc:'내정 ×0.5 보너스 · 월 0.75% 확률 내정+1 · 2회 누적 시 근면 특성(CK3 건축가 대응)' },
-      court_intrigue: { n:'궁정 음모',     desc:'음모 ×0.5 보너스 · 월 0.75% 확률 음모+1 · 2회 누적 시 기만 특성(CK3 책략가 대응)' },
-      patronage:      { n:'학예 후원',     desc:'학문 ×0.5 보너스 · 월 0.75% 확률 학문+1 · 2회 누적 시 인내 특성(CK3 학자 대응)' },
+      assist_ruler:   { n:'영주 대리',     desc:'배우자 모든 스킬 ×0.2 보너스 부여 (위키: 20% all skills → ruler)' },
+      court_politics: { n:'궁정 정치',     desc:'외교 ×0.5 보너스 · 월 0.75% 외교+1 · 성장 누적 시 사교적 특성(CK3 외교관 대응)' },
+      chivalry:       { n:'기사도',        desc:'전투력 ×0.5 보너스 · 월 0.75% 전투력+1 · 성장 누적 시 용감 특성(CK3 전략가 대응)' },
+      manage_domains: { n:'직할령 관리',     desc:'관리력 ×0.5 → 직할 한도 · 월 0.75% 관리력+1 · 성장 누적 시 근면 특성(CK3 건축가 대응)' },
+      court_intrigue: { n:'궁정 계책',     desc:'계책력 ×0.5 보너스 · 월 0.75% 계책력+1 · 성장 누적 시 기만 특성(CK3 책략가 대응)' },
+      patronage:      { n:'후원',     desc:'학습력 ×0.5 보너스 · 월 0.75% 학습력+1 · 성장 누적 시 인내 특성(CK3 학자 대응)' },
     },
   },
 };
@@ -1212,7 +1725,7 @@ function canUsurpTitle(charId, tid){
     return {ok:false, reason:'이교도의 작위는 찬탈할 수 없습니다 (전쟁 필요)'};
   // de jure 지배율 51%+
   const ctrl=deJureControl(charId,tid);
-  if(ctrl<0.51) return {ok:false, reason:`규범권역 백작령 51% 지배 필요 (현재 ${Math.round(ctrl*100)}%)`};
+  if(ctrl<0.51) return {ok:false, reason:`규범 권역 백작령 51% 지배 필요 (현재 ${Math.round(ctrl*100)}%)`};
   // 하위 작위 조건 (공작: 백작령 2개+ 또는 공작위 1개+)
   if(info.kind==='duchy'){
     if(directCountiesOf(charId).length<2 && heldDuchiesOf(charId).length<1)
@@ -1882,12 +2395,12 @@ function askEducation(c){
 }
 function pickGuardian(c,adults){
   const opts=adults.slice(0,5).map(g=>({
-    t:`${g.name}`, d:`${SKILLS[c.eduFocus]} ${stat(g,c.eduFocus)} · 학문 ${stat(g,'learn')} · 성격: ${g.traits.map(t=>TRAITS[t].n).join('·')||'—'}`,
+    t:`${g.name}`, d:`${SKILLS[c.eduFocus]} ${stat(g,c.eduFocus)} · 학습력 ${stat(g,'learn')} · 성격: ${g.traits.map(t=>TRAITS[t].n).join('·')||'—'}`,
     f:()=>{ c.guardian=g.id; chOp(c,g,15); chOp(g,c,5);
       log(`<b>${g.name}</b>이(가) ${c.name}의 후견인이 되었습니다.`,'fam'); }
   }));
   popup({title:`${c.name}의 후견인`, sub:'후견 — 교육의 질을 결정합니다',
-    body:'후견인의 해당 스킬(×0.4)과 학문(×0.2)이 교육 점수에 영향을 줍니다.\n아이는 후견인의 성격을 닮아갑니다.', opts});
+    body:'후견인의 해당 스킬(×0.4)과 학습력(×0.2)이 교육 점수에 영향을 줍니다.\n아이는 후견인의 성격을 닮아갑니다.', opts});
 }
 function askPersonality(c,a){
   const g=guardianOf(c);
@@ -1944,6 +2457,9 @@ function monthlyPulse(){
     }
   }
   buildingPulse();
+  developmentPulse();
+  controlPulse();
+  duchyPulse();
   fertilityPulse();
   naturalDeathPulse();
   councilPulse();
@@ -1977,13 +2493,15 @@ function monthlyPulse(){
   }
   activityPulse(); // 진행 중인 활동 단계 처리
   guestActivityPulse(); // 게스트 참석 활동도 월 단위로 진행 (플레이어 활동과 동일)
-  maaUpkeepPulse(); // 상비군 월 유지비 차감
+  maaUpkeepPulse(); // 무장병 월 유지비 차감
   // 월간 신앙도 수입 (CK3 Piety income)
   const pInc=pietyIncome(playerChar());
   if(pInc!==0) gainPiety(pInc, null); // 매월 누적 (로그 없이)
   // 위신 증가분 → 명성 진행도 동기화 (CK3: 위신 얻으면 같은 양의 명성)
   const _prestigeDelta = (state.prestige||0) - _prestigeBefore;
   if(_prestigeDelta>0) syncFameProgress(_prestigeDelta);
+  armyMovePulse(); // Phase 3: 군대 이동 진행
+  battlePulse();   // Phase 4: 적대 군대 조우 전투
   renderMap();
 }
 /* ════════════════════════════════════════════════════
@@ -2074,11 +2592,11 @@ function powerfulVassalOnCouncil(liegeId, vId){
 /* 봉신 스탠스 (Vassal Stances) — CK3 위키 7종
    성격 AI 가중치(aiW) 기반 매핑. 좋아하는/싫어하는 군주 행동 결정      */
 const VASSAL_STANCES={
-  belligerent:{ n:'호전적', icon:'⚔', desc:'고압적 통치·결투 승리·사냥 선호. 무예 높은 후계자 선호',  pref:'mar' },
-  courtly:    { n:'궁정적', icon:'👑', desc:'궁정직·작위 하사·연회 선호. 외교 높은 후계자 선호',       pref:'dip' },
-  glory:      { n:'영광추구', icon:'🏆', desc:'분할상속·정복 전쟁 승리 선호. 무예 높은 후계자 선호',   pref:'mar' },
-  parochial:  { n:'편협',   icon:'🏰', desc:'건물 건설·내정 담당 선호. 고압적 통치 싫어함. 내정 높은 후계자 선호', pref:'stew' },
-  zealot:     { n:'광신도', icon:'✝', desc:'미덕 특성·사원 건설·순례 선호. 죄악 특성 싫어함. 학문 높은 후계자 선호', pref:'learn' },
+  belligerent:{ n:'호전적', icon:'⚔', desc:'고압적 통치·결투 승리·사냥 선호. 전투력 높은 후계자 선호',  pref:'mar' },
+  courtly:    { n:'궁정적', icon:'👑', desc:'궁정직·작위 하사·연회 선호. 외교력 높은 후계자 선호',       pref:'dip' },
+  glory:      { n:'영광추구', icon:'🏆', desc:'분할상속·정복 전쟁 승리 선호. 전투력 높은 후계자 선호',   pref:'mar' },
+  parochial:  { n:'편협',   icon:'🏰', desc:'건물 건설·내정 담당 선호. 고압적 통치 싫어함. 관리력 높은 후계자 선호', pref:'stew' },
+  zealot:     { n:'광신도', icon:'✝', desc:'미덕 특성·사원 건설·순례 선호. 죄악 특성 싫어함. 학습력 높은 후계자 선호', pref:'learn' },
   landholder: { n:'소영주', icon:'🛡', desc:'낮은 왕권 선호. 작위 회수 싫어함 (남작 기본)',          pref:null },
   minority:   { n:'소수파', icon:'🌐', desc:'문화 수용 정책 선호. 개종·개화 싫어함 (이민족·이교도)',   pref:null },
 };
@@ -2375,11 +2893,12 @@ function cleanupGhostRulers(){
 }
 
 function goldPulse(){
-  // ① 모든 남작령: 병력 자연 회복 (barracks 보너스 포함)
+  // ① 모든 남작령: 병력 자연 회복 (barracks 보너스 + 개발도 levy size)
   for(const bid in BARONIES){
     const b=BARONIES[bid];
     const regen=4+buildingBonus(bid,'troops_regen');
-    b.troops=Math.min(b.cap, b.troops+regen);
+    const effCap=Math.round((b.cap||b.troops)*baronyDevMul(bid)*duchyLevyMul(bid)*baronyControlLevyMul(bid)); // 개발도 × 공작 무기고 × 장악력
+    b.troops=Math.min(effCap, b.troops+regen);
   }
 
   // ② 각 지배자: 직할 남작령 세금 수입 계산
@@ -2401,7 +2920,7 @@ function goldPulse(){
 
     // 직할 남작령 수입 — 홀딩 유형별
     const directIncome=owned.reduce((s,bid)=>s+holdingIncome(bid,id,stat(c,'stew'),overPenalty),0);
-    const goldCap=id===state.player?3500:2500;
+    const goldCap=id===state.player?9999:2500;
     seatB.gold=Math.min(goldCap, seatB.gold+directIncome);
 
     // ③ 봉신 세금 — 홀딩 유형별 + 계약 의무 단계 (CK3 Subjects)
@@ -2665,7 +3184,7 @@ function declareWar(atk,def,targetRid){
     grantRevengeClaim(tCid||tRid);
     const _w2 = state.wars.find(x=>x.atk===atk.id&&x.def===def.id);
     const _myCmd2 = _w2 ? warCommander(_w2,'def') : null;
-    const _cmdLine = _myCmd2 ? `\n\n⚔ 지휘관: ${_myCmd2.name} (무예 ${stat(_myCmd2,'mar')} · 용맹 ${stat(_myCmd2,'prow')})` : '';
+    const _cmdLine = _myCmd2 ? `\n\n⚔ 지휘관: ${_myCmd2.name} (전투력 ${stat(_myCmd2,'mar')} · 용맹 ${stat(_myCmd2,'prow')})` : '';
     popup({title:'전쟁이다!', sub:'침공',
       body:`${atk.name}의 군대가 국경을 넘었습니다!\n목표: <b>${tCid?COUNTIES[tCid]?.n:BARONIES[tRid]?.n||tRid}</b>\n복수 명분이 생겼습니다.${_cmdLine}`,
       opts:[{t:'전군 소집!', f:()=>addStress(playerChar(),10,'전쟁의 무게')}]});
@@ -2698,24 +3217,101 @@ function formAlliance(a,b){
     }
   }
 }
-/* ── 상비군 (Men-at-Arms) — CK3 MAA 시스템 ──
+/* ── 무장병 (Men-at-Arms) — CK3 MAA 시스템 ──
    연대 유형별 전력·유지비·상성. 작위 등급에 따라 보유 연대 한도가 늘어남.
    전력에 합산되며 매월 금 유지비가 든다. */
+/* 무장병 병종 정의.
+   dmg(피해도)/tough(유지력)/pursuit(추격)/screen(차단) = CK3 정확값 [나무위키 군사].
+   ※ power/hire/upkeep는 기존 경제·추상전투 호환 위해 유지(Phase 4 전투 엔진에서 4스탯으로 전환). */
 const MAA_TYPES = {
-  spearmen:    { n:'창병',   icon:'🛡', size:100, power:200, counter:'기병',   hire:80,  upkeep:0.5 },
-  archers:     { n:'궁병',   icon:'🏹', size:100, power:220, counter:'보병',   hire:100, upkeep:0.6 },
-  skirmishers: { n:'경보병', icon:'🪓', size:100, power:190, counter:'궁병',   hire:70,  upkeep:0.4 },
-  heavy_inf:   { n:'중보병', icon:'⚔',  size:100, power:280, counter:'경보병', hire:130, upkeep:0.8 },
-  light_cav:   { n:'경기병', icon:'🐎', size:100, power:240, counter:'궁병',   hire:120, upkeep:0.7 },
+  spearmen:    { n:'창병',   icon:'🛡', size:100, counter:'기병',   hire:80,  upkeep:0.5, power:200, dmg:22, tough:24, pursuit:0,  screen:0  },
+  archers:     { n:'궁병',   icon:'🏹', size:100, counter:'산병',   hire:100, upkeep:0.6, power:220, dmg:25, tough:10, pursuit:0,  screen:0  },
+  skirmishers: { n:'산병',   icon:'🪓', size:100, counter:'중보병', hire:70,  upkeep:0.4, power:190, dmg:10, tough:16, pursuit:10, screen:16 },
+  heavy_inf:   { n:'중보병', icon:'⚔',  size:100, counter:'창병',   hire:130, upkeep:0.8, power:280, dmg:32, tough:22, pursuit:0,  screen:0  },
+  light_cav:   { n:'경기병', icon:'🐎', size:100, counter:'궁병',   hire:120, upkeep:0.7, power:240, dmg:22, tough:15, pursuit:30, screen:30 },
 };
+/* 징집병·기사 전투 스탯 (CK3, Phase 4 전투 엔진에서 사용) [나무위키 군사] */
+const LEVY_DMG=10, LEVY_TOUGH=10;                            // 징집병 1인당
+const KNIGHT_DMG_PER_PROWESS=50, KNIGHT_TOUGH_PER_PROWESS=5; // 기사 기량 1점당
 function ensureMAA(){ if(!state.maa) state.maa={}; for(const k in MAA_TYPES) if(typeof state.maa[k]!=='number') state.maa[k]=0; return state.maa; }
 /* 연대 보유 한도 — 작위 등급에 따라 (백작 2 · 공작위당 +1 · 왕국위당 +2) */
 function maaCap(p){ return 2 + heldDuchiesOf(p.id).length + heldKingdomsOf(p.id).length*2; }
 function maaCount(){ const m=ensureMAA(); let n=0; for(const k in m) n+=m[k]; return n; }
-/* 상비군이 더하는 전력 (플레이어 군대) */
-function maaPower(){ const m=ensureMAA(); let t=0; for(const k in m) t+=(m[k]||0)*(MAA_TYPES[k]?.power||0); return t; }
-/* 상비군 월 유지비 합 */
-function maaUpkeep(){ const m=ensureMAA(); let g=0; for(const k in m) g+=(m[k]||0)*(MAA_TYPES[k]?.upkeep||0); return g; }
+/* ── 건물(병영·마구간·철공소·요새화)의 무장병 보너스 → 무장병 유형별 전력 배수 ──
+   CK3: MaA 건물이 해당 유형 피해·강인함 강화. 건물 maa 키를 무장병 키로 매핑.
+   직할 남작령 건물 maa를 합산하되 계수·상한으로 스택 폭주 방지(최대 +120%). */
+const MAA_BLD_MAP = { heavy_infantry:'heavy_inf', pikemen:'spearmen', light_cavalry:'light_cav',
+  heavy_cavalry:'light_cav', archers:'archers', skirmishers:'skirmishers' };
+const MAA_BLD_COEF = 0.08, MAA_BLD_CAP = 1.2;
+function maaBuildBonus(){ const p=playerChar(); const raw={};
+  if(p){ for(const bid of regionsOf(p.id)){ const b=BARONIES[bid]; if(!b?.builds) continue;
+    for(const s of b.builds){ if(s.level<=0) continue; const ma=maaAt(s.line, s.level); if(!ma) continue;
+      for(const u in ma){ const mk=MAA_BLD_MAP[u]; if(!mk) continue;
+        raw[mk]=(raw[mk]||0)+(ma[u].dmg||0)+(ma[u].tough||0); } } } }
+  const mult={}; for(const k in MAA_TYPES) mult[k]=1+Math.min(MAA_BLD_CAP,(raw[k]||0)*MAA_BLD_COEF);
+  // 공작 건물(왕실 무기고·왕립 병기창·마상 시합장) 보병/기병 강화 추가 배수
+  const de=playerDuchyEff();
+  if(de.inf>0){ mult.heavy_inf*=(1+de.inf); mult.spearmen*=(1+de.inf); }
+  if(de.cav>0){ mult.light_cav*=(1+de.cav); }
+  return mult; }
+/* 무장병이 더하는 전력 (플레이어 군대) — 건물 보너스 반영 */
+function maaPower(){ const m=ensureMAA(), mb=maaBuildBonus(); let t=0;
+  for(const k in m) t+=(m[k]||0)*(MAA_TYPES[k]?.power||0)*(mb[k]||1); return t; }
+
+/* ── 무장병 병종 상성 (CK3: 편성 상성이 전투 효율에 영향) ──
+   CK3 루프: 산병>중보병>창병>기병>궁병>산병. key → 이 key가 카운터하는 key */
+const MAA_COUNTERS = { spearmen:'light_cav', archers:'skirmishers', skirmishers:'heavy_inf', heavy_inf:'spearmen', light_cav:'archers' };
+/* 적 군대 주력 병종 — char id로 결정적 시드(스카우트 가능·일관) */
+function enemyMaaType(id){ const keys=Object.keys(MAA_TYPES); let h=0; const s=String(id||'');
+  for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return keys[h%keys.length]; }
+/* 플레이어 편성이 '적 주력을 카운터하는' 공격적 상성율 (+, [0,0.18]) — 역상성은 적 측 델타가 처리 */
+function maaCounterMod(enemyType){
+  const m=ensureMAA(), mb=maaBuildBonus(); let total=0, counter=0;
+  for(const k in m){ const pw=(m[k]||0)*(MAA_TYPES[k]?.power||0)*(mb[k]||1); total+=pw;
+    if(MAA_COUNTERS[k]===enemyType) counter+=pw; } // 내 k가 적 주력을 카운터
+  return total>0 ? 0.18*counter/total : 0;
+}
+/* 플레이어 주력(최강) 병종 */
+function playerMaaType(){ const m=ensureMAA(), mb=maaBuildBonus(); let best=null,bp=0;
+  for(const k in m){ const pw=(m[k]||0)*(MAA_TYPES[k]?.power||0)*(mb[k]||1); if(pw>bp){bp=pw;best=k;} }
+  return best; }
+/* 전투에 가산할 플레이어 상성 전력 (양수=유리) */
+function maaCounterDelta(enemyChar){ return enemyChar ? maaPower()*maaCounterMod(enemyMaaType(enemyChar.id)) : 0; }
+
+/* ── 무장병 병종별 지형 유불리 (CK3: 병종마다 유리/불리 지형) ──
+   산병=험지 유리, 창병=구릉/산악 유리, 경기병=개활지 유리·험지 불리,
+   중보병=지형 보정 없음(CK3 확정), 궁병=기본형 중립. (±는 해당 병종 전력 비례) */
+const MAA_TERRAIN = {
+  skirmishers: { hills:0.10, mountains:0.10, forest:0.10, wetlands:0.10 },
+  spearmen:    { hills:0.10, mountains:0.10 },
+  light_cav:   { plains:0.10, farmlands:0.10, floodplain:0.10, drylands:0.10, hills:-0.10, mountains:-0.15, forest:-0.10, wetlands:-0.10 },
+  archers:     {},
+  heavy_inf:   {},
+};
+/* 전장 지형에서 플레이어 무장병 편성의 순 지형 전력 보정 */
+function maaTerrainDelta(terrainKey){
+  if(!terrainKey) return 0;
+  const m=ensureMAA(), mb=maaBuildBonus(); let delta=0;
+  for(const k in m){ const tmod=MAA_TERRAIN[k]?.[terrainKey]||0;
+    if(tmod) delta += (m[k]||0)*(MAA_TYPES[k]?.power||0)*(mb[k]||1)*tmod; }
+  return delta;
+}
+/* ── 적 측 무장병 보정 (CK3 대칭: 적도 상성·지형 효과를 받음) ──
+   적은 단일 주력 병종으로 추상화 — 총 전력의 일부를 명목 무장병으로 간주 */
+const ENEMY_MAA_FRAC = 0.35;
+function enemyMaaPower(c){ return c ? power(c)*ENEMY_MAA_FRAC : 0; }
+/* 적 주력이 플레이어 주력을 카운터하면 +, 지형이 적 주력에 유불리면 ± — 적 전력에 가산 */
+function enemyMaaDelta(enemyChar, terrainKey){
+  if(!enemyChar) return 0;
+  const eType=enemyMaaType(enemyChar.id), pType=playerMaaType();
+  let mod=0;
+  if(pType && MAA_COUNTERS[eType]===pType) mod+=0.18;       // 적 주력이 내 주력을 카운터
+  if(terrainKey) mod+=(MAA_TERRAIN[eType]?.[terrainKey]||0); // 적 주력의 지형 유불리
+  return enemyMaaPower(enemyChar)*mod;
+}
+/* 무장병 월 유지비 합 */
+function maaUpkeep(){ const m=ensureMAA(); let g=0; for(const k in m) g+=(m[k]||0)*(MAA_TYPES[k]?.upkeep||0);
+  const up=playerDuchyEff().upkeep||0; return g*(1-Math.min(0.30,up)); } // 공작 건물 유지비 감면(최대 −30%)
 function hireMAA(type){
   initAudio(); const p=playerChar(); if(!p) return;
   const t=MAA_TYPES[type]; if(!t) return;
@@ -2734,13 +3330,13 @@ function disbandMAA(type){
   log(`<b>${MAA_TYPES[type].n}</b> 연대를 해산했습니다.`,'dip');
   renderWar(); renderHeader&&renderHeader();
 }
-/* 월간 상비군 유지비 차감 */
+/* 월간 무장병 유지비 차감 */
 function maaUpkeepPulse(){
   const p=playerChar(); if(!p) return;
   const up=maaUpkeep(); if(up<=0) return;
   const seat=BARONIES[p.region]; if(!seat) return;
   seat.gold-=up;
-  if(seat.gold<0){ seat.gold=0; if(state.month%3===1) log('⚠ 상비군 유지비가 금고를 압박합니다.','war'); }
+  if(seat.gold<0){ seat.gold=0; if(state.month%3===1) log('⚠ 무장병 유지비가 금고를 압박합니다.','war'); }
 }
 function power(c){
   let t=0;
@@ -2766,7 +3362,7 @@ function power(c){
     ratio*=vlPenaltyL; // 봉신 한도 페널티
     for(const bid of regionsOf(v.id)){ const b=BARONIES[bid]; if(b) t+=b.troops*ratio; }
   }
-  if(c.id===state.player) t+=maaPower(); // 상비군(MAA) 전력 합산
+  if(c.id===state.player) t+=maaPower(); // 무장병(MAA) 전력 합산
   if(!t) t=150;
   // 순수 동원 병력 수를 반환 (지휘관 무예/용맹 배율은 powerWithCommander에서 전투 시 적용)
   return t;
@@ -2784,6 +3380,14 @@ function supplyLimit(c){
   lim += heldDuchiesOf(c.id).length*500;
   lim += heldKingdomsOf(c.id).length*1000;
   lim += stat(c,'stew')*50;
+  // 건물 보급(농장·저습지 농장 등) + 수도 지형 보급 배수 (CK3: 농지 +35%·산악 −50%)
+  let bldSupply=0; for(const bid of regionsOf(c.id)) bldSupply += (BARONIES[bid]?.supplyBld||0)*5;
+  lim += bldSupply;
+  // 개발도 보급(CK3 +150/dev → 게임 +15/dev): 직할 군별 합산
+  const myCounties=new Set(); for(const bid of regionsOf(c.id)){ const cc=BARONY_COUNTY[bid]; if(cc)myCounties.add(cc); }
+  for(const cc of myCounties) lim += countyDevSupply(cc);
+  const capTerr = c.region ? terrainSupplyMul(c.region) : 0;
+  lim = Math.round(lim*(1+capTerr));
   return Math.round(lim);
 }
 /* 보급 계수 — 한계 이내면 1.0, 초과 시 전력 감소(최저 0.65) */
@@ -2881,10 +3485,20 @@ function warPulse(){
     const vPow=vassalsOf(w.atk).reduce((s,v)=>s+power(v)*0.4,0);
     let pa=powerWithCommander(a,w,'atk')+allyPow+vPow;
     const garrisonPow=(tCid&&COUNTIES[tCid])?COUNTIES[tCid].baronies.reduce((s,bid)=>s+(BARONIES[bid]?.garrison||0),0):0;
-    let pd=powerWithCommander(d,w,'def')+vassalsOf(w.def).reduce((s,v)=>s+power(v)*0.4,0)+garrisonPow;
+    const terrAdvMul=1+(tCid?terrainAdvantage(COUNTIES[tCid]?.capital):0)*0.015; // CK3 지형 방어 유리함(advantage pt당 +1.5%)
+    let pd=(powerWithCommander(d,w,'def')+vassalsOf(w.def).reduce((s,v)=>s+power(v)*0.4,0)+garrisonPow)*terrAdvMul;
     // 보급 한계 초과 시 플레이어 군대 사기·전력 감소 (장기전·대군 압박)
     if(w.atk===state.player) pa*=supplyFactor(a);
     if(w.def===state.player) pd*=supplyFactor(d);
+    // ── 무장병 병종 상성·지형 (CK3, 양측 대칭) — 플레이어/적 각자 전력에 가산
+    const battleTerr=tCid?countyTerrain(tCid):null;
+    const enemyOfPlayer = w.atk===state.player ? d : (w.def===state.player ? a : null);
+    if(enemyOfPlayer){
+      const pDelta = maaCounterDelta(enemyOfPlayer) + maaTerrainDelta(battleTerr); // 플레이어 편성
+      const eDelta = enemyMaaDelta(enemyOfPlayer, battleTerr);                     // 적 편성
+      if(w.atk===state.player){ pa+=pDelta; pd+=eDelta; }
+      else { pd+=pDelta; pa+=eDelta; }
+    }
     const ratio=(pa-pd)/Math.max(pa,pd);
 
     // ── 전쟁 소모 (병력·금)
@@ -2903,14 +3517,20 @@ function warPulse(){
     // 금 소모
     const aSeat=BARONIES[a.region]; if(aSeat) aSeat.gold=Math.max(0,aSeat.gold-Math.round(3+w.months*0.1));
     const dSeat=BARONIES[d.region]; if(dSeat) dSeat.gold=Math.max(0,dSeat.gold-Math.round(3+w.months*0.1));
+    // 지형 보급: 방어적 지형(보급 음수, 산악/구릉 등) 공성 시 공격자 추가 소모(CK3 supply limit 반영)
+    const tSupplyMul=tCid?terrainSupplyMul(COUNTIES[tCid]?.capital):0;
+    if(tSupplyMul<0){ for(const bid of regionsOf(a.id)) BARONIES[bid].troops=Math.max(60,Math.round(BARONIES[bid].troops*(1+tSupplyMul*0.06))); }
 
     // ── 공성 진행 (목표 county baronies 점령)
     if(tCid&&COUNTIES[tCid]){
       const bids=COUNTIES[tCid].baronies;
-      // 성벽: 방어자 우세 보정
-      const wallBonus=(COUNTIES[tCid]?.baronies||[]).filter(bid=>BARONIES[bid]?.buildings?.includes('walls')).length*0.1
-        + (COUNTIES[tCid]?.baronies||[]).reduce((s,bid)=>s+(BARONIES[bid]?.fortLevel||0)*0.06,0); // 요새 레벨당 점령 저항 +6%
-      if(ratio>0.1 && Math.random()<0.25+ratio*0.3-wallBonus){
+      // 점령 저항: 요새화 건물(요새레벨·수비대) + 지형 방어 유리함
+      const capBid=COUNTIES[tCid]?.capital;
+      const wallBonus=(COUNTIES[tCid]?.baronies||[]).reduce((s,bid)=>
+          s + (BARONIES[bid]?.fortLevel||0)*0.04 + Math.min(0.12,(BARONIES[bid]?.garrison||0)/2500), 0)
+        + terrainAdvantage(capBid)*0.01; // 지형 방어 유리함당 점령 저항 +1%
+      const siegeBonus=(a.id===state.player)?(playerDuchyEff().siege||0):0; // 공성 병기 제작소: 플레이어 공성 가속
+      if(ratio>0.1 && Math.random()<0.25+ratio*0.3-wallBonus+siegeBonus){
         const unoccupied=bids.filter(bid=>!w.occupied.includes(bid));
         if(unoccupied.length) w.occupied.push(unoccupied[Math.floor(Math.random()*unoccupied.length)]);
       } else if(ratio<-0.1 && Math.random()<0.2){
@@ -2930,7 +3550,12 @@ function warPulse(){
       const siege=tCid?` · 공성 ${Math.round(siegePct*100)}%`:'';
       const myCmd = warCommander(w, w.atk===state.player?'atk':'def');
       const cmdStr = myCmd ? ` · 지휘관: ${myCmd.name}(무${stat(myCmd,'mar')})` : '';
-      log(`전황: ${my>=0?'+':''}${Math.round(my)}%${siege} — ${my>30?'아군 우세':my<-30?'적군 우세':'교착 상태'}${cmdStr}`,'war');
+      const enemyC = w.atk===state.player ? d : a;
+      const pDelta = maaCounterDelta(enemyC) + maaTerrainDelta(battleTerr); // 내 편성 효과
+      const eDelta = enemyMaaDelta(enemyC, battleTerr);                     // 적 편성 효과
+      const net = pDelta - eDelta;
+      const mStr = net>5 ? ' · 무장병 우위' : net<-5 ? ' · 무장병 열위' : '';
+      log(`전황: ${my>=0?'+':''}${Math.round(my)}%${siege} — ${my>30?'아군 우세':my<-30?'적군 우세':'교착 상태'}${cmdStr}${mStr}`,'war');
     }
 
     // ── 전투 이벤트 (플레이어 전쟁 시 월 20% 확률)
@@ -3109,7 +3734,7 @@ ${cmdName} 용맹: ${myProw} vs ${foeCmd.name} 용맹: ${stat(foeCmd,'prow')}`,
     /* ⑥ 봉신 배신 의심 — 봉신 있을 때 */
     { cond: vassalsOf(p.id).length>0 && ratio<0.1 && Math.random()<0.35,
       t:'봉신의 배신 의혹', sub:'내부 첩보',
-      body:`첩보관이 보고합니다.
+      body:`첩보장이 보고합니다.
 「봉신 중 한 명이 ${foe.name}과(와) 내통하고 있다는 정보가 들어왔습니다.
 사실이라면 전황에 큰 타격이 됩니다.」`,
       opts:[
@@ -3187,17 +3812,18 @@ function conquerTarget(a, d, targetCid){
       initVassalContract(d);
       chOp(d,a,-10); // 강제 복속 불만
       addStress(a,-10,'권역 통합의 영광');
-      popup({title:'규범권역 복속', sub:cname,
-        body:`<b>${d.name}</b>이(가) 규범권역 권리에 굴복하여 당신의 봉신이 되었습니다!\n권역의 백작령이 당신의 휘하로 통합됩니다.`,
+      popup({title:'규범 권역 복속', sub:cname,
+        body:`<b>${d.name}</b>이(가) 규범 권역 권리에 굴복하여 당신의 봉신이 되었습니다!\n권역의 백작령이 당신의 휘하로 통합됩니다.`,
         opts:[{t:'권역이 하나가 되었다', f:checkVictoryHint}]});
     } else if(d.id===state.player){
-      gameOver(`${a.name}이(가) 규범권역 권리로 당신을 굴복시켰습니다. 당신은 그의 봉신이 되었습니다.`);
+      gameOver(`${a.name}이(가) 규범 권역 권리로 당신을 굴복시켰습니다. 당신은 그의 봉신이 되었습니다.`);
     }
     log(`<b>🏰 ${d.name}</b>이(가) ${a.name}의 봉신으로 복속됐습니다.`,'dip');
     renderMap(); return;
   }
   log(`<b>${a.name}</b>이(가) <b>${cname}</b>을(를) 정복했습니다!`,'war');
   setTruce(a.id,d.id,5);
+  if(COUNTIES[cid]) COUNTIES[cid].control=Math.min(COUNTIES[cid].control??90, 30); // CK3: 정복지 장악력 급락 → 재안정화 필요
   // 해당 county의 모든 barony를 공격자에게 이전
   const bids = COUNTIES[cid].baronies;
   const aSeat = BARONIES[a.region];
@@ -3578,7 +4204,7 @@ const NPC_ACTIVITIES = [
       kid.base[sk]=(kid.base[sk]||4)+1;
       if(r.id===state.player||Object.values(chars).some(c=>c.id===state.player&&(c.father===r.id||c.mother===r.id))){
         popup({title:'후계자 교육',sub:`${r.name}의 가문`,
-          body:`${kid.name}이(가) 궁중 교육을 받으며 성장하고 있습니다.\n「${['외교술','무예','내정술','음모술','학문'][skills.indexOf(sk)]} 분야에서 두각을 나타내고 있습니다.」`,
+          body:`${kid.name}이(가) 궁중 교육을 받으며 성장하고 있습니다.\n「${['외교력','전투력','관리력','계책력','학습력'][skills.indexOf(sk)]} 분야에서 두각을 나타내고 있습니다.」`,
           opts:[{t:'흐뭇하게 지켜본다',f:()=>{}}]});
       } else {
         log(`${r.name}의 자녀 ${kid.name}이(가) 교육을 받고 있습니다.`,'fam');
@@ -3843,8 +4469,8 @@ function checkRivalProgress(){
   }
 }
 
-/* ── NPC 규범권역(de jure) 전쟁 AI — CK3식 통일 경쟁 ──
-   공작령에 발판을 둔 독립 통치자가 자기 규범권역 내 '독립' 백작을 흡수(승리 시 봉신화).
+/* ── NPC 규범 권역(de jure) 전쟁 AI — CK3식 통일 경쟁 ──
+   공작령에 발판을 둔 독립 통치자가 자기 규범 권역 내 '독립' 백작을 흡수(승리 시 봉신화).
    세력 확장 → 작위 창설(npcTitlePulse) → 왕국 → 하이킹 라이벌로 성장하는 눈덩이. */
 function npcDejureWarPulse(){
   const rulers=Object.values(chars).filter(c=>!c.dead&&c.ruler&&c.id!==state.player&&!c.liege);
@@ -3899,7 +4525,7 @@ function npcDejureWarPulse(){
     const w=state.wars.find(x=>x.atk===r.id&&x.def===best.target.id);
     if(w){ w.dejure=true; w.dejureCids=[best.cid]; }
     npcGrantRevenge(best.target, best.cid);
-    log(`<b>${r.name}</b>이(가) 규범권역 권리로 <b>${best.target.name}</b>에게 선전포고했습니다 (${DUCHIES[best.did]?.n||COUNTIES[best.cid]?.n||'규범권역'}).`,'war');
+    log(`<b>${r.name}</b>이(가) 규범 권역 권리로 <b>${best.target.name}</b>에게 선전포고했습니다 (${DUCHIES[best.did]?.n||COUNTIES[best.cid]?.n||'규범 권역'}).`,'war');
   }
 }
 
@@ -3909,7 +4535,7 @@ function aiPulse(){
   // NPC 자문회 + 활동 처리
   npcCouncilPulse();
   npcActivityPulse();
-  npcDejureWarPulse(); // NPC 규범권역 전쟁 — CK3식 통일 경쟁
+  npcDejureWarPulse(); // NPC 규범 권역 전쟁 — CK3식 통일 경쟁
 
   // 매월: 유령 ruler 정리
   cleanupGhostRulers();
@@ -4225,7 +4851,7 @@ const EVENTS=[
   {cond:c=>stat(c,'intr')>=6, w:2, run:c=>popup({title:'밀정의 보고', sub:'계책',
     body:'당신의 밀정이 인근 궁정에서 흥미로운 소문을 가져왔습니다.\\n한 영주가 비밀스러운 약점을 숨기고 있다는 것입니다.',
     opts:[
-      {t:'약점을 캔다', d:'음모 경험, 스트레스 +5', f:()=>{addStress(c,5,'은밀한 모의'); state.prestige+=8; log('약점을 손에 넣었습니다. 언젠가 쓸모가 있겠지요.','dip');}},
+      {t:'약점을 캔다', d:'계책력 경험, 스트레스 +5', f:()=>{addStress(c,5,'은밀한 모의'); state.prestige+=8; log('약점을 손에 넣었습니다. 언젠가 쓸모가 있겠지요.','dip');}},
       {t:'관심 없다', d:'—', f:()=>{}},
     ]})},
   {cond:c=>true, w:2, run:c=>popup({title:'독초를 아는 노파', sub:'계책',
@@ -4419,16 +5045,16 @@ const EVENTS=[
   {cond:c=>c.lifestyle==='dip', w:1, run:c=>popup({title:'외교의 묘', sub:'인생관 — 외교',
     body:'협상 자리에서 당신은 상대의 속내를 꿰뚫어 보았습니다.\\n말 한마디로 분위기를 뒤집는 법을 터득해갑니다.',
     opts:[{t:'경험을 새긴다', d:'인생관 경험 +30', f:()=>{c.lifeXP+=30; addStress(c,-3,'성장의 기쁨');}}]})},
-  {cond:c=>c.lifestyle==='mar', w:1, run:c=>popup({title:'전술의 깨달음', sub:'인생관 — 무예',
+  {cond:c=>c.lifestyle==='mar', w:1, run:c=>popup({title:'전술의 깨달음', sub:'인생관 — 군사',
     body:'옛 전투를 복기하던 중, 당신은 새로운 진형의 가능성을 발견했습니다.',
     opts:[{t:'연구를 거듭한다', d:'인생관 경험 +30', f:()=>{c.lifeXP+=30; addStress(c,-3,'성장의 기쁨');}}]})},
-  {cond:c=>c.lifestyle==='stew', w:1, run:c=>popup({title:'장부의 지혜', sub:'인생관 — 내정',
+  {cond:c=>c.lifestyle==='stew', w:1, run:c=>popup({title:'장부의 지혜', sub:'인생관 — 관리',
     body:'복잡한 세무 장부를 들여다보다, 낭비되던 재정의 구멍을 찾아냈습니다.',
     opts:[{t:'개선책을 적용한다', d:'금 +30, 인생관 경험 +30', f:()=>{REGIONS[c.region].gold+=30; c.lifeXP+=30;}}]})},
-  {cond:c=>c.lifestyle==='intr', w:1, run:c=>popup({title:'그림자의 기술', sub:'인생관 — 음모',
+  {cond:c=>c.lifestyle==='intr', w:1, run:c=>popup({title:'그림자의 기술', sub:'인생관 — 책략',
     body:'밀정들을 다루는 법, 비밀을 캐는 법, 흔적을 지우는 법.\\n당신은 어둠의 기술에 점점 능해집니다.',
     opts:[{t:'기술을 연마한다', d:'인생관 경험 +30', f:()=>{c.lifeXP+=30; addStress(c,-3,'은밀한 성취');}}]})},
-  {cond:c=>c.lifestyle==='learn', w:1, run:c=>popup({title:'고서의 발견', sub:'인생관 — 학문',
+  {cond:c=>c.lifestyle==='learn', w:1, run:c=>popup({title:'고서의 발견', sub:'인생관 — 학습',
     body:'수도원 서고 깊은 곳에서 오래된 라틴어 필사본을 발견했습니다.\\n잊혀진 지식이 그 안에 잠들어 있습니다.',
     opts:[{t:'밤새 탐독한다', d:'위신 +5, 인생관 경험 +30', f:()=>{state.prestige+=5; c.lifeXP+=30; addStress(c,-3,'지식의 기쁨');}}]})},
 
@@ -4696,22 +5322,22 @@ const EVENTS=[
   {cond:c=>c.lifestyle==='dip'&&stat(c,'dip')>=8, w:2, run:c=>popup({title:'협상의 달인', sub:'외교 인생관',
     body:'당신의 말 한마디에 상대방이 태도를 바꿨습니다. 협상 테이블에서 당신은 점점 강해지고 있습니다.',
     opts:[{t:'기술을 연마한다', d:'외교 스탯 임시 +, 경험 +20', f:()=>{c.lifeXP+=20; const o=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==c.id); if(o) chOp(o,c,8); addStress(c,-5,'성장의 기쁨');}}]})},
-  {cond:c=>c.lifestyle==='mar'&&stat(c,'mar')>=8, w:2, run:c=>popup({title:'전략의 통찰', sub:'무예 인생관',
+  {cond:c=>c.lifestyle==='mar'&&stat(c,'mar')>=8, w:2, run:c=>popup({title:'전략의 통찰', sub:'군사 인생관',
     body:'옛 전투들을 다시 분석하며 새로운 전략적 통찰을 얻었습니다. 에이레의 지형이 다르게 보입니다.',
     opts:[{t:'훈련에 적용한다', d:'병력 +50, 경험 +20', f:()=>{c.lifeXP+=20; REGIONS[c.region].troops+=50; addStress(c,-3,'전략가의 확신');}}]})},
-  {cond:c=>c.lifestyle==='stew'&&REGIONS[c.region].gold>200, w:2, run:c=>popup({title:'재정 혁신', sub:'내정 인생관',
+  {cond:c=>c.lifestyle==='stew'&&REGIONS[c.region].gold>200, w:2, run:c=>popup({title:'재정 혁신', sub:'관리 인생관',
     body:'새로운 세금 체계를 도입할 수 있습니다. 단기적으로 불만이 생기겠지만 장기적으로는 이득입니다.',
     opts:[
       {t:'도입한다', d:'민심 -8, 금 수입 +50', f:()=>{REGIONS[c.region].pop=Math.max(0,(REGIONS[c.region].pop||60)-8); REGIONS[c.region].gold+=50; c.lifeXP+=20; log('새 세금 체계가 도입됐습니다.','good');}},
       {t:'현상 유지', d:'경험 +10', f:()=>{c.lifeXP+=10;}},
     ]})},
-  {cond:c=>c.lifestyle==='intr'&&stat(c,'intr')>=7, w:2, run:c=>popup({title:'그림자 네트워크', sub:'음모 인생관',
+  {cond:c=>c.lifestyle==='intr'&&stat(c,'intr')>=7, w:2, run:c=>popup({title:'그림자 네트워크', sub:'책략 인생관',
     body:'당신의 밀정 네트워크가 예상치 못한 정보를 가져왔습니다. 이웃 왕국의 내부 갈등을 이용할 수 있습니다.',
     opts:[
       {t:'정보를 활용한다', d:'이웃 관계 -10, 위신 +10', f:()=>{const o=Object.values(chars).find(k=>!k.dead&&k.ruler&&k.id!==c.id); if(o){chOp(o,c,-10);} state.prestige+=10; c.lifeXP+=20; log('정보를 이용해 유리한 고지를 점했습니다.','dip');}},
       {t:'덮어둔다', d:'경험 +10', f:()=>{c.lifeXP+=10;}},
     ]})},
-  {cond:c=>c.lifestyle==='learn'&&stat(c,'learn')>=7, w:2, run:c=>popup({title:'새로운 이론', sub:'학문 인생관',
+  {cond:c=>c.lifestyle==='learn'&&stat(c,'learn')>=7, w:2, run:c=>popup({title:'새로운 이론', sub:'학습 인생관',
     body:'오랜 연구 끝에 새로운 농업 기술을 발견했습니다. 영지 생산성을 높일 수 있는 방법입니다.',
     opts:[{t:'적용한다', d:'민심 +8, 금 +40, 경험 +20', f:()=>{REGIONS[c.region].pop=Math.min(100,(REGIONS[c.region].pop||60)+8); REGIONS[c.region].gold+=40; c.lifeXP+=20; log('새 농업 기술이 도입됐습니다.','good');}}]})},
 
@@ -4779,22 +5405,46 @@ function randomEventPulse(){
 
 /* ---------- 플레이어 외교 ---------- */
 function openBuildMenu(bid){
-  const b=BARONIES[bid]; if(!b) return;
-  const existing=b.buildings||[];
-  const seatGold=BARONIES[playerChar().region]?.gold||0;
-  const opts=Object.entries(BUILDING_TYPES)
-    .filter(([type])=>!existing.includes(type)&&(b.buildings||[]).length+(b.building_queue?1:0)<b.slots)
-    .map(([type,bt])=>({
-      t:`${bt.icon} ${bt.n}`,
-      d:`금 ${bt.cost} · ${bt.buildMonths}개월 · ${bt.desc}${seatGold<bt.cost?' (금 부족)':''}`,
-      f: seatGold>=bt.cost ? ()=>{ startBuilding(bid,type); renderCourt(); } : ()=>log('금이 부족합니다.')
-    }));
-  opts.push({t:'취소'});
-  showModal({title:`${b.n} 건설`, sub:`슬롯 ${b.slots-(existing.length+(b.building_queue?1:0))}/${b.slots} · 금 ${Math.round(seatGold)}`,
-    body:'건설할 건물을 선택하세요.', opts});
+  const b=BARONIES[bid]; if(!b||b.type==='empty') return;
+  const seatGold=Math.round(BARONIES[playerChar().region]?.gold||0);
+  const terrKr=TERRAIN[baronyTerrain(bid)]?.n||'?';
+  const _cid=BARONY_COUNTY[bid]; const _dev=_cid?countyDev(_cid):0;
+  const opts=[];
+  const effStr=(lineId,L)=>{ const e=lvEff(lineId,L); const p=[];
+    if(e.tax) p.push(`세금+${e.tax}`); if(e.levyCap) p.push(`병력+${e.levyCap}`);
+    if(e.regen) p.push(`회복+${e.regen}`); if(e.pop) p.push(`개발+${e.pop}`);
+    if(e.fort) p.push(`요새Lv${e.fort}`); if(e.garrison) p.push(`수비${e.garrison}`);
+    if(e.def) p.push(`방어+${e.def}`); if(e.supply) p.push(`보급+${e.supply}`);
+    const ma=CK3_BUILDINGS[lineId]?.maa; if(ma){ const us=[...new Set(Object.keys(ma).map(u=>MAA_TYPES[MAA_BLD_MAP[u]]?.n).filter(Boolean))]; if(us.length) p.push(us.join('·')+' 강화'); } return p.join(' · '); };
+  for(const slot of (b.builds||[])){
+    const ln=CK3_BUILDINGS[slot.line], info=nextLevelInfo(bid, slot), nm=lineName(slot.line,b);
+    if(slot.wip) opts.push({t:`${ln.icon} ${nm} (${slot.wip.to}단계 건설중)`, d:`${slot.wip.prog}/${lvTime(slot.wip.to)}개월`, f:()=>{}});
+    else if(!info.ok) opts.push({t:`${ln.icon} ${nm} Lv${slot.level} — ${info.reason}`, d:effStr(slot.line,slot.level), f:()=>{}});
+    else opts.push({t:`${ln.icon} ${nm} Lv${slot.level} → ${info.toLv} 증축`,
+      d:`금${info.cost}·${info.time}개월 → ${effStr(slot.line,info.toLv)}${seatGold<info.cost?' (금 부족)':''}`,
+      f:()=>{ startUpgrade(bid, slot.line); renderCourt&&renderCourt(); }});
+  }
+  if(baronySlots(bid)-usedSlots(b)>0){
+    for(const id of availableLines(bid)){ const ln=CK3_BUILDINGS[id];
+      opts.push({t:`＋ ${ln.icon} ${ln.n} (1단계 건설)`,
+        d:`금${lvCost(1)}·${lvTime(1)}개월 → ${effStr(id,1)}${seatGold<lvCost(1)?' (금 부족)':''}`,
+        f:()=>{ startUpgrade(bid, id); renderCourt&&renderCourt(); }});
+    }
+  }
+  opts.push({t:'닫기'});
+  showModal({title:`${b.n} 건설`,
+    sub:`${b.type==='city'?'도시':b.type==='temple'?'사원':'성채'} · 지형 ${terrKr} · 개발도 ${_dev.toFixed(1)} · ${ERA_NAME[gameEra(state?.year)]}(최대 ${eraMaxLevel(state?.year)}단계) · 슬롯 ${usedSlots(b)}/${baronySlots(bid)} · 금 ${seatGold}`,
+    body:'건물을 선택해 건설·증축합니다. (CK3: 지형·보유지 등급·시대 조건 적용)', opts});
   pause();
 }
 function openCounty(cid){
+  // Phase 3: 선택된 내 군대가 있으면 이 county로 파견 (외교창 대신)
+  if(state.selectedArmy){ const a=(state.armies||[]).find(x=>x.id===state.selectedArmy);
+    state.selectedArmy=null;
+    if(a&&a.owner===state.player){ const dest=COUNTIES[cid]?.capital;
+      if(dest&&orderArmyMove(a,dest)){ log(`${COUNTIES[cid]?.n||'영지'}(으)로 군대를 파견했습니다.`,'war'); renderMap(); return; } }
+    renderMap();
+  }
   const holder=countyHolder(cid); if(!holder) return;
   // 공성 중이면 전황 표시
   const war=state.wars.find(w=>w.targetRid===cid);
@@ -4809,6 +5459,36 @@ function openCounty(cid){
   }
   openRegion(COUNTIES[cid]?.capital, cid);
 }
+/* 공작 건물 건설 메뉴 */
+function openDuchyBuildMenu(d){
+  const p=playerChar(); if(!p) return;
+  const cap=duchyCapitalBarony(d), b=BARONIES[cap]; if(!b) return;
+  const seatGold=Math.round(BARONIES[p.region]?.gold||0), lvCapE=duchyBuildLevelCap();
+  const cur=b.duchyBuild;
+  const effLine=(lineId,L)=>{ const e=DUCHY_BUILDINGS[lineId].eff[L-1]; const a=[];
+    if(e.levy)a.push(`징집+${Math.round(e.levy*100)}%`); if(e.upkeep)a.push(`유지비−${Math.round(e.upkeep*100)}%`);
+    if(e.fort)a.push(`요새+${e.fort}`); if(e.siege)a.push(`공성+${Math.round(e.siege*100)}%`);
+    if(e.inf)a.push(`보병+${Math.round(e.inf*100)}%`); if(e.cav)a.push(`기병+${Math.round(e.cav*100)}%`);
+    if(e.prestige)a.push(`위신+${e.prestige}/월`); if(e.pop)a.push(`민심+${e.pop}/월`); return a.join(' · '); };
+  const opts=[];
+  for(const lineId in DUCHY_BUILDINGS){ const def=DUCHY_BUILDINGS[lineId];
+    const isCur=cur&&cur.line===lineId, lv=isCur?cur.level:0;
+    if(cur&&cur.wip&&cur.line===lineId){ opts.push({t:`${def.icon} ${def.n} (${cur.wip.to}단계 건설중)`, d:`${cur.wip.prog}/${DUCHYB_TIME[cur.wip.to-1]}개월`, f:()=>{}}); continue; }
+    if(cur&&cur.wip){ opts.push({t:`${def.icon} ${def.n}`, d:'다른 공작 건물 건설 중', f:()=>{}}); continue; }
+    const toLv=lv+1;
+    if(toLv>3){ opts.push({t:`${def.icon} ${def.n} L${lv} (최고 단계)`, d:effLine(lineId,lv), f:()=>{}}); continue; }
+    if(toLv>lvCapE){ opts.push({t:`${def.icon} ${def.n} ${isCur?'L'+lv+' ':''}— ${ERA_NAME[gameEra(state?.year)+1]||'다음'} 시대 필요`, d:effLine(lineId,toLv), f:()=>{}}); continue; }
+    const cost=DUCHYB_COST[toLv-1];
+    const head = lv>0?`${def.icon} ${def.n} L${lv}→${toLv} 증축`:(cur&&!isCur?`${def.icon} ${def.n} (교체 건설)`:`${def.icon} ${def.n} 건설`);
+    opts.push({t:head, d:`금${cost}·${DUCHYB_TIME[toLv-1]}개월 → ${effLine(lineId,toLv)}${seatGold<cost?' (금 부족)':''}`,
+      f:()=>{ startDuchyBuild(d, lineId); renderCourt&&renderCourt(); }});
+  }
+  opts.push({t:'닫기'});
+  showModal({title:`👑 ${DUCHIES[d].n} 공작 건물`,
+    sub:`수도 ${b.n} · ${ERA_NAME[gameEra(state?.year)]}(최대 ${lvCapE}단계) · 금 ${seatGold} · 공작령당 1개`,
+    body:'공작령 전체에 적용되는 특수 건물입니다. (CK3 Duchy Buildings — 교체 시 기존 건물 대체)', opts});
+  pause();
+}
 /* ═══════════════════════════════════════════════
    내 백작령 상세 — 소속 남작령 목록 + 건물 건설
    지도에서 내 영지 클릭 시 호출
@@ -4821,19 +5501,30 @@ function openMyCounty(cid, dispName){
   const seatGold=Math.round(BARONIES[p.region]?.gold||0);
   const duchy=cnt?DUCHIES[cnt.duchy]?.n||'':'';
   const opts=[];
+  // 공작 건물: 이 군이 공작령 de jure 수도이고 플레이어가 해당 공작이며 전 군 보유 시
+  if(cnt && duchyCapitalBarony(cnt.duchy)===cnt.capital && heldDuchiesOf(p.id).includes(cnt.duchy)){
+    const d=cnt.duchy, db=BARONIES[cnt.capital]?.duchyBuild, whole=ownsWholeDuchy(p.id,d);
+    const cur=db&&db.level>0?`${DUCHY_BUILDINGS[db.line].icon}${DUCHY_BUILDINGS[db.line].n} L${db.level}${db.wip?` (→${db.wip.to} 건설중)`:''}`:'없음';
+    opts.push({t:`👑 공작 건물 — ${DUCHIES[d].n}`,
+      d: whole?`현재: ${cur} · 탭하여 건설/증축`:`현재: ${cur} · ⚠ 공작령 전 군 보유 필요`,
+      f: whole?()=>openDuchyBuildMenu(d):()=>log('공작령의 모든 군을 직접 보유해야 공작 건물을 지을 수 있습니다.','dip')});
+  }
   for(const bid of bids){
     const b=BARONIES[bid]; if(!b) continue;
-    const done=(b.buildings||[]).filter(x=>x.done);
-    const inProg=(b.buildings||[]).find(x=>!x.done);
-    const slotsUsed=done.length+(inProg?1:0);
-    const canBuild=slotsUsed<BUILDING_SLOTS&&!inProg;
-    const doneNames=done.length?done.map(x=>`${BUILDINGS[x.type]?.icon||''}${BUILDINGS[x.type]?.n||x.type}`).join(' '):'없음';
-    const wipText=inProg?` | ⏳${BUILDINGS[inProg.type]?.n||''} 건설중`:'';
+    const inProg=(b.builds||[]).find(s=>s.wip);
+    const slotsUsed=(b.builds||[]).filter(s=>s.line!=='holding').length;
+    const slotMax=(b.type==='empty')?0:baronySlots(bid);
+    const builtList=(b.builds||[]).filter(s=>s.level>0)
+      .map(s=>`${CK3_BUILDINGS[s.line]?.icon||''}${lineName(s.line,b)}${s.level>1?('L'+s.level):''}`);
+    const doneNames=builtList.length?builtList.join(' '):'없음';
+    const wipText=inProg?` | ⏳${lineName(inProg.line,b)} ${inProg.wip.to}단계 건설중`:'';
+    const terrKr=b.type!=='empty'?(TERRAIN[baronyTerrain(bid)]?.n||''):'';
     // 홀딩 유형 아이콘
     const typeIcon=b.type==='city'?'🏙':b.type==='temple'?'⛪':'🏰';
     // 소유자 확인
     const owner=b.owner&&chars[b.owner]&&!chars[b.owner].dead?chars[b.owner]:null;
     const isDirect=owner&&owner.id===p.id;
+    const canBuild=isDirect&&b.type!=='empty';
     const isWrong=wrongHolding(bid,p.id);
     const ownerStr=!owner?'비어있음':isDirect?'직접 소유'+(isWrong?' ⚠':''):`${owner.name} (봉신)`;
     // 빈 슬롯 — 이 백작령의 소유자가 플레이어인지 확인 (owner 무관)
@@ -4854,6 +5545,7 @@ function openMyCounty(cid, dispName){
                   if((BARONIES[capBid]?.gold||0)<150){log('금이 부족합니다.');return;}
                   BARONIES[capBid].gold-=150;
                   b.type='castle'; b.n=cnt?.n+'의 성'; b.cap=200; b.troops=200; b.gold=0; b.owner=p.id;
+                  b.builds=[{line:'holding',level:1,wip:null}]; b.hlevel=1; b.terrain=baronyTerrain(bid); b.fortLevel=0; b.garrison=0; b.taxBld=0; b.regenBld=0; b.capBld=0;
                   log(`<b>${cnt?.n}</b>에 성을 건설했습니다.`,'good');
                 }},
               {t:'🏙 도시 건설 (금 120)', d:'세금 특화 · Mayor 봉신 필요',
@@ -4861,6 +5553,7 @@ function openMyCounty(cid, dispName){
                   if((BARONIES[capBid]?.gold||0)<120){log('금이 부족합니다.');return;}
                   BARONIES[capBid].gold-=120;
                   b.type='city'; b.n=cnt?.n+'의 도시'; b.cap=150; b.troops=100; b.gold=0; b.owner=p.id;
+                  b.builds=[{line:'holding',level:1,wip:null}]; b.hlevel=1; b.terrain=baronyTerrain(bid); b.fortLevel=0; b.garrison=0; b.taxBld=0; b.regenBld=0; b.capBld=0;
                   log(`<b>${cnt?.n}</b>에 도시를 건설했습니다. Mayor를 임명하십시오.`,'good');
                 }},
               {t:'⛪ 사원 건설 (금 100)', d:'경건·chaplain 연동 · Bishop 봉신 필요',
@@ -4868,6 +5561,7 @@ function openMyCounty(cid, dispName){
                   if((BARONIES[capBid]?.gold||0)<100){log('금이 부족합니다.');return;}
                   BARONIES[capBid].gold-=100;
                   b.type='temple'; b.n=cnt?.n+'의 사원'; b.cap=150; b.troops=120; b.gold=0; b.owner=p.id;
+                  b.builds=[{line:'holding',level:1,wip:null}]; b.hlevel=1; b.terrain=baronyTerrain(bid); b.fortLevel=0; b.garrison=0; b.taxBld=0; b.regenBld=0; b.capBld=0;
                   log(`<b>${cnt?.n}</b>에 사원을 건설했습니다. Bishop을 임명하십시오.`,'good');
                 }},
               {t:'취소', f:()=>{}}
@@ -4904,21 +5598,25 @@ function openMyCounty(cid, dispName){
       }
     } else if(canBuild){
       opts.push({t:`${typeIcon} ${b.n} 🔨 건설`,
-        d:`${ownerStr} · 슬롯 ${slotsUsed}/${BUILDING_SLOTS} · ${doneNames}${wipText}`,
+        d:`${ownerStr} · ${terrKr} · 슬롯 ${slotsUsed}/${slotMax} · ${doneNames}${wipText}`,
         f:()=>openBuildMenu(bid)});
     } else {
       opts.push({t:`${typeIcon} ${b.n}`,
-        d:`${ownerStr} · 슬롯 ${slotsUsed}/${BUILDING_SLOTS} · ${doneNames}${wipText}${slotsUsed>=BUILDING_SLOTS?' · 슬롯 가득':''}`,
+        d:`${ownerStr}${terrKr?' · '+terrKr:''} · 슬롯 ${slotsUsed}/${slotMax} · ${doneNames}${wipText}${slotsUsed>=slotMax&&slotMax>0?' · 슬롯 가득':''}`,
         f:()=>{}});
     }
   }
   opts.push({t:'닫기'});
+  const devVal=countyDev(cid), devPct=Math.round((countyDevMul(cid)-1)*1000)/10;
   showModal({
     title:cnt?.n||dispName,
     sub:`${duchy}${duchy?' · ':''}남작령 ${bids.length}개`,
     body:'',
     html:`<div class="kv"><span>총 병력</span><span>${totalTroops}</span></div>
           <div class="kv"><span>금고</span><span>${seatGold}</span></div>
+          <div class="kv"><span>개발도</span><span>${devVal.toFixed(1)} <span style="color:var(--parch-dim);font-size:.82em">(세금·징집 +${devPct}% · 보급 +${countyDevSupply(cid)})</span></span></div>
+          <div class="kv"><span>장악력</span><span>${Math.round(countyControl(cid))} <span style="color:var(--parch-dim);font-size:.82em">(세금 ×${(controlTaxMul(cid)*100).toFixed(0)}% · 징집 ×${(controlLevyMul(cid)*100).toFixed(0)}%${countyControl(cid)<40?' · 반란 위험':''})</span></span></div>
+          <div class="kv"><span>문화</span><span style="color:${CULTURES[countyCulture(cid)]?.color||'inherit'}">${cultureName(cid)}${countyCulture(cid)!==playerCulture()?' <span style="color:var(--parch-dim);font-size:.82em">(이민족 · 문화 촉진 대상)</span>':''}</span></div>
           <div style="margin:10px 0 4px;font-size:.72rem;letter-spacing:.2em;color:var(--gold-dim)">남작령 현황</div>`,
     opts
   });
@@ -5146,7 +5844,7 @@ function buildProfileHTML(c){
     + _warLine + _cmdLines + _allyLine + _spouseLine + _betrothLine;
 
   /* B. 스킬 + 특성 */
-  const SKILL_FULL={dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문',prow:'용맹'};
+  const SKILL_FULL={dip:'외교력',mar:'전투력',stew:'관리력',intr:'계책력',learn:'학습력',prow:'용맹'};
   let skillsHtml='';
   for(const [k,n] of Object.entries(SKILL_FULL)){
     const v=stat(c,k), pct=Math.min(100,v/20*100);
@@ -5653,7 +6351,7 @@ const CB_TYPES = {
   unpressed: { n:'미압박 명분', icon:'📜', cost:100, desc:'위조되거나 약한 작위 권리 주장',  color:'#8a9a6a' },
   revenge:   { n:'복수 선포',   icon:'🩸', cost:0,   desc:'침략당한 영지 탈환 명분',    color:'#9e3535' },
   holy_war:  { n:'성전',        icon:'✝', cost:0,   desc:'이교도·이단에 대한 신성한 전쟁 — 승리 시 개종', color:'#d4a82a', piety:true },
-  dejure:    { n:'규범권역 주장', icon:'🏰', cost:0,  desc:'규범권역 내 백작령을 회수 — 승리 시 봉신화', color:'#7a9ac8' },
+  dejure:    { n:'규범 권역 장악', icon:'🏰', cost:0,  desc:'규범 권역 내 백작령을 회수 — 승리 시 봉신화', color:'#7a9ac8' },
 };
 
 /* ─── 명분 시스템 핵심 헬퍼
@@ -5736,16 +6434,19 @@ function openDeclareWar(defId){
       body:`${def.name}에 대한 명분이 없습니다.
 
 명분을 얻는 방법:
-• 사제에게 교회법 명분 위조를 맡긴다
+• 사제에게 명분 위조를 맡긴다
 • 침략을 받아 복수 명분을 얻는다
-• 공작위를 창설해 규범권역의 백작령을 회수한다${relDiff?`\n\n✝ 성전: ${hw.reason}`:''}`,
+• 공작위를 창설해 규범 권역의 백작령을 회수한다${relDiff?`\n\n✝ 성전: ${hw.reason}`:''}`,
       opts:[{t:'닫기'}]}); return;
   }
 
   // 명분 선택 화면
   const myPow = mobilizableTroops(p);
   const defPow = mobilizableTroops(def);
+  const eType = enemyMaaType(def.id);
+  const eCounterKey = Object.keys(MAA_COUNTERS).find(k=>MAA_COUNTERS[k]===eType);
   let html = `<div class="kv"><span>상대 전력</span><span>${defPow.toLocaleString()} vs 내 전력 ${myPow.toLocaleString()}</span></div>
+    <div class="kv"><span>적 주력 병종</span><span>${MAA_TYPES[eType]?.n||'?'} <span style="color:var(--parch-dim);font-size:.82em">(${MAA_TYPES[eCounterKey]?.n||'?'}(으)로 상성 우위)</span></span></div>
     <div class="kv"><span>위신</span><span>${Math.round(state.prestige)}</span></div>
     <div style="margin:12px 0 6px;font-size:.72rem;letter-spacing:.2em;color:var(--gold-dim)">보유 명분</div>`;
 
@@ -5799,7 +6500,7 @@ function openDeclareWar(defId){
     const cidNames = dj.cids.map(cid=>COUNTIES[cid]?.n||cid).join(', ');
     const targetRid = dj.cids[0];
     opts.push({
-      t:`${cbInfo.icon} 규범권역 탈환 — ${cidNames}`,
+      t:`${cbInfo.icon} 규범 권역 탈환 — ${cidNames}`,
       d:`위신 ${dj.cost} 소모 · 내 권역 백작령 ${dj.cids.length}개 회수 · 승리 시 ${def.name} 봉신화${canAfford?'':' (위신 부족)'}`,
       f: canAfford ? ()=>{
         state.prestige -= dj.cost;
@@ -5807,7 +6508,7 @@ function openDeclareWar(defId){
         // de jure 표식 — 승리 시 봉신화 처리
         const w=state.wars.find(w=>w.atk===p.id&&w.def===def.id);
         if(w){ w.dejure=true; w.dejureCids=dj.cids.slice(); }
-        log(`<b>🏰 ${def.name}</b>에게 규범권역 권리로 선전포고했습니다! 승리하면 봉신으로 복속됩니다.`,'war');
+        log(`<b>🏰 ${def.name}</b>에게 규범 권역 권리로 선전포고했습니다! 승리하면 봉신으로 복속됩니다.`,'war');
       } : ()=>{ log('위신이 부족합니다.','dip'); }
     });
   }
@@ -5993,7 +6694,7 @@ function councilPulse(){
           const vs = vassalsOf(p.id);
           const v = vs[Math.floor(Math.random()*Math.max(1,vs.length))];
           if(v){ const gain=Math.round(sk*0.5); chOp(v,p,gain);
-            popup({title:'왕실 은총 효과', sub:`${c.name}의 보고`,
+            popup({title:'왕실의 비호 효과', sub:`${c.name}의 보고`,
               body:`${c.name}이(가) ${v.name}에게 왕실의 총애를 전달했습니다.\n${v.name} 호감 +${gain}`,
               opts:[{t:'좋은 일이다', f:()=>chOp(c,p,5)}]}); }
         } else if(fireEvent && canNeg){
@@ -6021,7 +6722,7 @@ function councilPulse(){
           if(positive && canPos){
             /* 긍정: Increased Military Presence — 병력 추가 */
             const extra = Math.round(sk * 3);
-            popup({title:'군대 조직 성과', sub:`${c.name}의 보고`,
+            popup({title:'징집병 조직 성과', sub:`${c.name}의 보고`,
               body:`${c.name}이(가) 병력 재편성에 성공했습니다.\n「부대 기강이 잡혔습니다, 전하.」\n병력 +${extra}`,
               opts:[{t:'격려한다', f:()=>{reg.troops=Math.min(reg.cap,reg.troops+extra); chOp(c,p,5); log(`병력 +${extra}.`,'war');}}]});
           } else if(canNeg){
@@ -6051,22 +6752,21 @@ function councilPulse(){
           }
         }
       } else if(task === 'increase_control'){
-        /* 위키: +0.2% Monthly chance to remove County Corruption/skill
-                 County cannot gain Corruption
-           근사: 민심 부패 제거 → pop 소폭 회복 (0.2%×sk/월 확률로 pop+2) */
-        if(Math.random() < sk * 0.002){
-          reg.pop = Math.min(100, (reg.pop||60) + 2);
-        }
-        if(fireEvent && positive && canPos){
-          /* 긍정: Baron Opinion Increase — 민심 +8 */
-          popup({title:'영지 안정화', sub:`${c.name}의 보고`,
-            body:`${c.name}이(가) 직할령의 질서를 회복했습니다.\n「반란의 씨앗이 뽑혔습니다, 전하.」\n민심 +8`,
-            opts:[{t:'수고했다', f:()=>{reg.pop=Math.min(100,(reg.pop||60)+8); chOp(c,p,5);}}]});
-        } else if(fireEvent && canNeg){
-          /* 부정: Lose County Opinion */
-          popup({title:'영지 마찰', sub:`${c.name}의 보고`,
-            body:`강압적 통제로 백성들의 반감을 샀습니다.\n민심 -5`,
-            opts:[{t:'방식을 바꾸게 한다', f:()=>{reg.pop=Math.max(0,(reg.pop||60)-5); chOp(c,p,-5);}}]});
+        /* CK3: 무관장 장악력 증대 — 대상 수도 군 장악력 월 +0.06×스킬 (정복지 재안정화) */
+        const cid=BARONY_COUNTY[p.region], cc=COUNTIES[cid];
+        if(cc){
+          cc.control=Math.min(100, +((cc.control??90)+skEff*0.06).toFixed(2)); // 스킬12 ≈ +0.72/월
+          if(fireEvent && positive && canPos){
+            cc.control=Math.min(100, cc.control+3);
+            popup({title:'장악력 강화', sub:`${c.name}의 보고`,
+              body:`${c.name}이(가) 직할령의 질서를 다잡았습니다.\n장악력 +3 (현재 ${Math.round(cc.control)})`,
+              opts:[{t:'수고했다', f:()=>chOp(c,p,5)}]});
+          } else if(fireEvent && canNeg){
+            cc.control=Math.max(0, cc.control-2);
+            popup({title:'영지 마찰', sub:`${c.name}의 보고`,
+              body:`강압적 통제에 백성이 반발합니다.\n장악력 -2 · 민심 -3`,
+              opts:[{t:'방식을 바꾸게 한다', f:()=>{reg.pop=Math.max(0,(reg.pop||60)-3); chOp(c,p,-5);}}]});
+          }
         }
       }
     }
@@ -6081,14 +6781,14 @@ function councilPulse(){
         const myBids = regionsOf(p.id);
         const avgIncome = 4 + stat(p,'stew') * 0.5;
         const taxBonus = Math.round(myBids.length * skEff * 0.005 * avgIncome);
-        reg.gold = Math.min(3500, (reg.gold||0) + taxBonus);
+        reg.gold = Math.min(9999, (reg.gold||0) + taxBonus);
         if(fireEvent){
           if(positive && canPos){
             /* 긍정: Extra Taxes */
             const bonus = Math.round(20 + sk * 3);
             popup({title:'세금 성과', sub:`${c.name}의 보고`,
               body:`${c.name}이(가) 효율적인 징수로 금고를 채웠습니다.\n금 +${bonus}`,
-              opts:[{t:'수고했다', f:()=>{reg.gold=Math.min(3500,reg.gold+bonus); chOp(c,p,5); log(`재무관 추가 징수 +${bonus}금.`,'good');}}]});
+              opts:[{t:'수고했다', f:()=>{reg.gold=Math.min(9999,reg.gold+bonus); chOp(c,p,5); log(`집사장 추가 징수 +${bonus}금.`,'good');}}]});
           } else if(canNeg){
             /* 부정: County Corruption — 금 손실, 민심 -3 */
             reg.gold=Math.max(0,reg.gold-40); reg.pop=Math.max(0,(reg.pop||60)-3);
@@ -6098,34 +6798,45 @@ function councilPulse(){
           }
         }
       } else if(task === 'increase_development'){
-        /* 위키: -1% Construction Time/skill · +0.175 Development Growth/skill/month
-                 At 100% → Development +1 (민심 +3, cap +20으로 근사) */
-        const rate = skEff * 0.175;
-        state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate);
-        if(state.councilProgress.steward >= 100){
-          state.councilProgress.steward = 0;
-          reg.pop = Math.min(100,(reg.pop||60)+3); reg.cap=(reg.cap||300)+20;
-          log(`재무관의 영지 개발 완료! 민심 +3 · 병력 상한 +20`, 'good');
-          if(canPos) popup({title:'영지 개발 완료', sub:`${c.name}의 보고`,
-            body:`영지 개발이 완료됐습니다!\n민심 +3 · 병력 상한 +20`,
-            opts:[{t:'훌륭하다', f:()=>chOp(c,p,10)}]});
-        } else if(fireEvent && canNeg){
-          /* 부정: Slow Construction */
-          popup({title:'개발 지연', sub:`${c.name}의 보고`,
-            body:`개발 사업이 예상치 못한 문제로 지연되고 있습니다.\n(현재 진행: ${Math.round(state.councilProgress.steward)}%)`,
-            opts:[{t:'추가 지원 (금 -20)', f:()=>{
-              if(reg.gold>=20){ reg.gold=Math.max(0,reg.gold-20); state.councilProgress.steward=Math.min(100,state.councilProgress.steward+5); }
-              else log('금이 부족합니다.','dip');
-            }}]});
+        /* CK3: 대상 수도 군에 Development Growth/스킬/월 + 진행 100% 시 개발도 +1 (정식 개발도 c.dev 반영) */
+        const devCid = BARONY_COUNTY[p.region], dco = COUNTIES[devCid];
+        if(dco){
+          const cap = devCap();
+          dco.dev = Math.min(cap, +((dco.dev||0) + skEff*0.0125).toFixed(3)); // 월 성장(스킬12 ≈ +0.15/월 ≈ +1.8/년)
+          const rate = skEff * 0.175;
+          state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate);
+          if(state.councilProgress.steward >= 100){
+            state.councilProgress.steward = 0;
+            dco.dev = Math.min(cap, +((dco.dev||0) + 1).toFixed(3)); // 이정표: 개발도 +1
+            log(`집사장의 영지 개발로 <b>${reg.n} 일대</b>의 개발도가 도약했습니다. (+1 · 현재 ${dco.dev.toFixed(1)})`, 'good');
+            if(canPos) popup({title:'개발도 증가 성과', sub:`${c.name}의 보고`,
+              body:`수도 군의 개발이 한 단계 도약했습니다.\n개발도 +1 (현재 ${dco.dev.toFixed(1)})`,
+              opts:[{t:'훌륭하다', f:()=>chOp(c,p,10)}]});
+          } else if(fireEvent && canNeg){
+            popup({title:'개발 지연', sub:`${c.name}의 보고`,
+              body:`개발 사업이 지연되고 있습니다.\n(진행: ${Math.round(state.councilProgress.steward)}%)`,
+              opts:[{t:'추가 지원 (금 -20)', f:()=>{
+                if(reg.gold>=20){ reg.gold=Math.max(0,reg.gold-20); state.councilProgress.steward=Math.min(100,state.councilProgress.steward+5); }
+                else log('금이 부족합니다.','dip');
+              }}]});
+          }
         }
       } else if(task === 'promote_culture'){
-        /* 위키: (0.25 + skill÷20)%/month 진행 → 100%: 문화 전환 */
+        /* CK3: (0.25 + skill÷20)%/month 진행 → 100%: 대상 군 문화를 군주 문화로 전환 */
         const rate2 = 0.25 + skEff/20;
         state.councilProgress.steward = Math.min(100, (state.councilProgress.steward||0) + rate2);
         if(state.councilProgress.steward >= 100){
           state.councilProgress.steward = 0;
-          state.prestige += 15;
-          log(`재무관의 문화 진흥 완료! 위신 +15`, 'good');
+          const tgt = pickPromoteCultureTarget();
+          if(tgt){
+            COUNTIES[tgt].culture = playerCulture();
+            state.prestige += 15;
+            const b=BARONIES[COUNTIES[tgt].capital]; if(b) b.pop=Math.min(100,(b.pop||60)+8);
+            log(`<b>${COUNTIES[tgt].n}</b>의 문화가 아일랜드로 동화되었습니다! 위신 +15 · 민심 +8`, 'good');
+          } else {
+            state.prestige += 15;
+            log(`집사장의 문화 촉진 완료 (전환할 이민족 군 없음) · 위신 +15`, 'good');
+          }
         }
         if(fireEvent && positive && canPos){
           /* 긍정: Increased Levies */
@@ -6134,7 +6845,7 @@ function councilPulse(){
         } else if(fireEvent && canNeg){
           /* 부정: Resistance to Settlers */
           popup({title:'문화 저항', sub:`${c.name}의 보고`,
-            body:'일부 백성들이 문화 진흥 정책에 완강히 반발합니다.',
+            body:'일부 백성들이 문화 촉진 정책에 완강히 반발합니다.',
             opts:[{t:'설득한다 (금 -15)', f:()=>{ if(reg.gold>=15) reg.gold=Math.max(0,reg.gold-15); }},
                   {t:'강행한다', f:()=>{ reg.pop=Math.max(0,(reg.pop||60)-5); addStress(p,3,'민심 억압'); }}]});
         }
@@ -6211,7 +6922,7 @@ function councilPulse(){
         } else if(fireEvent && canNeg){
           /* 부정: Find Secrets Discovered */
           popup({title:'첩보 역탐지', sub:`${c.name}의 보고`,
-            body:`${c.name}의 비밀 탐문이 역으로 탐지됐습니다.\n위신 -5`,
+            body:`${c.name}의 비밀 탐색이 역으로 탐지됐습니다.\n위신 -5`,
             opts:[{t:'활동을 중단한다', f:()=>{state.prestige=Math.max(0,state.prestige-5); chOp(c,p,-5);}}]});
         }
       }
@@ -6287,7 +6998,7 @@ function councilPulse(){
         } else if(fireEvent && canNeg){
           /* 부정: Loss of County Opinion / Resistance to Conversion */
           popup({title:'개종 저항', sub:`${c.name}의 보고`,
-            body:'일부 주민들이 신앙 개종에 격렬히 저항합니다.',
+            body:'일부 주민들이 개종에 격렬히 저항합니다.',
             opts:[
               {t:'강제한다', f:()=>{reg.pop=Math.max(0,(reg.pop||60)-8); state.prestige+=3;}},
               {t:'설득으로 전환', f:()=>state.councilProgress.chaplain=Math.max(0,state.councilProgress.chaplain-10)},
@@ -6298,12 +7009,11 @@ function councilPulse(){
 
     /* ── 배우자 (Confidant) — 월간 0.75% 스킬 modifier 성장 기회
        위키: 각 집중 태스크에서 0.75%/월 확률로 +1 skill modifier 획득
-             두 번 획득 시 특성(Diplomat/Strategist/Architect/Schemer/Scholar)으로 전환
-       주: 위 5종 CK3 교육특성은 본 게임 TRAITS에 미존재 → 스킬 동일 방향의 인성특성으로 근사
-           (Diplomat→사교적 / Strategist→용감 / Architect→근면 / Schemer→기만 / Scholar→인내) */
+             두 번 획득 시 특성(Diplomat/Strategist/Architect/Schemer/Scholar)으로 전환 */
     else if(role === 'confidant'){
       const CONF_SKILL_MAP2={court_politics:'dip',chivalry:'mar',manage_domains:'stew',court_intrigue:'intr',patronage:'learn'};
       const CONF_TRAIT_MAP={court_politics:'gregarious',chivalry:'brave',manage_domains:'diligent',court_intrigue:'deceitful',patronage:'patient'};
+      /* 게임 내 근사: CK3 외교관/전략가/건축가/책략가/학자 대신 대응 인격특성(사교적/용감/근면/기만/인내) 부여 */
       const confTask=state.councilTasks?.confidant||'assist_ruler';
       if(confTask!=='assist_ruler'){
         /* 0.75%/월 확률로 스킬 modifier → base 스킬 +1 근사 */
@@ -6311,7 +7021,7 @@ function councilPulse(){
           const bk=CONF_SKILL_MAP2[confTask]||'dip';
           c.base[bk]=Math.min(20,(c.base[bk]||0)+1);
           if(c.id===p.spouse)
-            log(`<b>${c.name}</b>이(가) ${{dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문'}[bk]} 역량이 향상됐습니다. (+1)`, 'fam');
+            log(`<b>${c.name}</b>이(가) ${{dip:'외교력',mar:'전투력',stew:'관리력',intr:'계책력',learn:'학습력'}[bk]} 역량이 향상됐습니다. (+1)`, 'fam');
           /* 위키: 두 번 획득 후 특성 전환 근사 → 확률 1.5% */
           if(Math.random()<0.015){
             const tr=CONF_TRAIT_MAP[confTask];
@@ -6450,7 +7160,7 @@ function _showFabricateTargetPicker(sk, targets, idx){
           log(`명분 위조 대상을 ${COUNTIES[cid]?.n||cid}으로 변경했습니다. 진행도가 초기화됩니다.`, 'dip');
         }
         state.fabricateTarget = cid;
-        log(`사제가 <b>${cname}</b>에 대한 교회법 명분 위조를 시작합니다.`, 'dip');
+        log(`사제가 <b>${cname}</b>에 대한 명분 위조를 시작합니다.`, 'dip');
         renderCourt();
       }
     });
@@ -6493,7 +7203,7 @@ function _doFabricateClaim(sk, cid, holder){
     if(holder) chOp(holder, p, -20);
     state.prestige = Math.max(0, state.prestige-10);
     popup({title:'명분 위조 발각', sub:'사제의 보고',
-      body:`${cname}에 대한 교회법 명분 위조가 발각됐습니다.\n위신 -10`,
+      body:`${cname}에 대한 명분 위조가 발각됐습니다.\n위신 -10`,
       opts:[{t:'어쩔 수 없다', f:()=>addStress(p,10,'위조 발각')}]});
   }
 }
@@ -6538,7 +7248,7 @@ function renderCouncil(){
     // 보너스 현황 — CK3 위키 수치 기반
     html+=`<div style="margin-top:5px;background:#12100a;border:1px solid #2c2316;border-radius:3px;padding:4px 7px;font-size:.68rem;color:var(--parch-dim)">`;
     const CONF_SKILL_MAP={court_politics:'dip',chivalry:'mar',manage_domains:'stew',court_intrigue:'intr',patronage:'learn'};
-    const SKILL_NAME_MAP={dip:'외교',mar:'무예',stew:'내정',intr:'음모',learn:'학문'};
+    const SKILL_NAME_MAP={dip:'외교력',mar:'전투력',stew:'관리력',intr:'계책력',learn:'학습력'};
     if(spTask==='assist_ruler'){
       /* 20% all skills */
       for(const [k,n] of Object.entries(SKILL_NAME_MAP)){
@@ -6548,7 +7258,7 @@ function renderCouncil(){
       /* 내정 50% 보너스 → 직할 한도 */
       const spStewEff=Math.floor(stat(spouse,'stew')*0.5);
       const limBonus=Math.floor(spStewEff/6);
-      html+=`내정+${Math.floor(stat(spouse,'stew')*0.5)} · 직할 한도 +${limBonus}`;
+      html+=`관리력+${Math.floor(stat(spouse,'stew')*0.5)} · 직할 한도 +${limBonus}`;
     } else {
       /* court_politics/chivalry/court_intrigue/patronage: 해당 스킬 50% */
       const bk=CONF_SKILL_MAP[spTask]||'dip';
@@ -6592,11 +7302,11 @@ function renderCouncil(){
       html+=`</select></div><div style="font-size:.65rem;color:#7aaa8a;margin-top:2px">▶ ${taskInfo.desc}</div>`;
       /* 보직 혜택 표시 (위키: Benefits from being a councilor — County 등급) */
       const BENEFIT_LINE={
-        chancellor:`위신 소폭 상승 · 봉신 호감 +5 · 외교 경험 +5%`,
-        marshal:`용맹 +1(연간) · 병력 유지비 -5% · 무예 경험 +5%`,
-        steward:`금 +${Math.round(1+stat(councilor,'stew')*0.08)}/월 · 직할세금 +2.5% · 내정 경험 +5%`,
-        spymaster:`위협감 +10 · 음모 보안 +5% · 음모 경험 +5%`,
-        chaplain:`민심 +0.5/년 · 경건 소폭 상승 · 학문 경험 +5%`,
+        chancellor:`위신 소폭 상승 · 봉신 호감 +5 · 외교력 경험 +5%`,
+        marshal:`용맹 +1(연간) · 병력 유지비 -5% · 전투력 경험 +5%`,
+        steward:`금 +${Math.round(1+stat(councilor,'stew')*0.08)}/월 · 직할세금 +2.5% · 관리력 경험 +5%`,
+        spymaster:`위협감 +10 · 음모 보안 +5% · 계책력 경험 +5%`,
+        chaplain:`민심 +0.5/년 · 경건 소폭 상승 · 학습력 경험 +5%`,
       };
       if(BENEFIT_LINE[role])
         html+=`<div style="font-size:.62rem;color:#6a8a7a;margin-top:2px;font-style:italic">혜택: ${BENEFIT_LINE[role]}</div>`;
@@ -6729,7 +7439,7 @@ function renderTitleSection(p){
     }
   }
 
-  /* 작위 찬탈 (남이 보유 + 규범권역 51%+ 지배) */
+  /* 작위 찬탈 (남이 보유 + 규범 권역 51%+ 지배) */
   const usurpable=[];
   for(const did of Object.keys(DUCHIES)){
     if(holdsTitle(p.id,did)) continue;
@@ -8421,7 +9131,7 @@ function renderDec(){
           <span style="color:var(--parch-dim)">위신 ${cb.cost}</span>
         </div>`;
       }).join('') + '<div style="height:10px"></div>'
-    : '<div style="font-size:.76rem;color:var(--parch-dim);margin-bottom:10px">명분 없음 — 사제에게 교회법 명분 위조를 맡기세요</div>';
+    : '<div style="font-size:.76rem;color:var(--parch-dim);margin-bottom:10px">명분 없음 — 사제에게 명분 위조를 맡기세요</div>';
   let html = claimHtml + `<p style="font-size:.74rem;color:var(--parch-dim);margin-bottom:12px;letter-spacing:.05em">지배 왕국 ${n}/7</p>`;
   // 빈 카테고리 헤더 제거 (뒤에 실제 항목이 없는 헤더는 숨김)
   const vis=items.filter((it,idx)=>{
@@ -8463,33 +9173,58 @@ function renderWar(){
     <div style="display:flex;justify-content:space-between;padding:2px 0"><span style="color:var(--parch-dim)">봉신 동원</span><span><b>${levy}</b></span></div>
     <div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px dotted #2c2316;margin-top:3px"><span style="color:var(--gold-dim)">총 동원 가능</span><span style="color:${overSupply?'#d05a4a':'var(--gold)'}"><b>${total}</b></span></div>
     <div style="display:flex;justify-content:space-between;padding:2px 0"><span style="color:var(--parch-dim)">보급 한계</span><span style="color:${overSupply?'#d05a4a':'var(--parch)'}">${lim}</span></div>
-    <div style="display:flex;justify-content:space-between;padding:2px 0"><span style="color:var(--parch-dim)">무예(지휘)</span><span>${stat(p,'mar')}</span></div>
+    <div style="display:flex;justify-content:space-between;padding:2px 0"><span style="color:var(--parch-dim)">전투력(지휘)</span><span>${stat(p,'mar')}</span></div>
     ${overSupply?`<div style="font-size:.64rem;color:#d05a4a;margin-top:4px">⚠ 보급 한계 초과 — 전쟁 시 사기 −${Math.round((1-supplyFactor(p))*100)}% · 병력 소모 가중</div>`:''}
   </div>`;
+  /* ── Phase 3: 군대 (소집·이동) ── */
+  html+=hd('군대');
+  html+=`<div style="font-size:.64rem;color:var(--parch-dim);margin-bottom:5px">군대를 소집한 뒤 <b>선택</b>하고, 지도에서 목적지 백작령을 클릭하면 그곳으로 행군합니다.</div>`;
+  html+=`<button class="p-action" onclick="playerRaiseArmy();renderWar();renderMap();">⚔ 군대 소집<span class="pd">현재 직할 병력 + 무장병으로 출진 부대 편성</span></button>`;
+  const _myArmies=(state.armies||[]).filter(a=>a.owner===p.id);
+  const _abtn='border:1px solid var(--gold-dim);border-radius:3px;font-size:.62rem;padding:2px 7px;cursor:pointer;font-family:inherit';
+  if(_myArmies.length){ for(const a of _myArmies){ const sel=state.selectedArmy===a.id;
+    const cn=COUNTIES[BARONY_COUNTY[a.pos]]?.n||'?';
+    const st=a.state==='march'?`행군 중 → ${COUNTIES[BARONY_COUNTY[a.dest]]?.n||'?'}`:'대기';
+    html+=`<div style="background:#15110a;border:1px solid ${sel?'var(--gold)':'var(--line)'};border-radius:4px;padding:6px 8px;margin:4px 0;font-size:.72rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+        <span>⚔ ${armyTroops(a).toLocaleString()}명 · ${cn} · <span style="color:var(--parch-dim)">${st}</span></span>
+        <span style="display:flex;gap:4px;flex-shrink:0">
+          <button onclick="selectArmy('${a.id}')" style="${_abtn};background:${sel?'linear-gradient(#3a2c18,#241a0e)':'#241a10'};color:${sel?'var(--gold)':'var(--parch)'}">${sel?'선택됨':'선택'}</button>
+          <button onclick="disbandArmy('${a.id}');renderWar();renderMap();" style="${_abtn};background:#241410;color:#9e5a5a">해산</button>
+        </span>
+      </div></div>`;
+  } } else html+=`<div style="font-size:.7rem;color:var(--parch-dim);margin:5px 0 4px">편성된 군대 없음</div>`;
   /* 병력 모집 */
   html+=hd('병력 모집');
   const mkBtn=(label,desc,enabled,fn)=>`<button class="p-action${enabled?'':' off'}" onclick="${fn}">${label}<span class="pd">${desc}</span></button>`;
   html+=mkBtn('병력 소집','금 80 → 직할 병력 +200', gold>=80, 'raiseLevy()');
-  /* 상비군 (Men-at-Arms) */
+  /* 무장병 (Men-at-Arms) */
   ensureMAA();
   const cap=maaCap(p), used=maaCount(), up=maaUpkeep();
-  html+=hd('상비군 (Men-at-Arms)');
+  html+=hd('무장병 (Men-at-Arms)');
   html+=`<div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:6px">
     <span style="color:${used>=cap?'#c8a24a':'var(--parch-dim)'}">연대 <b>${used}/${cap}</b></span>
     <span style="color:var(--parch-dim)">월 유지비 금 ${up.toFixed(1)}</span></div>`;
   const sbtn='border:1px solid var(--gold-dim);border-radius:3px;font-size:.62rem;padding:2px 7px;cursor:pointer;font-family:inherit';
+  const maaMb=maaBuildBonus();
   for(const k in MAA_TYPES){
     const t=MAA_TYPES[k]; const cnt=state.maa[k]||0;
     const canHire = used<cap && gold>=t.hire;
+    const mb=maaMb[k]||1; const effPow=Math.round(t.power*mb);
+    const bonusTxt = mb>1.001 ? ` <span style="color:#7fae6a">×${mb.toFixed(2)} 건물</span>` : '';
+    const favT=Object.entries(MAA_TERRAIN[k]||{}).filter(([,v])=>v>0).map(([tk])=>TERRAIN[tk]?.n).filter(Boolean);
+    const badT=Object.entries(MAA_TERRAIN[k]||{}).filter(([,v])=>v<0).map(([tk])=>TERRAIN[tk]?.n).filter(Boolean);
+    const terrTxt=(favT.length?` · <span style="color:#7fae6a">유리 ${favT.join('·')}</span>`:'')+(badT.length?` · <span style="color:#c07a5a">불리 ${badT.join('·')}</span>`:'');
     html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:6px 8px;margin-bottom:5px">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:.76rem">${t.icon} <b>${t.n}</b>${cnt>0?` <span style="color:var(--gold)">×${cnt}</span>`:''}</span>
+        <span style="font-size:.76rem">${t.icon} <b>${t.n}</b>${cnt>0?` <span style="color:var(--gold)">×${cnt}</span>`:''}${bonusTxt}</span>
         <span style="display:flex;gap:4px">
           ${cnt>0?`<button onclick="disbandMAA('${k}')" style="${sbtn};background:#241410;color:#9e5a5a">해산</button>`:''}
           <button onclick="hireMAA('${k}')" style="${sbtn};background:linear-gradient(#3a2c18,#241a0e);color:${canHire?'var(--gold)':'#6a6048'};${canHire?'':'opacity:.55;cursor:default'}">고용</button>
         </span>
       </div>
-      <div style="font-size:.62rem;color:var(--parch-dim);margin-top:2px">${t.size}명 · 전력 ${t.power} · 금 ${t.hire} · 유지 ${t.upkeep}/월 · ${t.counter} 상대 유리</div>
+      <div style="font-size:.62rem;color:var(--parch-dim);margin-top:2px">${t.size}명 · 전력 ${mb>1.001?`${effPow} <span style="color:#7fae6a">(기본 ${t.power})</span>`:t.power} · 금 ${t.hire} · 유지 ${t.upkeep}/월 · ${t.counter} 상대 유리${terrTxt}</div>
+      <div style="font-size:.6rem;color:#8a7a58;margin-top:1px">⚔피해 ${t.dmg} · 🛡유지 ${t.tough}${t.pursuit?` · 🏃추격 ${t.pursuit}`:''}${t.screen?` · 🛡차단 ${t.screen}`:''}</div>
     </div>`;
   }
   /* 요새 · 수비대 (직할 남작령 방어 증강) */
@@ -8501,19 +9236,17 @@ function renderWar(){
     const tIcon={castle:'🏰',city:'🏛',temple:'⛪'};
     for(const bid of myBids){
       const b=BARONIES[bid];
-      const fl=b.fortLevel||0, gar=b.garrison||0;
-      const canFort = fl<FORT_MAX && gold>=FORT_COST;
-      const canGar  = gar<GARRISON_MAX && gold>=GARRISON_COST;
+      const fl=b.fortLevel||0, gar=Math.round(b.garrison||0);
+      const tAdv=terrainAdvantage(bid), tKr=TERRAIN[baronyTerrain(bid)]?.n||'';
+      const fortLines=(b.builds||[]).filter(s=>CK3_BUILDINGS[s.line]?.cat==='fort'&&s.level>0)
+        .map(s=>`${lineName(s.line,b)}L${s.level}`).join(', ')||'없음';
       html+=`<div style="background:#15110a;border:1px solid var(--line);border-radius:4px;padding:6px 8px;margin-bottom:5px">
-        <div style="font-size:.76rem;margin-bottom:3px">${tIcon[b.type]||'•'} <b>${b.n}</b>
-          <span style="color:var(--parch-dim);font-size:.64rem"> · 요새 Lv ${fl}${fl?` (+${fl*6}% 저항)`:''} · 수비 ${gar}</span></div>
-        <div style="display:flex;gap:5px;justify-content:flex-end">
-          <button onclick="upgradeFort('${bid}')" style="${sbtn};background:linear-gradient(#3a2c18,#241a0e);color:${canFort?'var(--gold)':'#6a6048'};${canFort?'':'opacity:.55;cursor:default'}">요새 ↑ 금${FORT_COST}</button>
-          <button onclick="upgradeGarrison('${bid}')" style="${sbtn};background:linear-gradient(#3a2c18,#241a0e);color:${canGar?'var(--gold)':'#6a6048'};${canGar?'':'opacity:.55;cursor:default'}">수비대 +${GARRISON_STEP} 금${GARRISON_COST}</button>
-        </div>
+        <div style="font-size:.76rem;margin-bottom:2px">${tIcon[b.type]||'•'} <b>${b.n}</b>
+          <span style="color:var(--parch-dim);font-size:.64rem"> · 요새 Lv ${fl}${fl?` (+${fl*4}% 점령저항)`:''} · 수비대 ${gar} · 지형 ${tKr}${tAdv?`(방어+${tAdv})`:''}</span></div>
+        <div style="font-size:.62rem;color:var(--parch-dim)">요새화 건물: ${fortLines}${b.type==='castle'?'':' · (요새화는 성채 전용)'}</div>
       </div>`;
     }
-    html+=`<div style="font-size:.6rem;color:var(--parch-dim);margin:2px 2px 0">요새 레벨은 방어 시 점령 저항을, 수비대는 방어 전력을 높임.</div>`;
+    html+=`<div style="font-size:.6rem;color:var(--parch-dim);margin:2px 2px 0">CK3 고증: 요새 레벨·수비대는 <b>방벽 및 방어탑·구릉 요새</b> 등 요새화 건물(성채 전용)에서 나옵니다. 지형은 방어 유리함을 더합니다. 영지 화면 건설 메뉴에서 증축하십시오.</div>`;
   }
   /* 전쟁 현황 */
   html+=hd('전쟁 현황');
@@ -8550,30 +9283,8 @@ function renderWar(){
   }
   el.innerHTML=html;
 }
-/* ── 수비대·요새 강화 (직할 남작령 방어 증강) ── */
-const GARRISON_MAX=300, FORT_MAX=5, GARRISON_COST=60, GARRISON_STEP=50, FORT_COST=100;
-function upgradeGarrison(bid){
-  initAudio(); const p=playerChar(); if(!p) return;
-  const b=BARONIES[bid]; const seat=BARONIES[p.region];
-  if(!b||!seat||b.type==='empty') return;
-  if((b.garrison||0)>=GARRISON_MAX) return;
-  if(seat.gold<GARRISON_COST) return;
-  playSynthSFX&&playSynthSFX('gold');
-  seat.gold-=GARRISON_COST; b.garrison=Math.min(GARRISON_MAX,(b.garrison||0)+GARRISON_STEP);
-  log(`<b>${b.n}</b>의 수비대를 강화했습니다 (수비 ${b.garrison}).`,'war');
-  renderWar(); renderHeader&&renderHeader();
-}
-function upgradeFort(bid){
-  initAudio(); const p=playerChar(); if(!p) return;
-  const b=BARONIES[bid]; const seat=BARONIES[p.region];
-  if(!b||!seat||b.type==='empty') return;
-  if((b.fortLevel||0)>=FORT_MAX) return;
-  if(seat.gold<FORT_COST) return;
-  playSynthSFX&&playSynthSFX('gold');
-  seat.gold-=FORT_COST; b.fortLevel=(b.fortLevel||0)+1;
-  log(`<b>${b.n}</b>의 요새를 증축했습니다 (요새 Lv ${b.fortLevel}).`,'war');
-  renderWar(); renderHeader&&renderHeader();
-}
+/* (폐지) 요새/수비대 직접 구매 — CK3 고증대로 요새화 건물에서만 파생.
+   b.fortLevel·b.garrison은 buildingPulse가 산출. */
 function raiseLevy(){
   initAudio(); const p=playerChar(); if(!p) return;
   const seat=BARONIES[p.region]; if(!seat||seat.gold<80) return;
@@ -8613,7 +9324,7 @@ function onCommanderPick(warIdx){
   const cur = side==='atk'?w.atkCmd:w.defCmd;
   const opts=commanderCandidates().map(c=>({
     t:`${c.name}${c.id===cur?' ✓':''}`,
-    d:`무예 ${stat(c,'mar')} · 용맹 ${stat(c,'prow')} · 전력 +${commanderBonusPct(c)}%`,
+    d:`전투력 ${stat(c,'mar')} · 용맹 ${stat(c,'prow')} · 전력 +${commanderBonusPct(c)}%`,
     f:()=>{
       if(side==='atk') w.atkCmd=c.id; else w.defCmd=c.id;
       log(`<b>${c.name}</b>을(를) 전쟁 지휘관으로 임명했습니다.`,'war');
@@ -8739,8 +9450,32 @@ function renderMap(){
       } catch(nodeErr){ console.error('renderMap 노드 오류:', cid, nodeErr); }
     }
   } catch(mapErr){ console.error('renderMap 오류:', mapErr); }
+  // ── Phase 2: 남작령 오버레이 (state.showBaronies 토글 시) — 인접선 + 남작령 점
+  if(state.showBaronies){ try{
+    const drawnB=new Set();
+    for(const bid in BARONY_ADJ){ const A=BARONY_XY[bid]; if(!A) continue;
+      for(const nb of BARONY_ADJ[bid]){ const B=BARONY_XY[nb]; if(!B) continue;
+        const k=[bid,nb].sort().join('|'); if(drawnB.has(k)) continue; drawnB.add(k);
+        h+=`<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="#5a4a2a" stroke-width="0.5" stroke-dasharray="1 2" opacity="0.7"/>`; } }
+    for(const bid in BARONY_XY){ const P=BARONY_XY[bid]; const b=BARONIES[bid];
+      const isCap=COUNTIES[BARONY_COUNTY[bid]]?.capital===bid;
+      const col=b?.type==='city'?'#3a6a8a':b?.type==='temple'?'#7a5a8a':b?.type==='castle'?'#8a6a3a':'#4a4438';
+      h+=`<circle cx="${P.x}" cy="${P.y}" r="${isCap?2.4:1.7}" fill="${col}" stroke="#1a140a" stroke-width="0.4"/>`; }
+  }catch(bErr){ console.error('남작령 오버레이 오류:', bErr); } }
+  // ── Phase 3: 군대 마커 + 경로선
+  try{ for(const a of (state.armies||[])){ const P=armyXY(a); if(!P) continue;
+    const mine=a.owner===state.player; const sel=state.selectedArmy===a.id;
+    if(a.path&&a.state==='march'){ for(let i=a.hop;i<a.path.length-1;i++){ const A=BARONY_XY[a.path[i]],B=BARONY_XY[a.path[i+1]];
+      if(A&&B) h+=`<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}" stroke="${mine?'#c8a24a':'#d07a5a'}" stroke-width="1" stroke-dasharray="2 2" opacity="0.85"/>`; } }
+    const r=sel?6.5:5.2;
+    h+=`<g onclick="selectArmy('${a.id}')" style="cursor:pointer"><circle cx="${P.x}" cy="${P.y}" r="${r}" fill="${mine?'#243a6e':'#6e2424'}" stroke="${sel?'#ffd966':(mine?'#c8a24a':'#d07a5a')}" stroke-width="${sel?2:1.2}"/><text x="${P.x}" y="${P.y+2.6}" style="font-size:7px;fill:#f0e6c8;text-anchor:middle;pointer-events:none">⚔</text></g>`;
+  } }catch(armyErr){ console.error('군대 마커 오류:', armyErr); }
   svg.innerHTML=h; // 부분 실패여도 그릴 수 있는 만큼은 그림
 }
+/* 남작령 오버레이 토글 (Phase 2) */
+function toggleBaronies(){ state.showBaronies=!state.showBaronies;
+  const b=document.getElementById('baronyToggle'); if(b){ b.style.color=state.showBaronies?'var(--gold)':'var(--parch-dim)'; b.style.borderColor=state.showBaronies?'var(--gold)':'var(--gold-dim)'; }
+  renderMap(); }
 function ownerRegionOf(c){ return c.region || regionsOf(c.id)[0] || null; }
 function renderAll(){
   try{ renderHeader(); }catch(e){ console.error('renderHeader 오류:', e); }
