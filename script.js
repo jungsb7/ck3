@@ -980,18 +980,31 @@ function runBattle(atk, def, terrainKey){
   if(atk0<=0||def0<=0) return null;
   // ① 기동: 지휘관 전투력차 → 유리함(advantage pt)
   const aCmd=atk.cmd&&chars[atk.cmd], dCmd=def.cmd&&chars[def.cmd];
-  const advantage=(aCmd?stat(aCmd,'mar'):0)-(dCmd?stat(dCmd,'mar'):0);
+  const advCmd=(aCmd?stat(aCmd,'mar'):0)-(dCmd?stat(dCmd,'mar'):0);  // 지휘관 역량 차(결정론)
+  const advRoll=Math.round(((Math.random()+Math.random())/2*2-1)*9); // 🎲 기동 국면 유리함 굴림(삼각분포 ±9, CK3 advantage roll) — 박빙만 좌우, 격차는 결정론
+  const advantage=advCmd+advRoll;
   const aType=armyDominantMaa(atk), dType=armyDominantMaa(def);
   const aCnt=atk.units[aType]||0, dCnt=def.units[dType]||0;
   const cA=counterDamageMul(aType,dType,aCnt,dCnt), cD=counterDamageMul(dType,aType,dCnt,aCnt);
   // ②③ 초기·후기 전투: 일일 피해 교환 (남은 비율 추적)
   let aScale=1, dScale=1; const maxDays=60, earlyDays=8; let day=0, phase='early';
+  // ⓪ 선제 국면 (CK3: 개전 직후 산병·궁병이 선제 공격 — 원거리 우위 측이 개막 손실 강요) [나무위키 군사]
+  const _ar=MAA_TYPES.archers, _sk=MAA_TYPES.skirmishers;
+  const aRanged=(atk.units.archers||0)*(_ar?.dmg||0)+(atk.units.skirmishers||0)*(_sk?.dmg||0);
+  const dRanged=(def.units.archers||0)*(_ar?.dmg||0)+(def.units.skirmishers||0)*(_sk?.dmg||0);
+  const skirmished=(aRanged+dRanged)>0;
+  if(skirmished){
+    const aPre=Math.min(0.12,(aRanged/Math.max(1,def0))*0.008);   // 공격측 원거리 → 방어측 선제 손실
+    const dPre=Math.min(0.12,(dRanged/Math.max(1,atk0))*0.008);   // 방어측 원거리 → 공격측 선제 손실
+    dScale=Math.max(0.05,dScale-aPre); aScale=Math.max(0.05,aScale-dPre);
+  }
   while(day<maxDays && aScale>0 && dScale>0){
     const sa=armyStats(atk,terrainKey), sd=armyStats(def,terrainKey);
     const aT=sa.troops*aScale, dT=sd.troops*dScale; if(aT<=0||dT<=0) break;
     const width=(aT+dT)/2; const effA=Math.min(1,width/Math.max(1,aT)), effD=Math.min(1,width/Math.max(1,dT));
     const advA=advantage>0?1+advantage*0.05:1, advD=advantage<0?1+(-advantage)*0.05:1; // 유리함 +5%/pt [CK3]
-    const dmgA=sa.dmg*aScale*0.03*effA*advA*cA, dmgD=sd.dmg*dScale*0.03*effD*advD*cD; // 일일 피해 [CK3 0.03/pt]
+    const jA=0.94+Math.random()*0.12, jB=0.94+Math.random()*0.12;  // 소폭 일일 변동(±6%)
+    const dmgA=sa.dmg*aScale*0.03*effA*advA*cA*jA, dmgD=sd.dmg*dScale*0.03*effD*advD*cD*jB; // 일일 피해 [CK3 0.03/pt] × 일일 변동
     const dLossFrac=(dmgA/Math.max(1,sd.avgTough))/def0, aLossFrac=(dmgD/Math.max(1,sa.avgTough))/atk0;
     dScale=Math.max(0,dScale-dLossFrac); aScale=Math.max(0,aScale-aLossFrac);
     day++; if(day>=earlyDays) phase='late';
@@ -1011,11 +1024,11 @@ function runBattle(atk, def, terrainKey){
   const loseKeep = Math.max(0, 1 - loseCasFrac - Math.max(0,pursuitExtra)*(1-loseCasFrac));
   const winLost=_scaleArmyUnits(winner, winKeep);
   const loseLost=_scaleArmyUnits(loser, loseKeep);
-  return { atkWins, atk0, def0, days:day, terrain:terrainKey, advantage,
+  return { atkWins, atk0, def0, days:day, terrain:terrainKey, advantage, advRoll, advCmd,
     aType, dType, counterA:cA<0.999, counterD:cD<0.999,
     winner, loser, winLost, loseLost, winLeft:armyTroops(winner), loseLeft:armyTroops(loser),
     pursuit:pursuitExtra>0.01, atkComp0, defComp0, phaseEndedEarly,
-    phases:['기동','초기 전투'].concat(phaseEndedEarly?[]:['후기 전투']).concat(pursuitExtra>0.01?['추격']:[]) };
+    phases:(skirmished?['선제']:[]).concat(['기동','초기 전투']).concat(phaseEndedEarly?[]:['후기 전투']).concat(pursuitExtra>0.01?['추격']:[]) };
 }
 /* 두 군대 적대? (소유주가 서로 전쟁 중) */
 /* 두 군대 적대? (공격자 측 vs 방어자+동맹 측이면 적대) */
@@ -1075,12 +1088,15 @@ function battlePulse(){ ensureArmies();
       // ── Phase 6: 야전 전투 결과 → 전쟁 점수 반영 (전술 전투가 전쟁을 실제로 좌우 · warPulse와 병존)
       { const bw=_warBetween(r.winner.owner, r.loser.owner);
         if(bw){ const rout=(r.loseLeft<=Math.max(60, r.loseLost*0.02));
-          const amt=(rout?15:8)*(bw.aSide==='atk'?1:-1);                 // 공격자 승=+, 방어자 승=−
-          bw.w.score=Math.max(-100,Math.min(100,(bw.w.score||0)+amt));
-          if(pl&&(bw.w.atk===state.player||bw.w.def===state.player)){
+          let amt=(rout?15:8)*(bw.aSide==='atk'?1:-1);                   // 공격자 승=+, 방어자 승=−
+          const cur=bw.w.score||0;                                       // CK3 고증: 전투 전쟁점수 기여 최대 ±50 (그 이상은 공성·포로) — ck3.paradoxwikis.com/Warfare
+          if((amt>0&&cur>=50)||(amt<0&&cur<=-50)) amt=0;
+          bw.w.score=Math.max(-100,Math.min(100,cur+amt));
+          if(amt!==0&&pl&&(bw.w.atk===state.player||bw.w.def===state.player)){
             const myGain=(bw.w.atk===state.player)?amt:-amt;
-            log(`└ 전황 ${myGain>=0?'+':''}${myGain}% — 야전 ${myGain>=0?'승리로 전세 유리':'패배로 전세 불리'}`,'war'); } }
-      }
+            log(`└ 전황 ${myGain>=0?'+':''}${myGain}% — 야전 ${myGain>=0?'승리로 전세 유리':'패배로 전세 불리'}`,'war'); }
+          _captureWarscore(bw.w, (bw.aSide==='atk')?'def':'atk', rout);   // CK3: 패전 측 지휘관 생포 → 전쟁점수(군주 +100·후계자 +50)
+        } }
       // 팝업 throttle: 직전 전투 팝업 후 3개월 이상 지났을 때만 자동 표시(나머지는 ▸보고로 열람)
       if(pl && now-(state._lastBattlePopup||-99)>=3){ state._lastBattlePopup=now; try{ popup({title:`${cn} 전투`, sub:'전투 보고', html:battleModalHtml(state._lastBattle)}); }catch(e){} }
       return; // 월당 한 전투
@@ -1108,6 +1124,30 @@ function _attackerBesieging(w){
   const tCid=COUNTIES[w.targetRid]?w.targetRid:BARONY_COUNTY[w.targetRid];
   if(!tCid||!COUNTIES[tCid]) return false;
   return (state.armies||[]).some(a=> a.owner===w.atk && a.state!=='march' && BARONY_COUNTY[a.pos]===tCid);
+}
+/* Phase 6 (CK3 고증): 패전 측 지휘관 생포 → 전쟁점수
+   출처: ck3 가이드 — 적 군주 생포 +100(사실상 종전)·후계자 +50·그 외 +15 · 결정적 패배·낮은 prowess일수록 생포율↑·군주는 생포 어려움 */
+function _captureWarscore(w, losingSide, decisive){
+  const lc=warCommander(w, losingSide); if(!lc||lc.dead) return false;
+  const principal=(losingSide==='atk')?w.atk:w.def;
+  const isLeader=(lc.id===principal);
+  const prow=stat(lc,'prow')||0;
+  let chance=(decisive?0.25:0.08)*Math.max(0.25, 1-prow*0.03);
+  if(isLeader) chance*=0.5;                                  // 군주는 생포 어려움
+  if(Math.random()>=chance) return false;
+  let amt=15;
+  if(isLeader) amt=100;
+  else { const pch=chars[principal]; const h=pch?findHeir(pch):null; if(h&&h.id===lc.id) amt=50; }
+  const captorSign=(losingSide==='atk')?-1:+1;               // 공격자 측 생포→방어자 유리(−) / 방어자 측 생포→공격자 유리(+)
+  w.score=Math.max(-100,Math.min(100,(w.score||0)+amt*captorSign));
+  const captorIsPlayer=((losingSide==='atk')?w.def:w.atk)===state.player;
+  const lostIsPlayer=((losingSide==='atk')?w.atk:w.def)===state.player;
+  if(captorIsPlayer||lostIsPlayer){
+    const tag=isLeader?' — <b>적 전쟁지도자 생포! 사실상 종전</b>':(amt===50?' (후계자)':'');
+    log(`⛓ <b>${lc.name}</b> 생포${tag} · 전황 ${captorIsPlayer?'+':'−'}${amt}%`,'war');
+    if(lostIsPlayer&&playerChar()) addStress(playerChar(), isLeader?40:15, '지휘관 생포');
+  }
+  return true;
 }
 function npcWarArmyPulse(){ ensureArmies();
   const now=(state.year||0)*12+(state.month||0);
@@ -1163,7 +1203,9 @@ function battleModalHtml(d){ const b=d&&d.r; if(!b) return '<div>전투 기록 �
   const atkLeft=atkWon?b.winLeft:b.loseLeft, defLeft=atkWon?b.loseLeft:b.winLeft;
   const atkLost=atkWon?b.winLost:b.loseLost, defLost=atkWon?b.loseLost:b.winLost;
   const mods=[];
-  if(b.advantage) mods.push(`지휘관 유리함 <b>${b.advantage>0?'+':''}${b.advantage}</b> · ${b.advantage>0?'공격':'수비'} 측 피해 +${Math.abs(b.advantage)*5}%`);
+  if(b.advCmd) mods.push(`지휘관 유리함 <b>${b.advCmd>0?'+':''}${b.advCmd}</b>`);
+  if(typeof b.advRoll==='number' && b.advRoll!==0) mods.push(`🎲 기동 유리함 굴림 <b>${b.advRoll>0?'+':''}${b.advRoll}</b>`);
+  if(b.advantage) mods.push(`총 유리함 <b>${b.advantage>0?'+':''}${b.advantage}</b> → ${b.advantage>0?'공격':'수비'} 측 피해 +${Math.abs(b.advantage)*5}%`);
   if(b.counterD) mods.push(`상성 — 공격 <b>${MAA_TYPES[b.aType]?.n||'?'}</b> ▸ ${MAA_TYPES[b.dType]?.n||'?'} (수비 약화)`);
   if(b.counterA) mods.push(`상성 — 수비 <b>${MAA_TYPES[b.dType]?.n||'?'}</b> ▸ ${MAA_TYPES[b.aType]?.n||'?'} (공격 약화)`);
   mods.push(`지형 — <b>${TERRAIN[b.terrain]?.n||b.terrain}</b>`);
@@ -3618,12 +3660,12 @@ function warPulse(){
               {t:'새 목표를 찾는다', f:()=>{
                 const alt=directCountiesOf(w.def===state.player?a.id:d.id).find(c=>c!==tCid);
                 if(alt){ w.targetRid=alt; w.occupied=[]; log(`새 목표: ${COUNTIES[alt].n}`,'war'); }
-                else { setTruce(w.atk,w.def,2); log('목표가 없어 전쟁 종결.','war'); state.wars=state.wars.filter(x=>x!==w); }
+                else { setTruce(w.atk,w.def,5); log('목표가 없어 전쟁 종결.','war'); state.wars=state.wars.filter(x=>x!==w); }
               }},
-              {t:'전쟁을 끝낸다', f:()=>{ setTruce(w.atk,w.def,2); state.wars=state.wars.filter(x=>x!==w); }},
+              {t:'전쟁을 끝낸다', f:()=>{ setTruce(w.atk,w.def,5); state.wars=state.wars.filter(x=>x!==w); }},
             ]});
           return true;
-        } else { setTruce(w.atk,w.def,2); return false; }
+        } else { setTruce(w.atk,w.def,5); return false; }
       }
     }
 
@@ -3688,7 +3730,7 @@ function warPulse(){
       const siegeBonus=(a.id===state.player)?(playerDuchyEff().siege||0):0; // 공성 병기 제작소: 플레이어 공성 가속
       // Phase 6: 공격 측 군대가 목표 백작령에 주둔 중이면 본격 공성, 없으면 미미한 압박만 (지도 군대 ↔ 공성 단일 경로 · 이중계산 없음)
       const besieging=_attackerBesieging(w);
-      const siegeRate=besieging ? (0.34+ratio*0.3) : 0.05;
+      const siegeRate=besieging ? (0.34+ratio*0.3) : 0;   // 군대 주둔=본격 공성 / 무주둔=점령 불가(CK3: 영지는 농성으로만 점령)
       if(ratio>0.1 && Math.random()<siegeRate-wallBonus+siegeBonus){
         const unoccupied=bids.filter(bid=>!w.occupied.includes(bid));
         if(unoccupied.length){ const got=unoccupied[Math.floor(Math.random()*unoccupied.length)]; w.occupied.push(got);
@@ -3699,14 +3741,16 @@ function warPulse(){
       }
     }
 
-    // ── 전황 점수 (CK3 고증): 공성 점령 + 전쟁목표 통제(틱)가 주도 · 전력비는 소규모 압박 · 전투는 별도 브리지(±50)
-    //   출처: ck3.paradoxwikis.com/Warfare — 점수원 = 전투·홀딩 점령·포로·전쟁목표 통제(틱 전쟁점수)
+    // ── 전황 점수 (CK3 고증): 점령(홀딩 단위)·전쟁목표 지배 틱이 점수원. 추상 전력비·난수 제거(비고증) — ck3.paradoxwikis.com/Warfare
     const siegePct=siegeProgress(w);
     const _capBid=COUNTIES[tCid]?.capital;
-    const holdObjective = tCid && _capBid && w.occupied.includes(_capBid); // 공격자가 전쟁목표(목표 백작령 수도) 점거 중?
-    const ticking = holdObjective ? 3 : (tCid ? -1 : 0);                    // 목표 통제 시 누적(공격자) / 미통제 시 방어자 소폭 유리
-    const delta = ratio*2.5 + siegePct*9 + ticking + (Math.random()*6-3);  // 공성·틱 주도, 전력비는 부차
-    w.score=Math.max(-100,Math.min(100,w.score+delta));
+    const fullTarget = tCid && COUNTIES[tCid] && w.occupied.length>=COUNTIES[tCid].baronies.length; // 전쟁목표 전체 지배?
+    const holdObjective = tCid && _capBid && w.occupied.includes(_capBid);                          // 목표 수도 점거?
+    // CK3 틱: 전쟁목표 전체 지배 +2/월, 수도만 점거 +1, 공격자가 장기간(>10개월) 한 곳도 못 뺏으면 방어자 소폭(-0.8)
+    const ticking = fullTarget ? 2 : (holdObjective ? 1 : (tCid && w.months>10 ? -0.8 : 0));
+    // 점령 전쟁점수: 이번 달 점령 증감분만 가산(홀딩 1개 ±12) — 탈환 시 차감(CK3: 통제 상실 시 점수 복귀 반영)
+    const occDelta = (w.occupied.length - (w._occPrev||0)) * 12; w._occPrev = w.occupied.length;
+    w.score=Math.max(-100,Math.min(100, w.score + occDelta + ticking));
 
     // ── 전황 보고 (3개월마다)
     if(w.months%3===0&&(w.atk===state.player||w.def===state.player)){
@@ -3732,7 +3776,7 @@ function warPulse(){
     if(w.score>=100||allSieged){ conquerTarget(a,d,tCid||w.targetRid); return false; }
     if(w.score<=-100){
       log(`<b>${a.name}</b>의 침공이 격퇴됐습니다.`,'war');
-      setTruce(a.id,d.id,5);
+      setTruce(a.id,d.id,10);
       if(w.atk===state.player){
         addStress(a,30,'패전의 굴욕'); addClaim(tCid||w.targetRid,'unpressed');
         // 패배 시 공격측 지휘관 부상/포로 체크 (CK3: 10% 포로)
@@ -3748,7 +3792,7 @@ function warPulse(){
       return false;
     }
     if(w.months>60){
-      log('오랜 전쟁이 지쳐 끝났습니다.','war'); setTruce(a.id,d.id,3); return false;
+      log('오랜 전쟁이 지쳐 끝났습니다.','war'); setTruce(a.id,d.id,5); return false;
     }
     return true;
   });
@@ -3802,6 +3846,18 @@ function _battleEvent(w, a, d, ratio, tCid){
 
   /* 이벤트 후보 목록 — cond 조건 평가 후 첫 번째 해당 이벤트 발화 */
   const events = [
+
+    /* ⓪ 적의 무조건 평화 사절 — 열세 측이 무조건 평화(white peace) 요청 (CK3: 패색 짙은 측의 강화 요청, 18개월 쿨다운) */
+    { cond: (isAtk? w.score : -w.score) >= 30 && (isAtk? w.score : -w.score) < 90 && w.months>=12
+            && (w._peaceAt==null || w.months - w._peaceAt >= 18),
+      t:'적의 무조건 평화 제안', sub:'외교',
+      body:`${foe.name}의 사절이 백기를 들고 찾아왔습니다.\n「전하, 유혈을 멈추고 현 상태 그대로 무조건 평화를 맺읍시다. 전쟁목표는 내어드리지 않으나, 양측 모두 군을 거둘 수 있습니다.」\n\n현재 전쟁 점수: +${Math.round(isAtk? w.score : -w.score)}%`,
+      opts:[
+        { t:'무조건 평화를 수락한다', d:'현 상태 유지 종전 · 5년 휴전',
+          f:()=>{ w._peaceAt=w.months; setTruce(w.atk,w.def,5); state.wars=state.wars.filter(x=>x!==w); log(`${foe.name}과(와) 무조건 평화를 맺었습니다.`,'dip'); }},
+        { t:'완전한 승리를 노린다', d:'전쟁 계속 — 전쟁목표 정복 추구',
+          f:()=>{ w._peaceAt=w.months; log('강화를 거절하고 전쟁을 이어갑니다.','war'); addStress(p,5,'더 큰 승리를 위하여'); }},
+      ]},
 
     /* ① 전선 돌파 — 아군 우세 + 공격 중 */
     { cond: isAtk && ratio>0.15,
@@ -3965,12 +4021,12 @@ function conquerTarget(a, d, targetCid){
   // targetCid가 county id인지 barony id인지 판별
   let cid = targetCid;
   if(BARONIES[targetCid]) cid = BARONIES[targetCid].county; // barony → county
-  if(!cid||!COUNTIES[cid]){ setTruce(a.id,d.id,5); return; }
+  if(!cid||!COUNTIES[cid]){ setTruce(a.id,d.id,10); return; }
   const cname = COUNTIES[cid].n;
   // ── de jure 탈환 전쟁: 영토 점령이 아니라 대상을 봉신화 (CK3: 공작>백작 → 봉신화) ──
   const djWar = state.wars.find(w=>((w.atk===a.id&&w.def===d.id)||(w.atk===d.id&&w.def===a.id)) && w.dejure);
   if(djWar){
-    setTruce(a.id,d.id,5);
+    setTruce(a.id,d.id,10);
     d.liege=a.id; // 봉신화 — 백작령은 그대로 두되 주군이 됨
     if(a.id===state.player){
       initVassalContract(d);
@@ -3986,7 +4042,7 @@ function conquerTarget(a, d, targetCid){
     renderMap(); return;
   }
   log(`<b>${a.name}</b>이(가) <b>${cname}</b>을(를) 정복했습니다!`,'war');
-  setTruce(a.id,d.id,5);
+  setTruce(a.id,d.id,10);
   if(COUNTIES[cid]) COUNTIES[cid].control=Math.min(COUNTIES[cid].control??90, 30); // CK3: 정복지 장악력 급락 → 재안정화 필요
   // 해당 county의 모든 barony를 공격자에게 이전
   const bids = COUNTIES[cid].baronies;
@@ -4586,12 +4642,12 @@ function npcTitlePulse(){
         if(chk.ok){ createTitle(r.id,did); acted=true; break; }
       }
     }
-    // ② 남이 가진 공작위 찬탈 (플레이어 작위는 제외 → 전쟁 필요)
+    // ② 남이 가진 공작위 찬탈 (CK3: 강한 명분이면 플레이어 작위도 평화 찬탈 가능)
     if(!acted && heldDuchiesOf(r.id).length < duchyCap){
       for(const did of Object.keys(DUCHIES)){
         if(holdsTitle(r.id,did)) continue;
         const h=titleHolder(did);
-        if(!h || h.id===state.player) continue;
+        if(!h) continue;
         const chk=canUsurpTitle(r.id,did);
         if(chk.ok){
           usurpTitle(r.id,did); acted=true;
@@ -4606,7 +4662,7 @@ function npcTitlePulse(){
         if(holdsTitle(r.id,kid)) continue;
         const h=titleHolder(kid);
         if(!h){ const chk=canCreateTitle(r.id,kid); if(chk.ok){ createTitle(r.id,kid); break; } }
-        else if(h.id!==state.player){ const chk=canUsurpTitle(r.id,kid); if(chk.ok){ usurpTitle(r.id,kid); break; } }
+        else { const chk=canUsurpTitle(r.id,kid); if(chk.ok){ usurpTitle(r.id,kid); break; } }
       }
     }
   }
@@ -4654,7 +4710,7 @@ function npcDejureWarPulse(){
     for(const {did,myCtrl} of footholds){
       for(const cid of (DUCHIES[did].counties||[])){
         const holder=countyHolder(cid);
-        if(!holder||holder.id===r.id||holder.id===state.player||holder.liege) continue; // 독립 백작만
+        if(!holder||holder.id===r.id||holder.liege) continue; // 독립 백작만 (플레이어도 표적 가능 — CK3 고증)
         if(isAllied(r.id,holder.id)||truceBetween(r.id,holder.id)) continue;
         if(deJureControl(holder.id,did) > myCtrl) continue;    // 상대가 더 우세하면 양보
         const hp=power(holder);
@@ -4669,7 +4725,7 @@ function npcDejureWarPulse(){
       for(const bid of regionsOf(r.id)){
         for(const adj of (ADJ[bid]||[])){
           const h=ownerOf(adj);
-          if(h&&!h.dead&&h.id!==r.id&&h.id!==state.player&&!h.liege&&!isAllied(r.id,h.id)&&!truceBetween(r.id,h.id)) adjIndep.add(h.id);
+          if(h&&!h.dead&&h.id!==r.id&&!h.liege&&!isAllied(r.id,h.id)&&!truceBetween(r.id,h.id)) adjIndep.add(h.id);
         }
       }
       let wpow=Infinity, wtgt=null, wcid=null;
@@ -4739,7 +4795,7 @@ function aiPulse(){
         && Math.random()<0.20+(bold*0.04)){
         npcUseClaim(r, claimRid);
         // NPC 피침략 → 복수 명분 부여
-        if(defChar.id===state.player||defChar.id!==state.player) npcGrantRevenge(defChar, claimRid);
+        npcGrantRevenge(defChar, claimRid); // 피침략 측에 복수 명분 부여
         declareWar(r, defChar, claimRid);
         if(defChar.id!==p.id)
           log(`<b>${r.name}</b>이(가) 명분을 내세워 <b>${COUNTIES[claimRid]?.n||claimRid}</b>에 선전포고했습니다.`,'war');
@@ -9259,11 +9315,17 @@ function renderDec(){
     addHeader('전쟁');
     const isAtk=myWar.atk===p.id;
     const foe=chars[isAtk?myWar.def:myWar.atk];
-    addDec('백색 강화 제안',`${foe?.name}에게 현 상태 강화 — 양측 5년 휴전`, true, ()=>{
-      setTruce(myWar.atk,myWar.def,5);
-      state.wars=state.wars.filter(w=>w!==myWar);
-      addStress(p,5,'미완의 전쟁');
-      log(`${foe?.name}과(와) 백색 강화를 맺었습니다.`,'dip');
+    addDec('무조건 평화 제안',`${foe?.name}에게 현 상태 유지로 종전 (적이 우세하면 거절) — 수락 시 5년 휴전`, true, ()=>{
+      const my = myWar.atk===p.id ? myWar.score : -myWar.score;
+      if(my < -25){ // 적이 전쟁 점수 우세 → 무조건 평화 거절(완전한 승리를 노림) · CK3 고증
+        log(`${foe?.name}이(가) 무조건 평화 제안을 거절했습니다 — 전세가 우세하여 완전한 승리를 노립니다.`,'war');
+        addStress(p,5,'거절당한 강화');
+      } else {
+        setTruce(myWar.atk,myWar.def,5);
+        state.wars=state.wars.filter(w=>w!==myWar);
+        addStress(p,5,'미완의 전쟁');
+        log(`${foe?.name}과(와) 무조건 평화를 맺었습니다.`,'dip');
+      }
       renderDec();
     });
     if(isAtk){
@@ -9570,20 +9632,7 @@ function renderMap(){
   const p=playerChar();
   let h='';
   try {
-    // 백작령 간 인접선
-    const drawn=new Set();
-    for(const cid in COUNTY_ADJ){
-      for(const nb of (COUNTY_ADJ[cid]||[])){
-        const k=[cid,nb].sort().join('|');
-        if(drawn.has(k)) continue; drawn.add(k);
-        const A=COUNTIES[cid],B=COUNTIES[nb]; if(!A||!B) continue;
-        const inWar=state.wars.some(w=>{
-          const aH=countyHolder(cid),bH=countyHolder(nb);
-          return aH&&bH&&((chars[w.atk]?.id===aH.id&&chars[w.def]?.id===bH.id)||(chars[w.atk]?.id===bH.id&&chars[w.def]?.id===aH.id));
-        });
-        h+=`<line class="edge${inWar?' warEdge':''}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`;
-      }
-    }
+    // 백작령 폴리곤 지도 — 인접은 폴리곤 경계로 표현(중심 연결선 제거)
     // 백작령 노드 (15개) — 노드별 가드로 1개가 실패해도 지도 전체가 죽지 않음
     for(const cid in COUNTIES){
       try {
@@ -9603,13 +9652,16 @@ function renderMap(){
         const strokeW=underSiege?2:(pettyRealm?1.5:2.5);
         const ownerNm=holder?(holder.name||'?').split(' ')[0]:'—';
         const liegeNm=holder&&!isIndependent(holder)?` ⊂${(chars[holder.liege]?.name||'').split(' ')[0]}`:'';
-        h+=`<g class="node" onclick="openCounty('${cid}')">
-          <circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}"/>
-          ${underSiege?`<circle cx="${C.x}" cy="${C.y}" r="${rad+5}" fill="none" stroke="#c83030" stroke-width="1.5" stroke-dasharray="3 3"/>`:''}
-          ${mine?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:``}
-          <text x="${C.x}" y="${C.y+3}" style="font-size:9px">${C.n}</text>
-          <text class="owner" x="${C.x}" y="${C.y+15}" style="font-size:.58rem;fill:#8a7858">${ownerNm}${liegeNm}</text>
-          <text class="owner" x="${C.x}" y="${C.y+36}" style="font-size:7.5px;fill:#7a6848">⚔${totalT} 민${avgPop}</text>
+        const poly=C.poly;
+        h+=`<g class="node" onclick="openCounty('${cid}')" style="cursor:pointer">
+          ${poly?`<polygon class="body" points="${poly}" fill="${fillCol}" fill-opacity="0.8" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}" stroke-linejoin="round"/>`
+                :`<circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}"/>`}
+          ${(poly&&underSiege)?`<polygon points="${poly}" fill="none" stroke="#c83030" stroke-width="2" stroke-dasharray="3 3" stroke-linejoin="round"/>`:''}
+          ${(poly&&mine)?`<polygon points="${poly}" fill="none" stroke="#c8a24a" stroke-width="1.6" stroke-dasharray="3 3" stroke-linejoin="round"/>`:''}
+          ${(!poly&&mine)?`<circle cx="${C.x}" cy="${C.y}" r="${rad+6}" fill="none" stroke="#c8a24a" stroke-width="1" stroke-dasharray="2 4"/>`:''}
+          <text x="${C.x}" y="${C.y}" style="font-size:9px;text-anchor:middle;paint-order:stroke;stroke:#2a1c0a;stroke-width:2.4px;stroke-linejoin:round;fill:#f3e8c8;font-weight:700">${C.n}</text>
+          <text class="owner" x="${C.x}" y="${C.y+11}" style="font-size:.56rem;text-anchor:middle;paint-order:stroke;stroke:#2a1c0a;stroke-width:2px;stroke-linejoin:round;fill:#d8c69a">${ownerNm}${liegeNm}</text>
+          <text class="owner" x="${C.x}" y="${C.y+21}" style="font-size:7px;text-anchor:middle;paint-order:stroke;stroke:#2a1c0a;stroke-width:1.8px;stroke-linejoin:round;fill:#cdbb8e">⚔${totalT} 민${avgPop}</text>
         </g>`;
       } catch(nodeErr){ console.error('renderMap 노드 오류:', cid, nodeErr); }
     }
