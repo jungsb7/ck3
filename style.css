@@ -59,7 +59,7 @@ body{
 }
 .node{cursor:pointer}
 /* stroke-width는 인라인 속성으로 노드별 지정(realm 2.5 / 독립 백작 0.2 / 공성 2). CSS 고정값 제거 */
-.node:hover circle.body{filter:brightness(1.3)}
+.node:hover .body{filter:brightness(1.3)}
 .node text{fill:var(--parch); font-size:13px; text-anchor:middle; pointer-events:none; font-family:inherit}
 .node text.owner{fill:var(--parch-dim); font-size:10px}
 .edge{stroke:#3a2e1d; stroke-width:1.5; stroke-dasharray:3 4}
