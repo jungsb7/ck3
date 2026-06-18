@@ -13,14 +13,15 @@ body{
 }
 /* ===== 헤더 ===== */
 #hdr{
-  display:flex; align-items:center; justify-content:space-between;
+  display:flex; align-items:center; justify-content:center;
   padding:10px 18px; background:linear-gradient(#241b12,#1a130c);
   border-bottom:2px solid var(--gold-dim); flex:0 0 auto;
 }
-#hdr .date{font-size:1.15rem; letter-spacing:.08em; color:var(--gold)}
-#hdr .date small{color:var(--parch-dim); font-size:.78rem; margin-left:10px; letter-spacing:.15em}
+#ftr .date{font-size:.98rem; letter-spacing:.06em; color:var(--gold); white-space:nowrap}
+#ftr .date small{color:var(--parch-dim); font-size:.7rem; margin-left:9px; letter-spacing:.12em}
 #hdr .res{display:flex; gap:22px; font-size:.95rem}
 #hdr .res span b{color:var(--gold); font-weight:normal; margin-right:5px}
+#hdr .res .inc{font-size:.62rem; margin-left:4px; letter-spacing:0; vertical-align:baseline}
 /* ===== 본문 ===== */
 #main{flex:1 1 auto; display:flex; min-height:0}
 #mapWrap{flex:1; border-right:none; position:relative; background:
@@ -71,12 +72,9 @@ body{
 #log p.war{border-color:var(--blood)} #log p.good{border-color:var(--emerald)}
 #log p.dip{border-color:var(--steel)} #log p.fam{border-color:var(--violet)}
 /* ===== 캐릭터 패널 ===== */
-#charBar{
-  flex:0 0 auto; display:flex; gap:0; background:linear-gradient(#1f1812,#161009);
-  border-top:2px solid var(--gold-dim);
-}
+#charCluster{ display:flex; align-items:stretch; background:linear-gradient(#1f1812,#161009); border-right:1px solid var(--line) }
 #portrait{
-  width:86px; min-height:108px; flex-shrink:0;
+  width:78px; min-height:98px; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
   border-right:1px solid var(--line); cursor:pointer;
   background:radial-gradient(circle at 50% 35%,#2c2113,#181009);
@@ -84,26 +82,33 @@ body{
 }
 #portrait:hover{ filter:brightness(1.12) }
 #portrait svg{ display:block }
-#charInfo{flex:1; padding:9px 16px}
-#charInfo .nm{font-size:1.05rem; color:var(--gold)}
-#charInfo .ttl{font-size:.78rem; color:var(--parch-dim); letter-spacing:.1em; margin-bottom:5px}
-.chips{display:flex; flex-wrap:wrap; gap:5px; margin:4px 0}
-.chip{font-size:.7rem; border:1px solid var(--gold-dim); border-radius:2px;
-  padding:1px 7px; color:var(--parch); background:#241b10}
+#charInfo{ padding:5px 14px; display:flex; flex-direction:column; justify-content:center; min-width:0 }
+#charInfo .nm{font-size:.95rem; color:var(--gold); white-space:nowrap}
+#charInfo .ttl{font-size:.7rem; color:var(--parch-dim); letter-spacing:.05em; margin-bottom:3px; white-space:nowrap}
+.chips{display:flex; flex-wrap:wrap; gap:4px; margin:2px 0}
+.chip{font-size:.66rem; border:1px solid var(--gold-dim); border-radius:2px;
+  padding:1px 6px; color:var(--parch); background:#241b10}
 .chip.edu{border-color:var(--steel)} .chip.life{border-color:var(--violet)}
-#stats{display:flex; gap:14px; font-size:.8rem; margin-top:4px; color:var(--parch-dim)}
+#stats{display:flex; gap:11px; font-size:.74rem; margin-top:3px; color:var(--parch-dim)}
 #stats b{color:var(--parch); font-weight:normal}
-#stressBox{flex:0 0 240px; padding:10px 16px; border-left:1px solid var(--line)}
-#stressBox .lbl{font-size:.7rem; letter-spacing:.2em; color:var(--parch-dim); display:flex; justify-content:space-between}
-#stressTrack{height:13px; background:#0c0906; border:1px solid var(--line); margin-top:6px; position:relative}
+#stressBox{ margin-top:5px; max-width:240px }
+#stressBox .lbl{font-size:.62rem; letter-spacing:.12em; color:var(--parch-dim); display:flex; justify-content:space-between; gap:14px}
+#stressTrack{height:9px; background:#0c0906; border:1px solid var(--line); margin-top:3px; position:relative}
 #stressFill{height:100%; background:linear-gradient(90deg,#6e5a2c,#a03c34); width:0%}
 .smark{position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--gold-dim)}
+#stressLvl{font-size:.6rem; color:var(--parch-dim); margin-top:2px}
 #stressLvl{font-size:.72rem; margin-top:5px; color:var(--parch-dim)}
 /* ===== 푸터 ===== */
 #ftr{
-  flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:14px;
-  padding:8px; background:#100b07; border-top:1px solid var(--line);
+  flex:0 0 auto; display:flex; align-items:stretch; justify-content:space-between; gap:0;
+  background:#100b07; border-top:2px solid var(--gold-dim);
 }
+.ftr-ctrl{ display:flex; align-items:center; gap:14px; padding:0 18px; }
+/* 지도 모드 버튼 (우하단) */
+#mapModes{ position:absolute; right:6px; bottom:6px; z-index:5; display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end; max-width:210px }
+.mm{ font-size:.6rem; font-family:inherit; padding:2px 7px; border:1px solid var(--gold-dim); border-radius:3px; background:rgba(20,16,10,.82); color:var(--parch-dim); cursor:pointer; letter-spacing:.04em }
+.mm:hover{ color:var(--gold); border-color:var(--gold) }
+.mm.on{ background:var(--gold-dim); color:#14100c }
 button{
   background:#241b10; border:1px solid var(--gold-dim); color:var(--parch);
   font-family:inherit; font-size:.85rem; padding:7px 16px; cursor:pointer; letter-spacing:.06em;
@@ -194,14 +199,16 @@ button:disabled{opacity:.35; cursor:default}
 #logTab  { display:flex; align-items:center; justify-content:center }
 #logClose{ display:none }
 .panel-tab{ display:flex; align-items:center; justify-content:center }
-#charTop{ display:flex; flex-direction:row; align-items:stretch }
-#charBot{ display:flex; flex-direction:row; align-items:center }
+#charInfo{ min-width:0 }
 
 @media (max-width:768px){
   /* 헤더 폰트 40% 축소 */
   #hdr{ padding:6px 10px }
-  #hdr .date{ font-size:.69rem }
-  #hdr .date small{ font-size:.47rem }
+  #ftr{ padding:6px 10px; gap:8px }
+  #ftr .date{ font-size:.62rem }
+  #ftr .date small{ display:none }
+  .ftr-ctrl{ gap:6px }
+  #ftr .res{ font-size:.57rem; gap:10px }
   #hdr .res{ font-size:.57rem; gap:10px }
   #hdr .res span b{ margin-right:2px }
 
@@ -213,31 +220,18 @@ button:disabled{opacity:.35; cursor:default}
   /* 연대기: .side-panel 공통 클래스로 통합 */
 
   /* 캐릭터 바 — 2층 구조 */
-  #charBar{ flex-direction:column }
-
-  /* 1층: 초상화 + 캐릭터 정보 */
-  #charTop{
-    display:flex; flex-direction:row;
-    border-bottom:1px solid var(--line);
-  }
-  #portrait{ width:58px; min-height:72px }
-  #portrait svg{ width:58px; height:72px }
-  #charInfo{ padding:6px 10px }
-  #charInfo .nm{ font-size:.88rem }
-  #charInfo .ttl{ font-size:.68rem }
-  #stats{ gap:8px; font-size:.74rem }
-  .chips{ gap:3px }
-  .chip{ font-size:.63rem; padding:1px 5px }
-
-  /* 2층: 스트레스 + 버튼 */
-  #charBot{
-    display:flex; flex-direction:row;
-    align-items:center; gap:0;
-  }
-  #stressBox{
-    flex:1; border-left:none;
-    padding:7px 10px;
-  }
+  #ftr{ flex-wrap:wrap }
+  #charCluster{ border-right:none }
+  #portrait{ width:54px; min-height:68px }
+  #portrait svg{ width:54px; height:68px }
+  #charInfo{ padding:4px 9px }
+  #charInfo .nm{ font-size:.8rem }
+  #charInfo .ttl{ font-size:.6rem }
+  #stats{ gap:7px; font-size:.62rem }
+  .chips{ display:none }
+  #stressBox{ max-width:150px; margin-top:3px }
+  #stressBox .lbl{ font-size:.55rem; gap:8px }
+  #stressLvl{ display:none }
 }
 
 /* ===== 사이드 패널 공통 시스템 ===== */
@@ -254,26 +248,27 @@ button:disabled{opacity:.35; cursor:default}
 .side-panel.open{ transform:translateX(0); box-shadow:-6px 0 32px rgba(0,0,0,.7) }
 /* 탭: 패널 왼쪽 바깥에 붙어서 같이 이동 */
 .panel-tab{
-  position:absolute; left:-36px; width:36px;
+  position:absolute; left:-42px; width:42px;
   background:linear-gradient(#2e2214,#1c1408);
   border:1px solid var(--gold-dim); border-right:none;
   border-radius:8px 0 0 8px;
-  color:var(--gold); font-size:.62rem; letter-spacing:.08em;
-  writing-mode:vertical-rl; white-space:nowrap; line-height:1.1; cursor:pointer;
-  font-family:inherit;
+  color:var(--gold); cursor:pointer; font-family:inherit;
   display:flex; align-items:center; justify-content:center;
-  gap:0;
 }
+.panel-tab svg{ width:23px; height:23px; flex:0 0 auto; }
 .panel-tab:hover{ color:var(--gold-bright,#ecd27a); background:linear-gradient(#382a1a,#231a0e) }
 
 /* 여섯 탭 독립 책갈피, 2px 간격으로 붙여 배치 — 연대기·자문회·봉역·활동·궁정·결단 */
-#logTab     { top:118px; height:52px; }
-#councilTab { top:172px; height:52px; }
-#fiefTab    { top:226px; height:52px; }
-#actTab     { top:280px; height:52px; }
-#courtTab   { top:334px; height:52px; }
-#decTab     { top:388px; height:52px; }
-#warTab     { top:442px; height:52px; }
+#logTab        { top:80px;  height:48px; }
+#fiefTab       { top:130px; height:48px; }
+#warTab        { top:180px; height:48px; }
+#councilTab    { top:230px; height:48px; }
+#courtTab      { top:280px; height:48px; }
+#intrigueTab   { top:330px; height:48px; }
+#factionTab    { top:380px; height:48px; }
+#decTab        { top:430px; height:48px; }
+#actTab        { top:480px; height:48px; }
+#royalcourtTab { top:530px; height:48px; }
 .panel-head{
   flex:0 0 auto; font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
   padding:8px 14px; border-bottom:1px solid var(--line);
