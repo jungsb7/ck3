@@ -2164,6 +2164,7 @@ const state = {
   year:1066, month:9, day:15,
   paused:true, speed:1, timer:null,
   player:murchad.id,
+  showBaronies:true,    // 기본 지도 = 남작령 채움 뷰 (요청)
   schemes:[], wars:[], truces:{}, npcAlliances:[], alliances:[],
   prestige:120,
   piety:0,              // 신앙도 (CK3 Piety — 소비 가능 자원)
@@ -10114,6 +10115,7 @@ function intro(){
 }
 setSpeed(1);
 renderAll();
+(function(){ const b=document.getElementById('baronyToggle'); if(b&&state.showBaronies){ b.style.color='var(--gold)'; b.style.borderColor='var(--gold)'; } })(); // 기본 켜짐 표시
 log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니다.','good');
 // 게임 시작 시 초기 배정
 (()=>{
