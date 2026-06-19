@@ -10003,14 +10003,14 @@ function renderMap(){
   let h='';
   const _selA=(state.armies||[]).find(x=>x.id===state.selectedArmy);
   const moveMode=!!(_selA && _selA.owner===state.player);  // 플레이어 군대 선택 시 → 남작령 이동 모드
-  // ── 남작령 채움 레이어 (이 파일 스타일) — 토글 시 남작령을 소속 백작령의 지도모드색으로 채움.
+  // ── 남작령 채움 레이어 — 항상 남작령을 소속 백작령의 지도모드색으로 채움(기본 지도).
   //    카운티 루프보다 먼저 그려 라벨·테두리가 위로 오게 함. 슬리버·호수 틈은 어두운 배경이 비쳐 깔끔.
-  const baronyFillMode = state.showBaronies && !moveMode;
+  const baronyFillMode = !moveMode;   // 남작령 채움이 기본 — 모드 버튼(권역/실지배/문화/신앙/장악력)은 색만 결정
   if(baronyFillMode){ try{
     for(const bid in BARONY_XY){ const poly=BARONY_POLY[bid]; if(!poly) continue;
       const cid=BARONY_COUNTY[bid], C=COUNTIES[cid]; if(!C) continue;
       const fill=countyMapFill(cid, C, countyHolder(cid));  // 백작령 모드색 상속
-      h+=`<polygon points="${poly}" fill="${fill}" fill-opacity="0.9" stroke="#241a0c" stroke-width="0.4" stroke-opacity="0.82" stroke-linejoin="round"/>`;
+      h+=`<polygon points="${poly}" fill="${fill}" fill-opacity="0.9" stroke="#241a0c" stroke-width="0.4" stroke-opacity="0.82" stroke-linejoin="round" onclick="openCounty('${cid}')" style="cursor:pointer"/>`;  // 영역 클릭 → 백작령 정보
     }
   }catch(bfErr){ console.error('남작령 채움 레이어 오류:', bfErr); } }
   try {
@@ -10115,7 +10115,6 @@ function intro(){
 }
 setSpeed(1);
 renderAll();
-(function(){ const b=document.getElementById('baronyToggle'); if(b&&state.showBaronies){ b.style.color='var(--gold)'; b.style.borderColor='var(--gold)'; } })(); // 기본 켜짐 표시
 log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니다.','good');
 // 게임 시작 시 초기 배정
 (()=>{
