@@ -4,34 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>에이레 1066 — 먼스터의 소왕</title>
-<link rel="stylesheet" href="style.css?v=108">
+<link rel="stylesheet" href="style.css?v=126">
 </head>
 <body>
 
 <div id="hdr">
+  <div id="hdrInner">
   <div class="res">
     <span><b>금</b><span id="goldTxt">340</span><small id="goldInc" class="inc"></small></span>
     <span><b>위신</b><span id="prestigeTxt">120</span><small id="prestigeInc" class="inc"></small></span>
     <span><b>신앙도</b><span id="pietyTxt">0</span><small id="pietyInc" class="inc"></small></span>
-    <span><b>정통성</b><span id="legitTxt">인정받은</span></span>
     <span><b>병력</b><span id="troopTxt">1,200</span></span>
     <span><b>직할</b><span id="domainTxt">2/6</span></span>
+  </div>
   </div>
 </div>
 
 <div id="main">
   <div id="mapWrap">
-    <h3>에이레 — 일곱 왕국</h3>
     <svg id="map" viewBox="0 0 420 470" preserveAspectRatio="xMidYMid meet"></svg>
-    <button id="baronyToggle" onclick="toggleBaronies()" title="남작령 표시 전환" style="position:absolute;top:6px;right:6px;font-size:.62rem;font-family:inherit;padding:2px 7px;border:1px solid var(--gold-dim);border-radius:3px;background:rgba(20,16,10,.8);color:var(--parch-dim);cursor:pointer;z-index:5">남작령</button>
-    <button id="mapReset" onclick="resetMapView()" title="지도 원위치" style="position:absolute;top:6px;left:6px;font-size:.62rem;font-family:inherit;padding:2px 7px;border:1px solid var(--gold-dim);border-radius:3px;background:rgba(20,16,10,.8);color:var(--parch-dim);cursor:pointer;z-index:5">⤢ 원위치</button>
     <div id="actWidget" onclick="initAudio();togglePanel('act')" title="진행 중인 활동"></div>
-    <div id="mapModes">
+    <div id="mapPanel">
+      <div class="mp-title">지도</div>
+      <div id="mapModes">
       <button class="mm on" data-m="dejure" onclick="setMapMode('dejure')" title="de jure 공작령 권역">권역</button>
       <button class="mm" data-m="realm" onclick="setMapMode('realm')" title="실제 지배 세력">실지배</button>
       <button class="mm" data-m="culture" onclick="setMapMode('culture')" title="카운티 문화">문화</button>
       <button class="mm" data-m="faith" onclick="setMapMode('faith')" title="지배자 신앙">신앙</button>
       <button class="mm" data-m="control" onclick="setMapMode('control')" title="장악력 (적=낮음·녹=높음)">장악력</button>
+      <button id="baronyToggle" class="mm" onclick="toggleBaronies()" title="남작령 표시 전환">남작령</button>
+      <button id="mapReset" class="mm" onclick="resetMapView()" title="지도 원위치">원위치</button>
+      </div>
     </div>
   </div>
   <div id="logWrap" class="side-panel">
@@ -88,31 +91,42 @@
   <div class="panel-head">왕실궁정<button class="panel-close" onclick="initAudio();closePanel('royalcourt')">✕</button></div>
   <div id="royalcourtContent" class="panel-body"></div>
 </div>
-<div id="ftr">
   <div id="charCluster">
-    <div id="portrait">M</div>
-    <div id="charInfo">
-      <div class="nm" id="cNm">무르하드 막 돈하드</div>
-      <div class="ttl" id="cTtl">먼스터 소왕 · 39세 · 우어 브리언 가문</div>
-      <div class="chips" id="cChips"></div>
-      <div id="stats"></div>
-      <div id="stressBox">
-        <div class="lbl"><span>스트레스</span><span id="stressNum">0 / 150</span></div>
-        <div id="stressTrack">
-          <div id="stressFill"></div>
-          <div class="smark" style="left:33.3%"></div>
-          <div class="smark" style="left:66.6%"></div>
+      <div id="charNav">
+        <button class="med" onclick="initAudio();openDynasty()" title="가문"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l7 2.2v5.3c0 4.2-3 7.2-7 9-4-1.8-7-4.8-7-9V5.2z"/></svg></button>
+        <button class="med" onclick="initAudio();openCulture()" title="문화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c2.2 3 3.8 5 3.8 7.8a3.8 3.8 0 0 1-7.6 0c0-1.4.7-2.6 1.8-3.6"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10.5" y1="18" x2="13.5" y2="18"/></svg></button>
+        <button class="med" onclick="initAudio();openFaith()" title="신앙"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><line x1="6.5" y1="9" x2="17.5" y2="9"/></svg></button>
+        <button class="med" onclick="initAudio();openLegit()" title="정통성"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><path d="M8.5 13l-1.5 8 5-3 5 3-1.5-8"/></svg></button>
+      </div>
+    <div id="charPort">
+      <div id="portrait">M</div>
+      <div id="charBot">
+        <div id="stressBox">
+          <div class="lbl"><span>스트레스</span><span id="stressNum">0 / 150</span></div>
+          <div id="stressTrack">
+            <div id="stressFill"></div>
+            <div class="smark" style="left:33.3%"></div>
+            <div class="smark" style="left:66.6%"></div>
+          </div>
         </div>
-        <div id="stressLvl">0단계 — 평온함</div>
+        <button class="med" onclick="initAudio();openLifestyle()" title="인생관"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 4.5l2.2 5.3 5.3 2.2-5.3 2.2L12 19.5l-2.2-5.3L4.5 12l5.3-2.2z"/></svg></button>
+        <button class="med" onclick="initAudio();openInventory()" title="소지품"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M4 9l2.2-4h11.6L20 9"/><line x1="12" y1="12" x2="12" y2="14.5"/></svg></button>
       </div>
     </div>
   </div>
+<div id="ftr">
+  <div id="ftrInner">
+  <div class="ftr-date">
+    <div class="date"><span id="dateTxt">1066년 9월 15일</span></div>
+  </div>
   <div class="ftr-ctrl">
-    <div class="date"><span id="dateTxt">1066년 9월 15일</span><small id="seasonTxt">가을 · 먼스터</small></div>
-    <button id="pauseBtn" onclick="initAudio();togglePause()">▶ 진행</button>
-    <button class="spd" data-s="1" onclick="initAudio();setSpeed(1)">1배속</button>
-    <button class="spd" data-s="2" onclick="initAudio();setSpeed(2)">2배속</button>
-    <button class="spd" data-s="3" onclick="initAudio();setSpeed(3)">3배속</button>
+    <button id="pauseBtn" onclick="initAudio();togglePause()">▶</button>
+    <div class="spd-group">
+      <button class="spd" data-s="1" onclick="initAudio();setSpeed(1)">1x</button>
+      <button class="spd" data-s="2" onclick="initAudio();setSpeed(2)">2x</button>
+      <button class="spd" data-s="3" onclick="initAudio();setSpeed(3)">3x</button>
+    </div>
+  </div>
   </div>
 </div>
 
@@ -120,6 +134,6 @@
 <div id="profileShade"><div id="profileModal"></div></div>
 <div id="actShade"><div id="actModal"></div></div>
 
-<script src="script.js?v=135"></script>
+<script src="script.js?v=145"></script>
 </body>
 </html>
