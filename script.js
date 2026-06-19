@@ -1077,6 +1077,8 @@ function armyXY(a){ const at=BARONY_XY[a.pos]; if(a.state!=='march'||!a.path) re
   return { x:cur.x+(nxt.x-cur.x)*a.prog, y:cur.y+(nxt.y-cur.y)*a.prog }; }
 function disbandArmy(id){ ensureArmies(); state.armies=state.armies.filter(a=>a.id!==id); if(state.selectedArmy===id) state.selectedArmy=null; }
 function selectArmy(id){ state.selectedArmy=(state.selectedArmy===id?null:id); renderMap(); if(typeof renderWar==='function'){ try{renderWar();}catch(e){} } }
+/* 영지 밖(바다 등) 지도 배경 클릭 → 군대 선택 해제(이동모드 종료) */
+function mapBgClick(){ if(state.selectedArmy){ state.selectedArmy=null; renderMap(); if(typeof renderWar==='function'){ try{renderWar();}catch(e){} } } }
 /* 이동 모드: 선택된 플레이어 군대를 클릭한 남작령까지 진군(BFS 경로) */
 function orderSelectedArmyTo(bid){
   const a=(state.armies||[]).find(x=>x.id===state.selectedArmy);
@@ -2244,6 +2246,13 @@ function modalPick(i){
 function closeModal(){
   state.modalOpen=false;
   document.getElementById('shade').classList.remove('show');
+}
+/* 배경(모달 바깥) 클릭으로 닫기 — 큐/일시정지 재개 정리 포함 */
+function dismissModal(){
+  closeModal();
+  flushPopups();
+  if(!state.modalOpen && !state.popupQ.length && state.autoResume){ state.autoResume=false; resume(); }
+  renderAll();
 }
 
 /* ---------- 스트레스 ---------- */
@@ -10003,16 +10012,29 @@ function renderMap(){
   let h='';
   const _selA=(state.armies||[]).find(x=>x.id===state.selectedArmy);
   const moveMode=!!(_selA && _selA.owner===state.player);  // 플레이어 군대 선택 시 → 남작령 이동 모드
-  // ── 남작령 채움 레이어 — 항상 남작령을 소속 백작령의 지도모드색으로 채움(기본 지도).
-  //    카운티 루프보다 먼저 그려 라벨·테두리가 위로 오게 함. 슬리버·호수 틈은 어두운 배경이 비쳐 깔끔.
-  const baronyFillMode = !moveMode;   // 남작령 채움이 기본 — 모드 버튼(권역/실지배/문화/신앙/장악력)은 색만 결정
-  if(baronyFillMode){ try{
+  // 배경(바다 등 영지 밖) 클릭 영역 — 폴리곤 아래에 깔아 영지 밖 클릭만 잡음
+  h+=`<rect x="0" y="0" width="420" height="470" fill="transparent" pointer-events="all" onclick="mapBgClick()"/>`;
+  // ── 남작령 채움 레이어 — 기본 지도 + 이동모드 공용. 항상 백작령 모드색으로 채움.
+  //    카운티 루프보다 먼저 그려 라벨·테두리가 위로 오게 함.
+  const baronyFillMode = !moveMode;
+  const _mvCur = moveMode ? _selA.pos : null;
+  const _mvAdj = moveMode ? new Set(BARONY_ADJ[_mvCur]||[]) : null;
+  try{
     for(const bid in BARONY_XY){ const poly=BARONY_POLY[bid]; if(!poly) continue;
       const cid=BARONY_COUNTY[bid], C=COUNTIES[cid]; if(!C) continue;
-      const fill=countyMapFill(cid, C, countyHolder(cid));  // 백작령 모드색 상속
-      h+=`<polygon points="${poly}" fill="${fill}" fill-opacity="0.9" stroke="#241a0c" stroke-width="0.4" stroke-opacity="0.82" stroke-linejoin="round" onclick="openCounty('${cid}')" style="cursor:pointer"/>`;  // 영역 클릭 → 백작령 정보
+      const baseCol=countyMapFill(cid, C, countyHolder(cid));  // 백작령 모드색 상속(권역=공작령색 등)
+      if(moveMode){
+        const cur=(bid===_mvCur), adj=_mvAdj.has(bid);
+        const fill=cur?'#ffd966':(adj?'#7ec07e':baseCol);        // 현재=금색·이동가능=녹색·그 외=지도색(흐리게)
+        const fo=cur?0.92:(adj?0.72:0.5);
+        const ring=cur?'#ffd966':(adj?'#5f9c4e':'#241a0c');
+        const sw=cur?1.8:(adj?1.1:0.4);
+        h+=`<polygon points="${poly}" fill="${fill}" fill-opacity="${fo}" stroke="${ring}" stroke-width="${sw}" stroke-linejoin="round" onclick="orderSelectedArmyTo('${bid}')" style="cursor:pointer"/>`;
+      } else {
+        h+=`<polygon points="${poly}" fill="${baseCol}" fill-opacity="0.9" stroke="#241a0c" stroke-width="0.4" stroke-opacity="0.82" stroke-linejoin="round" onclick="openCounty('${cid}')" style="cursor:pointer"/>`;  // 영역 클릭 → 백작령 정보
+      }
     }
-  }catch(bfErr){ console.error('남작령 채움 레이어 오류:', bfErr); } }
+  }catch(bfErr){ console.error('남작령 채움 레이어 오류:', bfErr); }
   try {
     // 백작령 폴리곤 지도 — 인접은 폴리곤 경계로 표현(중심 연결선 제거)
     // 백작령 노드 (15개) — 노드별 가드로 1개가 실패해도 지도 전체가 죽지 않음
@@ -10024,7 +10046,8 @@ function renderMap(){
         // ① 카운티 채움(fill) = 지도 모드별 색 (기본=de jure 권역)
         const fillCol=countyMapFill(cid, C, holder);
         // ② 원 테두리(stroke) = 최상위 주군(realm) 고유 색 (독립 백작은 얇은 회색)
-        const strokeCol=holder?realmStrokeColor(holder):'#6a5836';
+        // 이동모드: 공작급(realm 팔레트색) 백작령 테두리를 일반 회색으로 채움 — 민트/노랑만 제거, 빈 곳 없이
+        const strokeCol=(moveMode&&holder&&!isPettyRealm(holder))?'#8a8278':(holder?realmStrokeColor(holder):'#6a5836');
         const pettyRealm=holder&&isPettyRealm(holder);
         const bids=C.baronies||[];
         const totalT=Math.round(bids.reduce((s,b)=>s+(BARONIES[b]?.troops||0),0));
@@ -10036,15 +10059,31 @@ function renderMap(){
         const liegeNm=holder&&!isIndependent(holder)?` ⊂${(chars[holder.liege]?.name||'').split(' ')[0]}`:'';
         const poly=C.poly;
         h+=`<g class="node" ${moveMode?'':`onclick="openCounty('${cid}')"`} style="cursor:${moveMode?'default':'pointer'}">
-          ${poly?`<polygon class="body" points="${poly}" fill="${baronyFillMode?'none':fillCol}" fill-opacity="${baronyFillMode?0:(moveMode?0.3:0.8)}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}" stroke-linejoin="round"/>`
+          ${poly?`<polygon class="body" points="${poly}" fill="none" fill-opacity="0" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}" stroke-linejoin="round"/>`
                 :`<circle class="body" cx="${C.x}" cy="${C.y}" r="${rad}" fill="${fillCol}" stroke="${underSiege?'#c83030':strokeCol}" stroke-width="${strokeW}"/>`}
           ${(poly&&underSiege)?`<polygon points="${poly}" fill="none" stroke="#c83030" stroke-width="2" stroke-dasharray="3 3" stroke-linejoin="round"/>`:''}
         </g>`;
       } catch(nodeErr){ console.error('renderMap 노드 오류:', cid, nodeErr); }
     }
   } catch(mapErr){ console.error('renderMap 오류:', mapErr); }
-  // ── 주군(realm) 색 백작령 테두리를 최상단으로 — 인접 회색(독립) 테두리에 덮이지 않게 (요청)
-  try { const _pp=playerChar();
+  // ── 이동모드 강조를 카운티/realm 테두리 위로 (포위·현재·인접) — 요청
+  if(moveMode){ try{
+    const curBid=_selA.pos;
+    const adjSet=new Set(BARONY_ADJ[curBid]||[]);
+    // 포위 중 백작령 빨강 테두리 위로
+    for(const cid in COUNTIES){ const C=COUNTIES[cid]; if(!C.poly) continue;
+      if(state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0))
+        h+=`<polygon points="${C.poly}" fill="none" stroke="#c83030" stroke-width="2.2" stroke-linejoin="round" pointer-events="none"/>`;
+    }
+    // 현재(금색)·인접(녹색) 남작령 강조 위로
+    for(const bid in BARONY_XY){ const poly=BARONY_POLY[bid]; if(!poly) continue;
+      const cur=(bid===curBid), adj=adjSet.has(bid); if(!cur&&!adj) continue;
+      const fill=cur?'#ffd966':'#7ec07e', fo=cur?0.92:0.72, ring=cur?'#ffd966':'#5f9c4e', sw=cur?1.8:1.1;
+      h+=`<polygon points="${poly}" fill="${fill}" fill-opacity="${fo}" stroke="${ring}" stroke-width="${sw}" stroke-linejoin="round" onclick="orderSelectedArmyTo('${bid}')" style="cursor:pointer"/>`;
+    }
+  }catch(hlErr){ console.error('이동모드 강조 상단 오류:', hlErr); } }
+  // ── 주군(realm) 색 백작령 테두리를 최상단으로 — 인접 회색(독립) 테두리에 덮이지 않게. 이동모드엔 숨김
+  if(!moveMode){ try { const _pp=playerChar();
     for(const cid in COUNTIES){ const C=COUNTIES[cid]; const poly=C.poly; if(!poly) continue;
       const holder=countyHolder(cid); if(!holder || isPettyRealm(holder)) continue; // realm 고유색만(회색 독립 제외)
       const underSiege=state.wars.some(w=>w.targetRid===cid&&w.occupied?.length>0);
@@ -10052,32 +10091,21 @@ function renderMap(){
       h+=`<polygon points="${poly}" fill="none" stroke="${strokeCol}" stroke-width="2.5" stroke-linejoin="round" pointer-events="none"/>`;
       if(underSiege) h+=`<polygon points="${poly}" fill="none" stroke="#c83030" stroke-width="2" stroke-dasharray="3 3" stroke-linejoin="round" pointer-events="none"/>`;
     }
-  } catch(rsErr){ console.error('realm 테두리 상단 패스 오류:', rsErr); }
-  // ── 백작령 이름만 최상단(realm 테두리 위) · 작은 글씨 (요청)
-  try { for(const cid in COUNTIES){ const C=COUNTIES[cid]; if(C.x==null||C.y==null) continue;
+  } catch(rsErr){ console.error('realm 테두리 상단 패스 오류:', rsErr); } }
+  // ── 백작령 이름 (이동모드에선 숨김 — 남작령 이름과 겹침 방지)
+  if(!moveMode){ try { for(const cid in COUNTIES){ const C=COUNTIES[cid]; if(C.x==null||C.y==null) continue;
     h+=`<text x="${C.x}" y="${C.y+2}" style="font-size:7px;text-anchor:middle;paint-order:stroke;stroke:#2a1c0a;stroke-width:2px;stroke-linejoin:round;fill:#f3e8c8;font-weight:700;pointer-events:none">${C.n}</text>`;
-  } } catch(nlErr){ console.error('백작령 이름 라벨 오류:', nlErr); }
-  // ── 군대 이동 모드 오버레이 — 남작령 폴리곤 클릭 진군 (현재=금색·인접=녹색)
+  } } catch(nlErr){ console.error('백작령 이름 라벨 오류:', nlErr); } }
+  // ── 이동모드: 현재/인접 남작령 이름 + 안내 (채움·하이라이트·클릭은 채움 레이어에서 처리)
   if(moveMode){ try{
     const curBid=_selA.pos;
     const adjSet=new Set(BARONY_ADJ[curBid]||[]);
-    for(const bid in BARONY_XY){ const P=BARONY_XY[bid]; const b=BARONIES[bid];
-      const poly=BARONY_POLY[bid];
-      const isCap=COUNTIES[BARONY_COUNTY[bid]]?.capital===bid;
-      const typeCol=b?.type==='city'?'#3a6a8a':b?.type==='temple'?'#7a5a8a':b?.type==='castle'?'#8a6a3a':'#4a4438';
-      const cur=(bid===curBid), adj=adjSet.has(bid);
-      const fill=cur?'#ffd966':(adj?'#7ec07e':typeCol);
-      const fo=cur?0.5:(adj?0.42:0.16);
-      const ring=cur?'#ffd966':(adj?'#5f9c4e':'#2a2014');
-      const sw=cur?1.6:(adj?1:0.4);
-      const label=(cur||adj||isCap)?`<text x="${P.x}" y="${P.y-5}" style="font-size:5px;text-anchor:middle;fill:#f0e2b4;paint-order:stroke;stroke:#15100a;stroke-width:1.4px;pointer-events:none">${b?.n||bid}</text>`:'';
-      h+=`<g onclick="orderSelectedArmyTo('${bid}')" style="cursor:pointer">`
-        +(poly?`<polygon points="${poly}" fill="${fill}" fill-opacity="${fo}" stroke="${ring}" stroke-width="${sw}" stroke-linejoin="round"/>`
-              :`<circle cx="${P.x}" cy="${P.y}" r="${cur?5:adj?4:2.8}" fill="${fill}" fill-opacity="${fo}" stroke="${ring}" stroke-width="${sw}"/>`)
-        +label+`</g>`;
+    for(const bid in BARONY_XY){ if(bid!==curBid && !adjSet.has(bid)) continue;
+      const P=BARONY_XY[bid]; if(!P) continue; const nm=BARONIES[bid]?.n||bid;
+      h+=`<text x="${P.x}" y="${P.y-4.5}" style="font-size:5px;text-anchor:middle;fill:#f7ecc8;paint-order:stroke;stroke:#15100a;stroke-width:1.5px;stroke-linejoin:round;pointer-events:none">${nm}</text>`;
     }
     h+=`<text x="210" y="13" style="font-size:8px;text-anchor:middle;fill:#ffd966;paint-order:stroke;stroke:#15100a;stroke-width:2px;pointer-events:none">⚔ 남작령 클릭 → 진군 · 군대 재클릭 → 해제</text>`;
-  }catch(bErr){ console.error('남작령 오버레이 오류:', bErr); } }
+  }catch(bErr){ console.error('이동모드 라벨 오류:', bErr); } }
   // ── Phase 3: 군대 마커 + 경로선 (세력색으로 belligerent 구분)
   try{ for(const a of (state.armies||[])){ const P=armyXY(a); if(!P) continue;
     const mine=a.owner===state.player; const sel=state.selectedArmy===a.id;
@@ -10115,6 +10143,11 @@ function intro(){
 }
 setSpeed(1);
 renderAll();
+/* 배경 클릭으로 창 닫기 (프로필 창과 동일 방식) — 메인 모달·활동 모달 */
+(function(){
+  const sh=document.getElementById('shade'); if(sh) sh.addEventListener('click',e=>{ if(e.target===sh) dismissModal(); });
+  const ash=document.getElementById('actShade'); if(ash) ash.addEventListener('click',e=>{ if(e.target===ash) closeActModal(); });
+})();
 log('1066년 가을 — 무르하드 막 돈하드의 연대기가 시작됩니다.','good');
 // 게임 시작 시 초기 배정
 (()=>{
