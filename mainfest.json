@@ -1,0 +1,16 @@
+{
+  "name": "라스트 하이킹 — The Last High King",
+  "short_name": "라스트 하이킹",
+  "description": "아일랜드 왕조 시뮬레이션",
+  "lang": "ko",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#120c06",
+  "theme_color": "#120c06",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
