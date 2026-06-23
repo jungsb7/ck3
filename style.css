@@ -238,67 +238,6 @@ button:disabled{opacity:.35; cursor:default}
 .panel-tab{ display:flex; align-items:center; justify-content:center }
 #charInfo{ min-width:0 }
 
-@media (max-width:768px){
-  /* 헤더 폰트 40% 축소 */
-  #hdr{ filter:none; display:flex; justify-content:flex-end; align-items:center; padding:6px 10px; background:linear-gradient(#241b12,#1a130c); border-bottom:2px solid var(--gold-dim) }
-  #hdrInner{ display:contents }
-  #ftr{ position:fixed; left:0; right:0; bottom:0; z-index:30; filter:none; display:flex; flex-wrap:nowrap; align-items:center; justify-content:space-between; padding:0 10px; gap:8px; min-height:40px; background:linear-gradient(180deg,#1b140d,#110b06); border-top:1px solid var(--gold-dim) }
-  #ftrInner{ display:contents }
-  #mapPanel{ bottom:48px; right:24px; padding:4px 5px }
-  .ftr-date{ order:0; flex-basis:auto; padding:0; gap:6px; border-top:none }
-  .ftr-date .rule{ max-width:54px }
-  #ftr .date{ font-size:.8rem; letter-spacing:.04em }
-  #ftr .date small{ display:inline; margin-top:0; margin-left:8px }
-  .ftr-ctrl{ gap:6px; border-left:none; padding:0 8px }
-  #ftr .res{ font-size:.57rem; gap:10px }
-  #hdr .res{ font-size:.57rem; gap:10px }
-  #hdr .res span b{ margin-right:2px }
-
-  /* 메인: 지도 전체 폭, 로그 제거 */
-  #main{ position:relative }
-  #mapWrap{ flex:1; border-right:none }
-  #map{ height:calc(100% - 33px) }
-  /* 지도 패널: 우측 탭 피해 좁게·작게, 2열 줄바꿈 */
-  #mapModes{ max-width:150px; gap:2px }
-  .mm{ font-size:.55rem; padding:2px 5px }
-  #mapPanel .mp-title{ font-size:.5rem; padding-bottom:2px; margin-bottom:2px }
-
-  /* 연대기: .side-panel 공통 클래스로 통합 */
-
-  /* 캐릭터 바 — 고정 하단바 위로 */
-  #charCluster{ left:4px; bottom:46px; gap:5px }
-  #portrait{ width:54px; min-height:68px }
-  #portrait svg{ width:54px; height:68px }
-  #charInfo{ padding:4px 9px }
-  #charInfo .nm{ font-size:.8rem }
-  #charInfo .ttl{ font-size:.6rem }
-  #stats{ font-size:.62rem }
-  #stats span{ padding:0 6px }
-  .chips{ display:none }
-  #stressBox{ width:54px; flex:0 0 54px }
-  #charBot{ gap:4px }
-  #stressBox .lbl{ font-size:.55rem; gap:8px }
-  #stressLvl{ display:none }
-  #charPort{ gap:4px }
-  #charNav{ gap:4px }
-  .med{ width:28px; height:28px; min-width:28px }
-  .med svg{ width:15px; height:15px }
-
-  /* 우측 패널 탭 — 모바일에서 40% 추가 축소(폭18·높이20·아이콘10·간격22) */
-  .panel-tab{ left:-18px; width:18px; border-radius:5px 0 0 5px }
-  .panel-tab svg{ width:10px; height:10px }
-  #logTab        { top:64px;  height:20px }
-  #fiefTab       { top:86px;  height:20px }
-  #warTab        { top:108px; height:20px }
-  #councilTab    { top:130px; height:20px }
-  #courtTab      { top:152px; height:20px }
-  #intrigueTab   { top:174px; height:20px }
-  #factionTab    { top:196px; height:20px }
-  #decTab        { top:218px; height:20px }
-  #actTab        { top:240px; height:20px }
-  #royalcourtTab { top:262px; height:20px }
-}
-
 /* ===== 사이드 패널 공통 시스템 ===== */
 .side-panel{
   position:fixed; top:52px; right:0; bottom:0;
@@ -474,4 +413,77 @@ button:disabled{opacity:.35; cursor:default}
   .pm-body{ flex-direction:column }
   .pm-section{ flex:none; border-right:none; border-bottom:1px solid var(--line) }
   .pm-section:last-child{ border-bottom:none }
+}
+
+/* ===== 모바일: 가로 전용 (데스크탑 레이아웃 축소판) ===== */
+#rotateNote{ display:none }
+
+/* 세로(폰): 게임 숨기고 가로 안내만 */
+@media (orientation:portrait) and (max-width:820px){
+  #rotateNote{
+    display:flex; position:fixed; inset:0; z-index:9999;
+    background:var(--bg); color:var(--gold);
+    align-items:center; justify-content:center; text-align:center;
+  }
+  .rn-inner{ font-size:1.15rem; letter-spacing:.12em; line-height:1.8; font-family:inherit }
+  .rn-ico{ font-size:3rem; margin-bottom:14px; animation:rnSpin 2.4s ease-in-out infinite }
+  @keyframes rnSpin{ 0%,60%{transform:rotate(0)} 80%,100%{transform:rotate(90deg)} }
+  body > *:not(#rotateNote){ visibility:hidden !important }
+}
+
+/* 가로 + 낮은 높이(폰): 데스크탑 구조 유지, 스케일·탭만 축소 */
+@media (orientation:landscape) and (max-height:540px){
+  /* 헤더/푸터 압축 */
+  #hdrInner{ height:34px; padding:0 12px 0 34px }
+  #hdr .res{ gap:13px; font-size:.72rem }
+  #hdr .res .inc{ font-size:.54rem }
+  #ftrInner{ height:34px; padding-left:34px; gap:10px }
+  .ftr-ctrl{ gap:8px; padding:0 10px }
+  .ftr-ctrl .spd{ padding:4px 10px; font-size:.64rem }
+  #ftr .date{ font-size:.82rem }
+  #ftr .date small{ font-size:.56rem }
+  #map{ height:calc(100% - 24px) }
+
+  /* 지도 패널 */
+  #mapPanel{ right:8px; bottom:8px; padding:3px 4px }
+  #mapModes{ max-width:210px; gap:2px }
+  .mm{ font-size:.6rem; padding:2px 6px }
+  #mapPanel .mp-title{ font-size:.55rem; padding-bottom:2px; margin-bottom:2px }
+
+  /* 캐릭터 클러스터 축소 */
+  #charCluster{ left:4px; bottom:4px; gap:5px }
+  #portrait{ width:48px; min-height:60px }
+  #portrait svg{ width:48px; height:60px }
+  #charInfo{ padding:3px 8px }
+  #charInfo .nm{ font-size:.78rem }
+  #charInfo .ttl{ font-size:.58rem }
+  .chips{ display:none }
+  #stats{ font-size:.6rem }
+  #stats span{ padding:0 6px }
+  #stressBox{ width:56px; flex:0 0 56px }
+  #stressBox .lbl{ font-size:.54rem }
+  #stressLvl{ display:none }
+  #charBot{ gap:4px }
+  #charNav{ gap:4px }
+  .med{ width:26px; height:26px; min-width:26px }
+  .med svg{ width:14px; height:14px }
+
+  /* 사이드 패널: 짧은 높이에 맞춰 좁고 위로 */
+  .side-panel{ top:34px; width:min(300px,66vw) }
+  .panel-head{ padding:6px 12px; font-size:.66rem }
+  .panel-body{ padding:8px 12px; font-size:.8rem }
+
+  /* 우측 탭: 짧은 높이에 10개 다 들어가게 압축 */
+  .panel-tab{ left:-28px; width:28px; border-radius:6px 0 0 6px }
+  .panel-tab svg{ width:15px; height:15px }
+  #logTab        { top:4px;   height:28px }
+  #fiefTab       { top:35px;  height:28px }
+  #warTab        { top:66px;  height:28px }
+  #councilTab    { top:97px;  height:28px }
+  #courtTab      { top:128px; height:28px }
+  #intrigueTab   { top:159px; height:28px }
+  #factionTab    { top:190px; height:28px }
+  #decTab        { top:221px; height:28px }
+  #actTab        { top:252px; height:28px }
+  #royalcourtTab { top:283px; height:28px }
 }
