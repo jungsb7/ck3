@@ -1,489 +1,279 @@
-:root{
-  --bg:#14100c; --panel:#1e1710; --panel2:#241b12; --line:#3a2e1d;
-  --gold:#c8a24a; --gold-dim:#8a7034; --parch:#e6d9be; --parch-dim:#a89878;
-  --blood:#a03c34; --emerald:#3d6b4a; --steel:#5a6e85; --violet:#6d5380;
-  --rust:#9c6b3c; --moss:#6e7a3c; --slate:#4f5d68;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%; -webkit-text-size-adjust:100%; -moz-text-size-adjust:100%; text-size-adjust:100%}
-body{
-  background:var(--bg); color:var(--parch);
-  font-family:Georgia,'Nanum Myeongjo','Noto Serif KR',serif;
-  display:flex; flex-direction:column; overflow:hidden;
-}
-/* ===== 헤더 ===== */
-#hdr{
-  display:flex; align-items:stretch; justify-content:flex-end;
-  flex:0 0 auto; position:relative; z-index:6;
-  filter:drop-shadow(0 1.5px 0 var(--gold-dim)) drop-shadow(-1.5px 0 0 var(--gold-dim)) drop-shadow(-1.1px 1.1px 0 var(--gold-dim)) drop-shadow(0 3px 6px rgba(0,0,0,.45));
-}
-#hdrInner{
-  display:flex; align-items:center; justify-content:flex-end;
-  height:46px; padding:0 18px 0 48px;
-  background:linear-gradient(180deg,#241b12,#160f08);
-  clip-path:path('M 46,46 C 22,46 0,23 0,0 L 4000,0 L 4000,46 Z');
-}
-#ftr .date{font-size:1.02rem; letter-spacing:.08em; color:var(--gold); white-space:nowrap; text-shadow:0 1px 0 #0a0704}
-#ftr .date small{display:block; color:var(--parch-dim); font-size:.64rem; margin-top:2px; letter-spacing:.2em; text-align:center}
-#hdr .res{display:flex; gap:22px; font-size:.95rem}
-#hdr .res span b{color:var(--gold); font-weight:normal; margin-right:5px}
-#hdr .res .inc{font-size:.62rem; margin-left:4px; letter-spacing:0; vertical-align:baseline}
-/* ===== 본문 ===== */
-#main{flex:1 1 auto; display:flex; min-height:0}
-#mapWrap{flex:1; border-right:none; position:relative; background:
-  radial-gradient(ellipse at 50% 40%, #1c1812 0%, #14100c 75%)}
-#mapWrap h3{
-  font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
-  padding:8px 14px; border-bottom:1px solid var(--line); font-weight:normal;
-}
-#map{width:100%; height:calc(100% - 33px); display:block}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>에이레 1066 — 먼스터의 소왕</title>
+<link rel="stylesheet" href="style.css?v=132">
+</head>
+<body>
 
-/* ===== 원형 활동 위젯 (좌측 상단, 활동 중에만 표시) ===== */
-#actWidget{
-  position:absolute; top:46px; left:14px; width:64px; height:64px;
-  border-radius:50%; cursor:pointer; display:none;
-  align-items:center; justify-content:center; flex-direction:column;
-  background:radial-gradient(circle at 50% 38%, #2a2014, #14100b);
-  border:2px solid var(--gold-dim);
-  box-shadow:0 0 0 3px rgba(8,5,2,.6), 0 4px 14px rgba(0,0,0,.55);
-  z-index:30; transition:transform .15s, box-shadow .15s;
-  animation:actPulse 2.4s ease-in-out infinite;
-}
-#actWidget.show{display:flex}
-#actWidget:hover{transform:scale(1.08); box-shadow:0 0 0 3px rgba(8,5,2,.6), 0 0 18px rgba(200,162,74,.5)}
-#actWidget .aw-icon{font-size:1.5rem; line-height:1}
-#actWidget .aw-phase{font-size:.5rem; color:var(--gold); letter-spacing:.05em; margin-top:1px; text-align:center; max-width:60px}
-#actWidget .aw-ring{position:absolute; inset:-2px; transform:rotate(-90deg); pointer-events:none}
-#actWidget .aw-ring circle{fill:none; stroke-width:3}
-#actWidget .aw-ring .bg{stroke:rgba(60,46,29,.5)}
-#actWidget .aw-ring .fg{stroke:var(--gold); stroke-linecap:round; transition:stroke-dashoffset .4s}
-#actWidget .aw-badge{position:absolute; top:-2px; right:-2px; width:14px; height:14px;
-  border-radius:50%; background:var(--blood); border:2px solid #14100b; display:none}
-#actWidget.alert .aw-badge{display:block}
-@keyframes actPulse{
-  0%,100%{box-shadow:0 0 0 3px rgba(8,5,2,.6), 0 4px 14px rgba(0,0,0,.55)}
-  50%{box-shadow:0 0 0 3px rgba(8,5,2,.6), 0 0 16px rgba(200,162,74,.35)}
-}
-.node{cursor:pointer}
-/* stroke-width는 인라인 속성으로 노드별 지정(realm 2.5 / 독립 백작 0.2 / 공성 2). CSS 고정값 제거 */
-.node:hover .body{filter:brightness(1.3)}
-.node text{fill:var(--parch); font-size:13px; text-anchor:middle; pointer-events:none; font-family:inherit}
-.node text.owner{fill:var(--parch-dim); font-size:10px}
-.edge{stroke:#3a2e1d; stroke-width:1.5; stroke-dasharray:3 4}
-.warEdge{stroke:var(--blood); stroke-dasharray:none; stroke-width:2}
-/* ===== 로그 ===== */
-#log{flex:1; overflow-y:auto; padding:10px 14px; font-size:.88rem; line-height:1.55}
-#log p{margin-bottom:7px; border-left:2px solid var(--line); padding-left:9px}
-#log p .d{color:var(--gold-dim); font-size:.74rem; display:block; letter-spacing:.05em}
-#log p.war{border-color:var(--blood)} #log p.good{border-color:var(--emerald)}
-#log p.dip{border-color:var(--steel)} #log p.fam{border-color:var(--violet)}
-/* ===== 캐릭터 패널 ===== */
-#charCluster{ position:fixed; left:6px; bottom:6px; z-index:20; display:flex; align-items:flex-end; gap:7px; padding:0; background:none; border:none; box-shadow:none; filter:drop-shadow(0 2px 5px rgba(0,0,0,.55)) }
-#portrait{
-  width:84px; min-height:100px; flex-shrink:0; position:relative;
-  display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden;
-  background:radial-gradient(circle at 50% 30%,#3a2c11,#130c05);
-  box-shadow:inset 0 0 0 1px #0c0804, inset 0 0 0 4px #574722, inset 0 0 16px rgba(0,0,0,.55);
-}
-#portrait::after{ content:''; position:absolute; inset:4px; border:1px solid rgba(200,162,74,.5); pointer-events:none }
-#portrait:hover{ filter:brightness(1.1) saturate(1.05) }
-#portrait svg{ display:block; position:relative; z-index:1 }
-#charInfo{ padding:6px 16px; display:flex; flex-direction:column; justify-content:center; min-width:0; gap:1px }
-#charInfo .nm{font-size:1rem; color:var(--gold); white-space:nowrap; letter-spacing:.02em; text-shadow:0 1px 0 #0a0704}
-#charInfo .ttl{font-size:.68rem; color:var(--parch-dim); letter-spacing:.04em; white-space:nowrap; font-style:italic}
-.chips{display:flex; flex-wrap:nowrap; gap:5px; margin:3px 0 2px; overflow:hidden; max-width:360px}
-.chip{font-size:.64rem; border:1px solid var(--gold-dim); border-radius:2px;
-  padding:1px 7px; color:var(--parch); background:#221a0e; white-space:nowrap}
-.chip.edu{border-color:var(--steel)} .chip.life{border-color:var(--violet)}
-#stats{display:flex; gap:0; font-size:.74rem; margin-top:4px; color:var(--parch-dim)}
-#stats span{ padding:0 10px; border-right:1px solid #33291a }
-#stats span:first-child{ padding-left:0 }
-#stats span:last-child{ border-right:none; padding-right:0 }
-#stats b{color:var(--gold); font-weight:normal; margin-left:2px}
-#stressBox{ width:84px; flex:0 0 84px }
-#stressBox .lbl{font-size:.56rem; letter-spacing:.08em; color:var(--parch-dim); display:flex; justify-content:space-between; gap:8px}
-#stressTrack{height:7px; background:#0c0906; border:1px solid #33291a; margin-top:3px; position:relative; box-shadow:inset 0 1px 2px rgba(0,0,0,.5)}
-#stressFill{height:100%; background:linear-gradient(90deg,#6e5a2c,#a03c34); width:0%}
-.smark{position:absolute; top:-2px; bottom:-2px; width:1px; background:var(--gold-dim)}
-#stressLvl{font-size:.6rem; color:var(--parch-dim); margin-top:3px; letter-spacing:.04em}
-/* ===== 푸터 ===== */
-#ftr{
-  position:fixed; right:0; bottom:0; z-index:6;
-  filter:drop-shadow(0 -1.4px 0 var(--gold-dim)) drop-shadow(-1.4px 0 0 var(--gold-dim)) drop-shadow(-1.1px -1.1px 0 var(--gold-dim)) drop-shadow(1.4px 0 0 var(--gold-dim)) drop-shadow(0 3px 6px rgba(0,0,0,.5));
-}
-#ftrInner{
-  display:flex; align-items:center; gap:14px; height:46px;
-  padding-left:44px;
-  background:linear-gradient(180deg,#1d1610,#120c07);
-  clip-path:path('M 46,0 C 22,0 0,23 0,46 L 4000,46 L 4000,0 Z');
-}
-.ftr-ctrl{ display:flex; align-items:center; gap:11px; padding:0 16px }
-.spd-group{ display:inline-flex; border:1px solid var(--gold-dim); border-radius:15px; overflow:hidden; background:#15100a; box-shadow:inset 0 1px 2px rgba(0,0,0,.4) }
-.ftr-ctrl .spd{ font-size:.72rem; letter-spacing:.04em; padding:6px 13px; border:none; border-radius:0; background:transparent; color:var(--parch-dim); border-left:1px solid #2a2114; transition:background .15s,color .15s }
-.ftr-ctrl .spd:first-child{ border-left:none }
-.ftr-ctrl .spd:hover{ background:#241a0e; color:var(--gold) }
-.ftr-ctrl .spd.on{ background:linear-gradient(180deg,var(--gold),var(--gold-dim)); color:#14100c; font-weight:bold }
-.ftr-date{ display:flex; align-items:center; padding:0 4px 0 0; min-width:0 }
-.ftr-date .rule{ flex:1; max-width:90px; height:1px; background:linear-gradient(90deg,transparent,var(--gold-dim),transparent) }
-.ftr-date .date{ text-align:center }
-/* 지도 모드 버튼 (우하단) */
-#mapPanel{ position:absolute; right:6px; bottom:54px; z-index:5; background:linear-gradient(180deg,rgba(28,21,12,.93),rgba(17,11,6,.96)); border:1px solid var(--gold-dim); border-radius:6px; padding:5px 6px; box-shadow:0 3px 12px rgba(0,0,0,.5) }
-.mp-title{ font-size:.58rem; letter-spacing:.1em; color:var(--parch-dim); text-align:center; padding-bottom:3px; margin-bottom:4px; border-bottom:1px solid #2a2114 }
-#mapModes{ display:flex; gap:3px; flex-wrap:wrap; justify-content:center; max-width:220px }
-.mm{ font-size:.6rem; font-family:inherit; padding:2px 7px; border:1px solid var(--gold-dim); border-radius:3px; background:rgba(20,16,10,.82); color:var(--parch-dim); cursor:pointer; letter-spacing:.04em }
-.mm:hover{ color:var(--gold); border-color:var(--gold) }
-.mm.on{ background:var(--gold-dim); color:#14100c }
-button{
-  background:#241b10; border:1px solid var(--gold-dim); color:var(--parch);
-  font-family:inherit; font-size:.85rem; padding:7px 16px; cursor:pointer; letter-spacing:.06em;
-}
-button:hover{background:#332512; color:var(--gold)}
-button.on{background:var(--gold-dim); color:#14100c}
-button:disabled{opacity:.35; cursor:default}
-#pauseBtn{ font-size:.9rem; min-width:40px; height:32px; padding:0 14px; border-radius:16px; background:linear-gradient(180deg,#2c2113,#1a1108); border:1px solid var(--gold-dim); display:inline-flex; align-items:center; justify-content:center; transition:border-color .15s,color .15s,background .15s }
-#pauseBtn:hover{ border-color:var(--gold); color:var(--gold); background:linear-gradient(180deg,#352713,#1f1409) }
-#pauseBtn.paused{ border-color:var(--blood); color:#e6b0a8 }
-/* 좌하단 CK3식: 초상화 | (메달리온 + 슬림 스트레스) */
-#charPort{ display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-start; gap:5px }
-#charBot{ display:flex; align-items:flex-end; gap:5px }
-#charNav{ display:flex; flex-direction:column; gap:5px; justify-content:flex-end }
-.med{ width:34px; height:34px; min-width:34px; padding:0; border-radius:7px;
-  border:1px solid var(--gold-dim); color:var(--parch-dim);
-  background:radial-gradient(circle at 50% 36%,#2c2113,#130c05);
-  display:flex; align-items:center; justify-content:center; cursor:pointer; letter-spacing:0;
-  box-shadow:inset 0 0 0 1px #0c0804 }
-.med:hover{ border-color:var(--gold); color:var(--gold);
-  background:radial-gradient(circle at 50% 36%,#3a2c12,#1a1207) }
-.med svg{ width:19px; height:19px; display:block }
-/* ===== 모달 ===== */
-#shade{position:fixed; inset:0; background:rgba(5,3,1,.72); display:none;
-  align-items:center; justify-content:center; z-index:50}
-#shade.show{display:flex}
-.modal{
-  width:min(560px, 92vw); max-height:84vh; overflow-y:auto;
-  background:linear-gradient(#251c12,#1a130b); border:1px solid var(--gold);
-  box-shadow:0 0 60px rgba(0,0,0,.8), inset 0 0 40px rgba(200,162,74,.05);
-  padding:26px 30px;
-}
-.modal h2{font-size:1.2rem; color:var(--gold); letter-spacing:.05em; margin-bottom:4px; font-weight:normal}
-.modal .sub{font-size:.76rem; color:var(--parch-dim); letter-spacing:.18em; margin-bottom:14px;
-  border-bottom:1px solid var(--line); padding-bottom:10px}
-.modal .body{font-size:.92rem; line-height:1.65; margin-bottom:18px; white-space:pre-line}
-.opts{display:flex; flex-direction:column; gap:8px}
-.opts button{text-align:left; padding:10px 14px; line-height:1.4}
-.opts button small{display:block; color:var(--parch-dim); font-size:.74rem; margin-top:2px}
-.kv{display:flex; justify-content:space-between; font-size:.85rem; padding:3px 0; border-bottom:1px dotted #2c2316}
-.kv span:first-child{color:var(--parch-dim)}
-.modal table{width:100%; border-collapse:collapse; font-size:.84rem; margin:8px 0}
-.modal td{padding:5px 4px; border-bottom:1px solid #2a2114}
-.relGood{color:#8fbf8f}.relBad{color:#d08a82}.relMid{color:var(--parch-dim)}
-::-webkit-scrollbar{width:9px}::-webkit-scrollbar-track{background:#100b07}
-::-webkit-scrollbar-thumb{background:#3a2e1d}
+<div id="rotateNote"><div class="rn-inner"><div class="rn-ico">⟳</div>가로로 돌려주세요</div></div>
 
-/* ===== 활동 전용 모달 (CK3식 활동 창) ===== */
-#actShade{position:fixed; inset:0; background:rgba(5,3,1,.72); display:none;
-  align-items:center; justify-content:center; z-index:55}
-#actShade.show{display:flex}
-#actModal{
-  width:min(600px, 94vw); max-height:88vh; overflow-y:auto;
-  border:2px solid var(--gold); position:relative;
-  background:linear-gradient(#251c12,#1a130b);
-  box-shadow:0 0 70px rgba(0,0,0,.85), inset 0 0 50px rgba(200,162,74,.06);
-}
-/* 활동별 배경 색조 헤더 */
-.act-hero{
-  padding:20px 26px 16px; position:relative; overflow:hidden;
-  border-bottom:1px solid var(--gold-dim);
-}
-.act-hero.feast{ background:linear-gradient(135deg,#3a2410,#231505) }
-.act-hero.hunt{ background:linear-gradient(135deg,#2a3018,#16200a) }
-.act-hero.pilgrimage{ background:linear-gradient(135deg,#1c2438,#0e1320) }
-.act-hero .ah-icon{font-size:2.4rem; line-height:1; margin-bottom:6px}
-.act-hero .ah-title{font-size:1.3rem; color:var(--gold); letter-spacing:.04em; font-weight:normal}
-.act-hero .ah-tier{font-size:.74rem; color:var(--parch-dim); letter-spacing:.1em; margin-top:2px}
-.act-hero .ah-stage{position:absolute; top:18px; right:24px; font-size:.7rem;
-  color:var(--gold-dim); letter-spacing:.15em; text-align:right}
-/* 진행 정보 바 */
-.act-info{display:flex; gap:0; background:#15110a; border-bottom:1px solid var(--line)}
-.act-info .ai-cell{flex:1; padding:9px 12px; text-align:center; border-right:1px solid var(--line)}
-.act-info .ai-cell:last-child{border-right:none}
-.act-info .ai-k{font-size:.62rem; color:var(--parch-dim); letter-spacing:.1em; display:block; margin-bottom:3px}
-.act-info .ai-v{font-size:.84rem; color:var(--gold)}
-/* 진행 게이지 (사냥 추적도·순례 신심도) */
-.act-gauge{height:6px; background:#2c2316; margin:0; overflow:hidden}
-.act-gauge>div{height:100%; background:var(--gold); transition:width .4s}
-/* 본문 (이벤트 내러티브 + 선택지) */
-.act-body{padding:20px 26px; background:linear-gradient(#251c12,#1a130b)}
-.act-body .ab-narr{font-size:.94rem; line-height:1.7; margin-bottom:18px; white-space:pre-line; color:var(--parch)}
-.act-body .ab-sub{font-size:.72rem; color:var(--parch-dim); letter-spacing:.15em; margin-bottom:12px}
-.act-opts{display:flex; flex-direction:column; gap:8px}
-.act-opts button{text-align:left; padding:11px 15px; line-height:1.4;
-  background:linear-gradient(#2a2014,#1a1208); color:var(--parch);
-  border:1px solid var(--gold-dim); border-radius:3px; cursor:pointer;
-  font-family:inherit; font-size:.92rem; transition:background .12s, border-color .12s}
-.act-opts button:hover{background:linear-gradient(#3a2c18,#241a0e); border-color:var(--gold)}
-.act-opts button small{display:block; color:var(--parch-dim); font-size:.74rem; margin-top:3px}
-/* 참석자 칩 */
-.act-guests{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px}
-.act-guests .ag-chip{font-size:.7rem; padding:3px 9px; border-radius:12px;
-  background:#15110a; border:1px solid #2c2316; color:var(--parch-dim)}
-.act-guests .ag-chip.goh{border-color:var(--gold); color:var(--gold)}
-.act-close{position:absolute; top:14px; right:16px; background:none; border:none;
-  color:var(--parch-dim); font-size:1.1rem; cursor:pointer; z-index:2; line-height:1}
-.act-close:hover{color:var(--gold)}
+<div id="hdr">
+  <div id="hdrInner">
+  <div class="res">
+    <span><b>금</b><span id="goldTxt">340</span><small id="goldInc" class="inc"></small></span>
+    <span><b>위신</b><span id="prestigeTxt">120</span><small id="prestigeInc" class="inc"></small></span>
+    <span><b>신앙도</b><span id="pietyTxt">0</span><small id="pietyInc" class="inc"></small></span>
+    <span><b>병력</b><span id="troopTxt">1,200</span></span>
+    <span><b>직할</b><span id="domainTxt">2/6</span></span>
+  </div>
+  </div>
+</div>
 
-/* ===== 모바일 전용 ===== */
-#logTab  { display:flex; align-items:center; justify-content:center }
-#logClose{ display:none }
-.panel-tab{ display:flex; align-items:center; justify-content:center }
-#charInfo{ min-width:0 }
+<div id="main">
+  <div id="mapWrap">
+    <svg id="map" viewBox="0 0 420 470" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="actWidget" onclick="initAudio();togglePanel('act')" title="진행 중인 활동"></div>
+    <div id="mapPanel">
+      <div class="mp-title">지도</div>
+      <div id="mapModes">
+      <button class="mm on" data-m="dejure" onclick="setMapMode('dejure')" title="de jure 공작령 권역">권역</button>
+      <button class="mm" data-m="realm" onclick="setMapMode('realm')" title="실제 지배 세력">실지배</button>
+      <button class="mm" data-m="culture" onclick="setMapMode('culture')" title="카운티 문화">문화</button>
+      <button class="mm" data-m="faith" onclick="setMapMode('faith')" title="지배자 신앙">신앙</button>
+      <button class="mm" data-m="control" onclick="setMapMode('control')" title="장악력 (적=낮음·녹=높음)">장악력</button>
+      <button id="mapReset" class="mm" onclick="resetMapView()" title="지도 원위치">원위치</button>
+      </div>
+    </div>
+  </div>
+  <div id="logWrap" class="side-panel">
+    <button class="panel-tab" id="logTab" title="연대기" onclick="initAudio();togglePanel('log')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 6c-2-1.4-5-1.4-7.5 0v12c2.5-1.4 5.5-1.4 7.5 0 2-1.4 5-1.4 7.5 0V6c-2.5-1.4-5.5-1.4-7.5 0z"/><line x1="12" y1="6" x2="12" y2="18"/></svg></button>
+    <div class="panel-head">연대기<button class="panel-close" onclick="initAudio();togglePanel('log')">✕</button></div>
+    <div id="log"></div>
+  </div>
+</div>
 
-/* ===== 사이드 패널 공통 시스템 ===== */
-.side-panel{
-  position:fixed; top:52px; right:0; bottom:0;
-  width:min(360px,90vw);
-  background:var(--panel);
-  border-left:2px solid var(--line);
-  transform:translateX(100%);
-  transition:transform .28s cubic-bezier(.4,0,.2,1);
-  z-index:35; display:flex; flex-direction:column;
-  overflow:visible;
-}
-.side-panel.open{ transform:translateX(0); box-shadow:-6px 0 32px rgba(0,0,0,.7) }
-/* 탭: 패널 왼쪽 바깥에 붙어서 같이 이동 */
-.panel-tab{
-  position:absolute; left:-42px; width:42px;
-  background:linear-gradient(#2e2214,#1c1408);
-  border:1px solid var(--gold-dim); border-right:none;
-  border-radius:8px 0 0 8px;
-  color:var(--gold); cursor:pointer; font-family:inherit;
-  display:flex; align-items:center; justify-content:center;
-}
-.panel-tab svg{ width:23px; height:23px; flex:0 0 auto; }
-.panel-tab:hover{ color:var(--gold-bright,#ecd27a); background:linear-gradient(#382a1a,#231a0e) }
+<div id="councilWrap" class="side-panel">
+  <button class="panel-tab" id="councilTab" title="자문회" onclick="initAudio();togglePanel('council')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="4" r="1.5"/><circle cx="12" cy="20" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="20" cy="12" r="1.5"/></svg></button>
+  <div class="panel-head">자문회<button class="panel-close" onclick="initAudio();closePanel('council')">✕</button></div>
+  <div id="councilContent" class="panel-body"></div>
+</div>
+<div id="fiefWrap" class="side-panel">
+  <button class="panel-tab" id="fiefTab" title="봉역" onclick="initAudio();togglePanel('fief')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 8l3 9h10l3-9-5 4-3-6-3 6-5-4z"/></svg></button>
+  <div class="panel-head">봉역<button class="panel-close" onclick="initAudio();closePanel('fief')">✕</button></div>
+  <div id="fiefContent" class="panel-body"></div>
+</div>
+<div id="actWrap" class="side-panel">
+  <button class="panel-tab" id="actTab" title="활동" onclick="initAudio();togglePanel('act')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="21"/><path d="M7 4.5h11l-3 4 3 4H7z"/></svg></button>
+  <div class="panel-head">활동<button class="panel-close" onclick="initAudio();closePanel('act')">✕</button></div>
+  <div id="actContent" class="panel-body"></div>
+</div>
+<div id="courtWrap" class="side-panel">
+  <button class="panel-tab" id="courtTab" title="궁정신하" onclick="initAudio();togglePanel('court')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3"/><circle cx="16.5" cy="9" r="2.3"/><path d="M3.5 19c0-2.8 2.2-4.7 5-4.7s5 1.9 5 4.7"/><path d="M15 19c.1-2.3 1.7-3.8 3.5-3.8 1.5 0 2.8 1 3.1 2.9"/></svg></button>
+  <div class="panel-head">궁정신하<button class="panel-close" onclick="initAudio();closePanel('court')">✕</button></div>
+  <div id="courtContent" class="panel-body"></div>
+</div>
+<div id="decWrap" class="side-panel">
+  <button class="panel-tab" id="decTab" title="결단" onclick="initAudio();togglePanel('dec')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3l9 9-9 9-9-9z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></button>
+  <div class="panel-head">결단<button class="panel-close" onclick="initAudio();closePanel('dec')">✕</button></div>
+  <div id="decContent" class="panel-body"></div>
+</div>
 
-/* 여섯 탭 독립 책갈피, 2px 간격으로 붙여 배치 — 연대기·자문회·봉역·활동·궁정·결단 */
-#logTab        { top:80px;  height:48px; }
-#fiefTab       { top:130px; height:48px; }
-#warTab        { top:180px; height:48px; }
-#councilTab    { top:230px; height:48px; }
-#courtTab      { top:280px; height:48px; }
-#intrigueTab   { top:330px; height:48px; }
-#factionTab    { top:380px; height:48px; }
-#decTab        { top:430px; height:48px; }
-#actTab        { top:480px; height:48px; }
-#royalcourtTab { top:530px; height:48px; }
-.panel-head{
-  flex:0 0 auto; font-size:.72rem; letter-spacing:.3em; color:var(--parch-dim);
-  padding:8px 14px; border-bottom:1px solid var(--line);
-  display:flex; justify-content:space-between; align-items:center;
-}
-.panel-close{
-  background:none; border:none; color:var(--parch-dim);
-  font-size:1rem; padding:0 2px; min-width:auto;
-  letter-spacing:0; cursor:pointer;
-}
-.panel-close:hover{ color:var(--gold) }
-.panel-body{
-  flex:1; overflow-y:auto; padding:10px 14px;
-  font-size:.88rem; line-height:1.55;
-}
-.p-action{
-  border:1px solid var(--line); border-radius:2px;
-  padding:9px 12px; margin-bottom:7px; cursor:pointer;
-  background:#1a130c; text-align:left; font-family:inherit;
-  font-size:.85rem; color:var(--parch); width:100%; letter-spacing:.04em;
-}
-.p-action:hover{ border-color:var(--gold); color:var(--gold) }
-.p-action .pd{ display:block; font-size:.74rem; color:var(--parch-dim); margin-top:3px; }
-.p-action.off{ opacity:.38; cursor:default; pointer-events:none }
-.p-row{
-  display:flex; justify-content:space-between;
-  font-size:.84rem; padding:5px 0; border-bottom:1px dotted #2c2316;
-}
-.p-row .k{ color:var(--parch-dim) }
-.p-sep{ font-size:.65rem; letter-spacing:.25em; color:var(--gold-dim);
-  padding:8px 0 4px; margin-top:4px; border-top:1px solid var(--line); }
-/* 데스크탑: 모든 패널 탭 표시, 너비 확대 */
-@media (min-width:769px){
-  .panel-tab{ display:flex }
-  .side-panel{ width:360px }
-}
-/* ===== 프로필 모달 ===== */
-/* ===== 프로필 모달 ===== */
-#profileShade{
-  position:fixed; inset:0; background:rgba(5,3,1,.85);
-  display:none; align-items:flex-start; justify-content:center;
-  z-index:60; padding:16px 8px; overflow-y:auto;
-}
-#profileShade.show{ display:flex }
-#profileModal{
-  width:min(800px,100%);
-  background:linear-gradient(160deg,#251c12,#1a130b);
-  border:1px solid var(--gold);
-  border-radius:4px;
-  box-shadow:0 0 60px rgba(0,0,0,.95);
-  overflow:hidden;
-  /* flex/grid 없음 — 내부 블록 흐름으로만 */
-}
+<div id="warWrap" class="side-panel">
+  <button class="panel-tab" id="warTab" title="군사" onclick="initAudio();togglePanel('war')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="5.5" y1="5.5" x2="18.5" y2="18.5"/><line x1="18.5" y1="5.5" x2="5.5" y2="18.5"/><line x1="3.5" y1="7" x2="7" y2="3.5"/><line x1="20.5" y1="7" x2="17" y2="3.5"/></svg></button>
+  <div class="panel-head">군사<button class="panel-close" onclick="initAudio();closePanel('war')">✕</button></div>
+  <div id="warContent" class="panel-body"></div>
+</div>
 
-/* 헤더 */
-.pm-header{
-  display:flex; align-items:stretch;
-  border-bottom:2px solid var(--gold-dim);
-  background:linear-gradient(#2a1f12,#1e1509);
-}
-.pm-portrait{
-  width:86px; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center;
-  padding:8px;
-  border-right:1px solid var(--line);
-}
-.pm-title{
-  flex:1; min-width:0; padding:12px 14px;
-  display:flex; flex-direction:column; justify-content:center;
-}
-.pm-title h2{
-  font-size:1rem; color:var(--gold); font-weight:normal;
-  letter-spacing:.04em; margin:0 0 3px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.pm-title .pm-sub{
-  font-size:.7rem; color:var(--parch-dim);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
-.pm-close{
-  background:none; border:none; color:var(--parch-dim);
-  font-size:1.4rem; padding:10px 14px; cursor:pointer; flex-shrink:0;
-}
-.pm-close:hover{ color:var(--gold) }
+<div id="intrigueWrap" class="side-panel">
+  <button class="panel-tab" id="intrigueTab" title="계책" onclick="initAudio();togglePanel('intrigue')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2 9h-4z"/><line x1="8" y1="11" x2="16" y2="11"/><path d="M11 11h2v6l-1 2-1-2z"/></svg></button>
+  <div class="panel-head">계책<button class="panel-close" onclick="initAudio();closePanel('intrigue')">✕</button></div>
+  <div id="intrigueContent" class="panel-body"></div>
+</div>
+<div id="factionWrap" class="side-panel">
+  <button class="panel-tab" id="factionTab" title="파벌" onclick="initAudio();togglePanel('faction')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="4"/><path d="M5 5h5l-1.5 2.3L10 10H5z"/><line x1="19" y1="21" x2="19" y2="4"/><path d="M19 5h-5l1.5 2.3L14 10h5z"/></svg></button>
+  <div class="panel-head">파벌<button class="panel-close" onclick="initAudio();closePanel('faction')">✕</button></div>
+  <div id="factionContent" class="panel-body"></div>
+</div>
+<div id="royalcourtWrap" class="side-panel">
+  <button class="panel-tab" id="royalcourtTab" title="왕실궁정" onclick="initAudio();togglePanel('royalcourt')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9l8-5 8 5"/><line x1="6.5" y1="9.5" x2="6.5" y2="17.5"/><line x1="10" y1="9.5" x2="10" y2="17.5"/><line x1="14" y1="9.5" x2="14" y2="17.5"/><line x1="17.5" y1="9.5" x2="17.5" y2="17.5"/><line x1="4.5" y1="18" x2="19.5" y2="18"/></svg></button>
+  <div class="panel-head">왕실궁정<button class="panel-close" onclick="initAudio();closePanel('royalcourt')">✕</button></div>
+  <div id="royalcourtContent" class="panel-body"></div>
+</div>
+  <div id="charCluster">
+      <div id="charNav">
+        <button class="med" onclick="initAudio();openDynasty()" title="가문"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l7 2.2v5.3c0 4.2-3 7.2-7 9-4-1.8-7-4.8-7-9V5.2z"/></svg></button>
+        <button class="med" onclick="initAudio();openCulture()" title="문화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c2.2 3 3.8 5 3.8 7.8a3.8 3.8 0 0 1-7.6 0c0-1.4.7-2.6 1.8-3.6"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10.5" y1="18" x2="13.5" y2="18"/></svg></button>
+        <button class="med" onclick="initAudio();openFaith()" title="신앙"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><line x1="6.5" y1="9" x2="17.5" y2="9"/></svg></button>
+        <button class="med" onclick="initAudio();openLegit()" title="정통성"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><path d="M8.5 13l-1.5 8 5-3 5 3-1.5-8"/></svg></button>
+      </div>
+    <div id="charPort">
+      <div id="portrait">M</div>
+      <div id="charBot">
+        <div id="stressBox">
+          <div class="lbl"><span>스트레스</span><span id="stressNum">0 / 150</span></div>
+          <div id="stressTrack">
+            <div id="stressFill"></div>
+            <div class="smark" style="left:33.3%"></div>
+            <div class="smark" style="left:66.6%"></div>
+          </div>
+        </div>
+        <button class="med" onclick="initAudio();openLifestyle()" title="인생관"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 4.5l2.2 5.3 5.3 2.2-5.3 2.2L12 19.5l-2.2-5.3L4.5 12l5.3-2.2z"/></svg></button>
+        <button class="med" onclick="initAudio();openInventory()" title="소지품"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M4 9l2.2-4h11.6L20 9"/><line x1="12" y1="12" x2="12" y2="14.5"/></svg></button>
+      </div>
+    </div>
+  </div>
+<div id="ftr">
+  <div id="ftrInner">
+  <div class="ftr-date">
+    <div class="date"><span id="dateTxt">1066년 9월 15일</span></div>
+  </div>
+  <div class="ftr-ctrl">
+    <button id="pauseBtn" onclick="initAudio();togglePause()">▶</button>
+    <div class="spd-group">
+      <button class="spd" data-s="1" onclick="initAudio();setSpeed(1)">1x</button>
+      <button class="spd" data-s="2" onclick="initAudio();setSpeed(2)">2x</button>
+      <button class="spd" data-s="3" onclick="initAudio();setSpeed(3)">3x</button>
+    </div>
+  </div>
+  </div>
+</div>
 
-/* 본문 — 3열 flex (iOS Safari 호환) */
-.pm-body{
-  display:flex;
-  flex-direction:row;
-  align-items:stretch;
-}
-.pm-section{
-  flex:1;
-  min-width:0;
-  padding:12px 14px;
-  border-right:1px solid var(--line);
-}
-.pm-section:last-child{ border-right:none }
+<div id="shade"><div class="modal" id="modalBox"></div></div>
+<div id="profileShade"><div id="profileModal"></div></div>
+<div id="actShade"><div id="actModal"></div></div>
 
-/* 섹션 제목 */
-.pm-sec-title{
-  font-size:.6rem; letter-spacing:.22em; color:var(--gold-dim);
-  margin:0 0 7px; padding-bottom:4px;
-  border-bottom:1px solid var(--line);
-}
+<script src="script.js?v=155"></script>
+</body>
+</html><!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>에이레 1066 — 먼스터의 소왕</title>
+<link rel="stylesheet" href="style.css?v=132">
+</head>
+<body>
 
-/* key-value 행 */
-.pm-kv{
-  display:flex; justify-content:space-between; align-items:baseline;
-  gap:4px; font-size:.73rem; padding:2px 0;
-  border-bottom:1px dotted #2c2316;
-  line-height:1.4;
-}
-.pm-kv>span:first-child{ color:var(--parch-dim); flex-shrink:0; white-space:nowrap; }
-.pm-kv>span:last-child{ text-align:right; word-break:keep-all; overflow-wrap:anywhere; }
+<div id="rotateNote"><div class="rn-inner"><div class="rn-ico">⟳</div>가로로 돌려주세요</div></div>
 
-/* 스킬 바 */
-.skill-row{ display:flex; align-items:center; gap:4px; margin-bottom:4px }
-.skill-name{ width:22px; color:var(--parch-dim); flex-shrink:0; font-size:.68rem }
-.skill-bar-wrap{ flex:1; height:5px; background:#0c0906; border:1px solid #2a2014; border-radius:2px; overflow:hidden; min-width:0; }
-.skill-bar-fill{ height:100%; border-radius:2px }
-.skill-val{ width:16px; text-align:right; color:var(--parch); font-size:.68rem; flex-shrink:0 }
-.skill-grade{ width:36px; font-size:.57rem; flex-shrink:0; color:var(--parch-dim) }
+<div id="hdr">
+  <div id="hdrInner">
+  <div class="res">
+    <span><b>금</b><span id="goldTxt">340</span><small id="goldInc" class="inc"></small></span>
+    <span><b>위신</b><span id="prestigeTxt">120</span><small id="prestigeInc" class="inc"></small></span>
+    <span><b>신앙도</b><span id="pietyTxt">0</span><small id="pietyInc" class="inc"></small></span>
+    <span><b>병력</b><span id="troopTxt">1,200</span></span>
+    <span><b>직할</b><span id="domainTxt">2/6</span></span>
+  </div>
+  </div>
+</div>
 
-/* 특성 칩 */
-.pm-chip{
-  display:inline-block; font-size:.62rem;
-  border:1px solid var(--gold-dim); border-radius:2px;
-  padding:1px 4px; color:var(--parch); background:#241b10;
-  margin:2px 2px 2px 0; white-space:nowrap;
-}
-.pm-chip.edu{ border-color:var(--steel) }
-.pm-chip.life{ border-color:var(--violet) }
-.pm-chip.neg{ border-color:var(--blood); color:#d08a82 }
+<div id="main">
+  <div id="mapWrap">
+    <svg id="map" viewBox="0 0 420 470" preserveAspectRatio="xMidYMid meet"></svg>
+    <div id="actWidget" onclick="initAudio();togglePanel('act')" title="진행 중인 활동"></div>
+    <div id="mapPanel">
+      <div class="mp-title">지도</div>
+      <div id="mapModes">
+      <button class="mm on" data-m="dejure" onclick="setMapMode('dejure')" title="de jure 공작령 권역">권역</button>
+      <button class="mm" data-m="realm" onclick="setMapMode('realm')" title="실제 지배 세력">실지배</button>
+      <button class="mm" data-m="culture" onclick="setMapMode('culture')" title="카운티 문화">문화</button>
+      <button class="mm" data-m="faith" onclick="setMapMode('faith')" title="지배자 신앙">신앙</button>
+      <button class="mm" data-m="control" onclick="setMapMode('control')" title="장악력 (적=낮음·녹=높음)">장악력</button>
+      <button id="mapReset" class="mm" onclick="resetMapView()" title="지도 원위치">원위치</button>
+      </div>
+    </div>
+  </div>
+  <div id="logWrap" class="side-panel">
+    <button class="panel-tab" id="logTab" title="연대기" onclick="initAudio();togglePanel('log')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 6c-2-1.4-5-1.4-7.5 0v12c2.5-1.4 5.5-1.4 7.5 0 2-1.4 5-1.4 7.5 0V6c-2.5-1.4-5.5-1.4-7.5 0z"/><line x1="12" y1="6" x2="12" y2="18"/></svg></button>
+    <div class="panel-head">연대기<button class="panel-close" onclick="initAudio();togglePanel('log')">✕</button></div>
+    <div id="log"></div>
+  </div>
+</div>
 
-/* 반응형 — 500px 이하 세로 배치 */
-@media (max-width:500px){
-  .pm-body{ flex-direction:column }
-  .pm-section{ flex:none; border-right:none; border-bottom:1px solid var(--line) }
-  .pm-section:last-child{ border-bottom:none }
-}
+<div id="councilWrap" class="side-panel">
+  <button class="panel-tab" id="councilTab" title="자문회" onclick="initAudio();togglePanel('council')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4.6"/><circle cx="12" cy="4" r="1.5"/><circle cx="12" cy="20" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="20" cy="12" r="1.5"/></svg></button>
+  <div class="panel-head">자문회<button class="panel-close" onclick="initAudio();closePanel('council')">✕</button></div>
+  <div id="councilContent" class="panel-body"></div>
+</div>
+<div id="fiefWrap" class="side-panel">
+  <button class="panel-tab" id="fiefTab" title="봉역" onclick="initAudio();togglePanel('fief')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 8l3 9h10l3-9-5 4-3-6-3 6-5-4z"/></svg></button>
+  <div class="panel-head">봉역<button class="panel-close" onclick="initAudio();closePanel('fief')">✕</button></div>
+  <div id="fiefContent" class="panel-body"></div>
+</div>
+<div id="actWrap" class="side-panel">
+  <button class="panel-tab" id="actTab" title="활동" onclick="initAudio();togglePanel('act')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="21"/><path d="M7 4.5h11l-3 4 3 4H7z"/></svg></button>
+  <div class="panel-head">활동<button class="panel-close" onclick="initAudio();closePanel('act')">✕</button></div>
+  <div id="actContent" class="panel-body"></div>
+</div>
+<div id="courtWrap" class="side-panel">
+  <button class="panel-tab" id="courtTab" title="궁정신하" onclick="initAudio();togglePanel('court')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3"/><circle cx="16.5" cy="9" r="2.3"/><path d="M3.5 19c0-2.8 2.2-4.7 5-4.7s5 1.9 5 4.7"/><path d="M15 19c.1-2.3 1.7-3.8 3.5-3.8 1.5 0 2.8 1 3.1 2.9"/></svg></button>
+  <div class="panel-head">궁정신하<button class="panel-close" onclick="initAudio();closePanel('court')">✕</button></div>
+  <div id="courtContent" class="panel-body"></div>
+</div>
+<div id="decWrap" class="side-panel">
+  <button class="panel-tab" id="decTab" title="결단" onclick="initAudio();togglePanel('dec')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3l9 9-9 9-9-9z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></button>
+  <div class="panel-head">결단<button class="panel-close" onclick="initAudio();closePanel('dec')">✕</button></div>
+  <div id="decContent" class="panel-body"></div>
+</div>
 
-/* ===== 모바일: 가로 전용 (데스크탑 레이아웃 축소판) ===== */
-#rotateNote{ display:none }
+<div id="warWrap" class="side-panel">
+  <button class="panel-tab" id="warTab" title="군사" onclick="initAudio();togglePanel('war')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="5.5" y1="5.5" x2="18.5" y2="18.5"/><line x1="18.5" y1="5.5" x2="5.5" y2="18.5"/><line x1="3.5" y1="7" x2="7" y2="3.5"/><line x1="20.5" y1="7" x2="17" y2="3.5"/></svg></button>
+  <div class="panel-head">군사<button class="panel-close" onclick="initAudio();closePanel('war')">✕</button></div>
+  <div id="warContent" class="panel-body"></div>
+</div>
 
-/* 세로(폰): 게임 숨기고 가로 안내만 */
-@media (orientation:portrait) and (max-width:820px){
-  #rotateNote{
-    display:flex; position:fixed; inset:0; z-index:9999;
-    background:var(--bg); color:var(--gold);
-    align-items:center; justify-content:center; text-align:center;
-  }
-  .rn-inner{ font-size:1.15rem; letter-spacing:.12em; line-height:1.8; font-family:inherit }
-  .rn-ico{ font-size:3rem; margin-bottom:14px; animation:rnSpin 2.4s ease-in-out infinite }
-  @keyframes rnSpin{ 0%,60%{transform:rotate(0)} 80%,100%{transform:rotate(90deg)} }
-  body > *:not(#rotateNote){ visibility:hidden !important }
-}
+<div id="intrigueWrap" class="side-panel">
+  <button class="panel-tab" id="intrigueTab" title="계책" onclick="initAudio();togglePanel('intrigue')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2 9h-4z"/><line x1="8" y1="11" x2="16" y2="11"/><path d="M11 11h2v6l-1 2-1-2z"/></svg></button>
+  <div class="panel-head">계책<button class="panel-close" onclick="initAudio();closePanel('intrigue')">✕</button></div>
+  <div id="intrigueContent" class="panel-body"></div>
+</div>
+<div id="factionWrap" class="side-panel">
+  <button class="panel-tab" id="factionTab" title="파벌" onclick="initAudio();togglePanel('faction')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="4"/><path d="M5 5h5l-1.5 2.3L10 10H5z"/><line x1="19" y1="21" x2="19" y2="4"/><path d="M19 5h-5l1.5 2.3L14 10h5z"/></svg></button>
+  <div class="panel-head">파벌<button class="panel-close" onclick="initAudio();closePanel('faction')">✕</button></div>
+  <div id="factionContent" class="panel-body"></div>
+</div>
+<div id="royalcourtWrap" class="side-panel">
+  <button class="panel-tab" id="royalcourtTab" title="왕실궁정" onclick="initAudio();togglePanel('royalcourt')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"><path d="M4 9l8-5 8 5"/><line x1="6.5" y1="9.5" x2="6.5" y2="17.5"/><line x1="10" y1="9.5" x2="10" y2="17.5"/><line x1="14" y1="9.5" x2="14" y2="17.5"/><line x1="17.5" y1="9.5" x2="17.5" y2="17.5"/><line x1="4.5" y1="18" x2="19.5" y2="18"/></svg></button>
+  <div class="panel-head">왕실궁정<button class="panel-close" onclick="initAudio();closePanel('royalcourt')">✕</button></div>
+  <div id="royalcourtContent" class="panel-body"></div>
+</div>
+  <div id="charCluster">
+      <div id="charNav">
+        <button class="med" onclick="initAudio();openDynasty()" title="가문"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l7 2.2v5.3c0 4.2-3 7.2-7 9-4-1.8-7-4.8-7-9V5.2z"/></svg></button>
+        <button class="med" onclick="initAudio();openCulture()" title="문화"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c2.2 3 3.8 5 3.8 7.8a3.8 3.8 0 0 1-7.6 0c0-1.4.7-2.6 1.8-3.6"/><line x1="9" y1="21" x2="15" y2="21"/><line x1="10.5" y1="18" x2="13.5" y2="18"/></svg></button>
+        <button class="med" onclick="initAudio();openFaith()" title="신앙"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="3" x2="12" y2="21"/><line x1="6.5" y1="9" x2="17.5" y2="9"/></svg></button>
+        <button class="med" onclick="initAudio();openLegit()" title="정통성"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><circle cx="12" cy="9" r="5"/><path d="M8.5 13l-1.5 8 5-3 5 3-1.5-8"/></svg></button>
+      </div>
+    <div id="charPort">
+      <div id="portrait">M</div>
+      <div id="charBot">
+        <div id="stressBox">
+          <div class="lbl"><span>스트레스</span><span id="stressNum">0 / 150</span></div>
+          <div id="stressTrack">
+            <div id="stressFill"></div>
+            <div class="smark" style="left:33.3%"></div>
+            <div class="smark" style="left:66.6%"></div>
+          </div>
+        </div>
+        <button class="med" onclick="initAudio();openLifestyle()" title="인생관"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 4.5l2.2 5.3 5.3 2.2-5.3 2.2L12 19.5l-2.2-5.3L4.5 12l5.3-2.2z"/></svg></button>
+        <button class="med" onclick="initAudio();openInventory()" title="소지품"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="9" width="16" height="11" rx="1"/><path d="M4 9l2.2-4h11.6L20 9"/><line x1="12" y1="12" x2="12" y2="14.5"/></svg></button>
+      </div>
+    </div>
+  </div>
+<div id="ftr">
+  <div id="ftrInner">
+  <div class="ftr-date">
+    <div class="date"><span id="dateTxt">1066년 9월 15일</span></div>
+  </div>
+  <div class="ftr-ctrl">
+    <button id="pauseBtn" onclick="initAudio();togglePause()">▶</button>
+    <div class="spd-group">
+      <button class="spd" data-s="1" onclick="initAudio();setSpeed(1)">1x</button>
+      <button class="spd" data-s="2" onclick="initAudio();setSpeed(2)">2x</button>
+      <button class="spd" data-s="3" onclick="initAudio();setSpeed(3)">3x</button>
+    </div>
+  </div>
+  </div>
+</div>
 
-/* 가로 + 낮은 높이(폰): 데스크탑 구조 유지, 스케일·탭만 축소 */
-@media (orientation:landscape) and (max-height:540px){
-  /* 헤더/푸터 압축 */
-  #hdrInner{ height:34px; padding:0 12px 0 34px }
-  #hdr .res{ gap:13px; font-size:.72rem }
-  #hdr .res .inc{ font-size:.54rem }
-  #ftrInner{ height:34px; padding-left:34px; gap:10px }
-  .ftr-ctrl{ gap:8px; padding:0 10px }
-  .ftr-ctrl .spd{ padding:4px 10px; font-size:.64rem }
-  #ftr .date{ font-size:.82rem }
-  #ftr .date small{ font-size:.56rem }
-  #map{ height:calc(100% - 24px) }
+<div id="shade"><div class="modal" id="modalBox"></div></div>
+<div id="profileShade"><div id="profileModal"></div></div>
+<div id="actShade"><div id="actModal"></div></div>
 
-  /* 지도 패널 */
-  #mapPanel{ right:8px; bottom:8px; padding:3px 4px }
-  #mapModes{ max-width:210px; gap:2px }
-  .mm{ font-size:.6rem; padding:2px 6px }
-  #mapPanel .mp-title{ font-size:.55rem; padding-bottom:2px; margin-bottom:2px }
-
-  /* 캐릭터 클러스터 축소 */
-  #charCluster{ left:4px; bottom:4px; gap:5px }
-  #portrait{ width:48px; min-height:60px }
-  #portrait svg{ width:48px; height:60px }
-  #charInfo{ padding:3px 8px }
-  #charInfo .nm{ font-size:.78rem }
-  #charInfo .ttl{ font-size:.58rem }
-  .chips{ display:none }
-  #stats{ font-size:.6rem }
-  #stats span{ padding:0 6px }
-  #stressBox{ width:56px; flex:0 0 56px }
-  #stressBox .lbl{ font-size:.54rem }
-  #stressLvl{ display:none }
-  #charBot{ gap:4px }
-  #charNav{ gap:4px }
-  .med{ width:26px; height:26px; min-width:26px }
-  .med svg{ width:14px; height:14px }
-
-  /* 사이드 패널: 짧은 높이에 맞춰 좁고 위로 */
-  .side-panel{ top:34px; width:min(300px,66vw) }
-  .panel-head{ padding:6px 12px; font-size:.66rem }
-  .panel-body{ padding:8px 12px; font-size:.8rem }
-
-  /* 우측 탭: 짧은 높이에 10개 다 들어가게 압축 */
-  .panel-tab{ left:-28px; width:28px; border-radius:6px 0 0 6px }
-  .panel-tab svg{ width:15px; height:15px }
-  #logTab        { top:4px;   height:28px }
-  #fiefTab       { top:35px;  height:28px }
-  #warTab        { top:66px;  height:28px }
-  #councilTab    { top:97px;  height:28px }
-  #courtTab      { top:128px; height:28px }
-  #intrigueTab   { top:159px; height:28px }
-  #factionTab    { top:190px; height:28px }
-  #decTab        { top:221px; height:28px }
-  #actTab        { top:252px; height:28px }
-  #royalcourtTab { top:283px; height:28px }
-}
+<script src="script.js?v=155"></script>
+</body>
+</html>
