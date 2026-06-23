@@ -244,7 +244,7 @@ button:disabled{opacity:.35; cursor:default}
   #hdrInner{ display:contents }
   #ftr{ position:fixed; left:0; right:0; bottom:0; z-index:30; filter:none; display:flex; flex-wrap:nowrap; align-items:center; justify-content:space-between; padding:0 10px; gap:8px; min-height:40px; background:linear-gradient(180deg,#1b140d,#110b06); border-top:1px solid var(--gold-dim) }
   #ftrInner{ display:contents }
-  #mapPanel{ bottom:48px; right:36px; padding:4px 5px }
+  #mapPanel{ bottom:48px; right:24px; padding:4px 5px }
   .ftr-date{ order:0; flex-basis:auto; padding:0; gap:6px; border-top:none }
   .ftr-date .rule{ max-width:54px }
   #ftr .date{ font-size:.8rem; letter-spacing:.04em }
@@ -284,19 +284,19 @@ button:disabled{opacity:.35; cursor:default}
   .med{ width:28px; height:28px; min-width:28px }
   .med svg{ width:15px; height:15px }
 
-  /* 우측 패널 탭 — 모바일 축소(너비·아이콘·높이·간격) */
-  .panel-tab{ left:-30px; width:30px; border-radius:6px 0 0 6px }
-  .panel-tab svg{ width:16px; height:16px }
-  #logTab        { top:66px;  height:34px }
-  #fiefTab       { top:102px; height:34px }
-  #warTab        { top:138px; height:34px }
-  #councilTab    { top:174px; height:34px }
-  #courtTab      { top:210px; height:34px }
-  #intrigueTab   { top:246px; height:34px }
-  #factionTab    { top:282px; height:34px }
-  #decTab        { top:318px; height:34px }
-  #actTab        { top:354px; height:34px }
-  #royalcourtTab { top:390px; height:34px }
+  /* 우측 패널 탭 — 모바일에서 40% 추가 축소(폭18·높이20·아이콘10·간격22) */
+  .panel-tab{ left:-18px; width:18px; border-radius:5px 0 0 5px }
+  .panel-tab svg{ width:10px; height:10px }
+  #logTab        { top:64px;  height:20px }
+  #fiefTab       { top:86px;  height:20px }
+  #warTab        { top:108px; height:20px }
+  #councilTab    { top:130px; height:20px }
+  #courtTab      { top:152px; height:20px }
+  #intrigueTab   { top:174px; height:20px }
+  #factionTab    { top:196px; height:20px }
+  #decTab        { top:218px; height:20px }
+  #actTab        { top:240px; height:20px }
+  #royalcourtTab { top:262px; height:20px }
 }
 
 /* ===== 사이드 패널 공통 시스템 ===== */
